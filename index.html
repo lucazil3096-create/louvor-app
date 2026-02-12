@@ -288,34 +288,30 @@ let todayList=[],currentTab='all';
 
 function load(){
 // Load from localStorage first (instant)
-try{var d=localStorage.getItem(SK);if(d)lyrics=JSON.parse(d);else lyrics=[];
+try{var d=localStorage.getItem(SK);if(d)lyrics=JSON.parse(d);
 var td=localStorage.getItem(TK);if(td)todayList=JSON.parse(td);else todayList=[];
 }catch(e){lyrics=[];todayList=[];}
-// Then sync from Firebase
+if(!lyrics.length){lyrics=[{id:'demo1',title:'Exemplo - Grande é o Senhor',tom:'G',lyrics:'Grande é o Senhor\nE muito digno de louvor\nNa cidade do nosso Deus\nSeu santo monte\n\nAlegria de toda a terra\nGrande é o Senhor\nEm quem nós temos a vitória\nE que nos ajuda contra o inimigo\n\nPor isso diante dele nos prostramos'}];save();}
+// Sync from Firebase
 fbDoc.get().then(function(doc){
 fbReady=true;
 if(doc.exists){
 var data=doc.data();
-if(data.lyrics)lyrics=JSON.parse(data.lyrics);
-if(data.todayList)todayList=JSON.parse(data.todayList);
-localStorage.setItem(SK,JSON.stringify(lyrics));
-localStorage.setItem(TK,JSON.stringify(todayList));
-renderList();updateTodayCount();
-}else{
-// First time: push local data to Firebase
-fbSave();
-}
-}).catch(function(e){console.log('Firebase offline, usando local');});
-// Listen for realtime updates from other devices
+if(data.lyrics){lyrics=JSON.parse(data.lyrics);localStorage.setItem(SK,JSON.stringify(lyrics));}
+if(data.todayList){todayList=JSON.parse(data.todayList);localStorage.setItem(TK,JSON.stringify(todayList));}
+renderList();try{updateTodayCount();}catch(e){}
+}else{fbSave();}
+}).catch(function(e){console.log('Firebase offline');});
+// Realtime sync
 fbDoc.onSnapshot(function(doc){
-if(!doc.exists)return;
+if(!doc.exists||doc.metadata.hasPendingWrites)return;
+try{
 var data=doc.data();
-if(data.lyrics)lyrics=JSON.parse(data.lyrics);
-if(data.todayList)todayList=JSON.parse(data.todayList);
-localStorage.setItem(SK,JSON.stringify(lyrics));
-localStorage.setItem(TK,JSON.stringify(todayList));
+if(data.lyrics){lyrics=JSON.parse(data.lyrics);localStorage.setItem(SK,JSON.stringify(lyrics));}
+if(data.todayList){todayList=JSON.parse(data.todayList);localStorage.setItem(TK,JSON.stringify(todayList));}
 renderList();updateTodayCount();
-});
+}catch(e){console.log('Sync error:',e);}
+},function(err){console.log('Snapshot error:',err);});
 }
 
 function fbSave(){
