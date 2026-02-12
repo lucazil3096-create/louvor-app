@@ -288,58 +288,60 @@ appId:"1:599364196472:web:3fecfe67cfa7f38c81758d"
 var db=firebase.firestore();
 var fbDoc=db.collection('app').doc('data');
 var saveTimer=null;
-var saveLock=false;// Prevents snapshot from overwriting during save
+var isSaving=false;
 
 const SK='church-lyrics-v5';const TK='church-today-v1';
 let lyrics=[],currentId=null,editId=null,viewMode='single',fontSize=32,scrollSpeed=20,isScrolling=false,animId=null;
 let currentPage=0,totalPages=0,allLines=[],touchStartX=0,touchDX=0,isSwiping=false;
 let todayList=[],currentTab='all';
 
+// Merge: keeps ALL songs from both sources, never loses data
+function mergeLyrics(local,remote){
+if(!remote||!remote.length)return local;
+if(!local||!local.length)return remote;
+var map={};
+local.forEach(function(l){map[l.id]=l;});
+remote.forEach(function(l){if(!map[l.id])map[l.id]=l;});
+// Keep local order first, then add any remote-only
+var result=local.slice();
+remote.forEach(function(l){if(!local.find(function(x){return x.id===l.id;}))result.push(l);});
+return result;
+}
+
 function load(){
 try{var d=localStorage.getItem(SK);if(d)lyrics=JSON.parse(d);
 var td=localStorage.getItem(TK);if(td)todayList=JSON.parse(td);else todayList=[];
 }catch(e){lyrics=[];todayList=[];}
 if(!lyrics.length){lyrics=[{id:'demo1',title:'Exemplo - Grande é o Senhor',tom:'G',lyrics:'Grande é o Senhor\nE muito digno de louvor\nNa cidade do nosso Deus\nSeu santo monte\n\nAlegria de toda a terra\nGrande é o Senhor\nEm quem nós temos a vitória\nE que nos ajuda contra o inimigo\n\nPor isso diante dele nos prostramos'}];save();}
-// Load from Firebase once
+// Load from Firebase once - MERGE, never replace
 fbDoc.get().then(function(doc){
 if(doc.exists&&doc.data().lyrics){
-lyrics=JSON.parse(doc.data().lyrics);
-if(doc.data().todayList)todayList=JSON.parse(doc.data().todayList);
+var remoteLyrics=JSON.parse(doc.data().lyrics);
+lyrics=mergeLyrics(lyrics,remoteLyrics);
 localStorage.setItem(SK,JSON.stringify(lyrics));
+if(doc.data().todayList)todayList=JSON.parse(doc.data().todayList);
 localStorage.setItem(TK,JSON.stringify(todayList));
 renderList();try{updateTodayCount();}catch(e){}
-}else{fbSave();}
+fbSaveNow();// Push merged result back
+}else{fbSaveNow();}
 }).catch(function(){});
-// Realtime: only accept remote changes
-fbDoc.onSnapshot(function(doc){
-if(!doc.exists||saveLock||doc.metadata.hasPendingWrites)return;
-try{
-var data=doc.data();
-var newLyrics=data.lyrics?JSON.parse(data.lyrics):lyrics;
-var newToday=data.todayList?JSON.parse(data.todayList):todayList;
-lyrics=newLyrics;todayList=newToday;
-localStorage.setItem(SK,JSON.stringify(lyrics));
-localStorage.setItem(TK,JSON.stringify(todayList));
-// Only re-render if user is on the list screen
-var listScreen=document.getElementById('screen-list');
-if(listScreen&&listScreen.classList.contains('active')){renderList();}
-try{updateTodayCount();}catch(e){}
-}catch(e){}
-});
 }
 
-function fbSave(){
-saveLock=true;
-if(saveTimer)clearTimeout(saveTimer);
-saveTimer=setTimeout(function(){
+function fbSaveNow(){
 fbDoc.set({
 lyrics:JSON.stringify(lyrics),
 todayList:JSON.stringify(todayList),
 updatedAt:firebase.firestore.FieldValue.serverTimestamp()
-}).then(function(){
-setTimeout(function(){saveLock=false;},2000);
-}).catch(function(){saveLock=false;});
-},300);
+}).catch(function(){});
+}
+
+function fbSave(){
+isSaving=true;
+if(saveTimer)clearTimeout(saveTimer);
+saveTimer=setTimeout(function(){
+fbSaveNow();
+setTimeout(function(){isSaving=false;},1000);
+},200);
 }
 
 function save(){
