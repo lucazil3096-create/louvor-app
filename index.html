@@ -96,6 +96,13 @@ body.light .btn-theme{border-color:rgba(100,80,50,.2);color:#8b6b3a}
 .split-col{flex:1;white-space:pre-wrap;padding:0 10px;word-wrap:break-word;font-weight:700;letter-spacing:.3px;color:#fff}
 .split-divider{width:2px;background:rgba(224,120,64,.2);align-self:stretch;flex-shrink:0}
 .page-wrap{flex:1;overflow:hidden;position:relative;display:none}.page-wrap.active{display:block}
+.lyrics-fit-wrap{flex:1;overflow:hidden;display:none;position:relative}.lyrics-fit-wrap.active{display:block}
+.fit-track{display:flex;height:100%;transition:transform .35s cubic-bezier(.25,.46,.45,.94)}
+.fit-slide{min-width:100%;height:100%;display:flex;padding:12px 10px;gap:0;overflow:hidden}
+.fit-col{flex:1;white-space:pre-wrap;word-wrap:break-word;font-weight:700;letter-spacing:.3px;color:#fff;padding:0 8px;overflow:hidden}
+.fit-divider{width:2px;background:rgba(224,120,64,.15);align-self:stretch;flex-shrink:0}
+body.light .fit-col{color:#1a1a1a}
+body.light .fit-divider{background:rgba(224,120,64,.1)}
 .page-track{display:flex;height:100%;transition:transform .35s cubic-bezier(.25,.46,.45,.94)}
 .page-slide{min-width:100%;height:100%;display:flex;gap:0;padding:18px 14px 30px;overflow:hidden}
 .page-col{flex:1;white-space:pre-wrap;word-wrap:break-word;padding:0 10px;overflow:hidden;font-weight:700;letter-spacing:.3px;color:#fff}
@@ -219,11 +226,13 @@ body.light .pads-header{background:rgba(0,0,0,.97)}
 <div class="view-body">
 <div class="lyrics-scroll active" id="lyrics-scroll"><div class="lyrics-single" id="lyrics-single"></div></div>
 <div class="lyrics-split-wrap" id="lyrics-split-wrap"><div class="split-col" id="split-col1"></div><div class="split-divider"></div><div class="split-col" id="split-col2"></div></div>
+<div class="lyrics-fit-wrap" id="lyrics-fit-wrap"><div class="fit-track" id="fit-track"></div><button class="page-nav left hidden" id="fit-prev" onclick="fitGo(-1)">‹</button><button class="page-nav right hidden" id="fit-next" onclick="fitGo(1)">›</button><div class="page-footer"><div id="fit-indicator" style="display:flex;gap:6px"></div></div></div>
 <div class="page-wrap" id="page-wrap"><div class="page-track" id="page-track"></div><button class="page-nav left hidden" id="page-prev" onclick="pageGo(-1)">‹</button><button class="page-nav right hidden" id="page-next" onclick="pageGo(1)">›</button><div class="page-footer"><div id="page-indicator" style="display:flex;gap:6px"></div></div></div>
 </div>
 <div class="toolbar">
 <button class="tb active" data-mode="single" onclick="setMode('single')">Coluna</button>
-<button class="tb" data-mode="split" onclick="setMode('split')">Duas Col.</button>
+<button class="tb" data-mode="split" onclick="setMode('split')">2 Col.</button>
+<button class="tb" data-mode="fit" onclick="setMode('fit')">Encaixar</button>
 <button class="tb" data-mode="page" onclick="setMode('page')">Páginas</button>
 <button class="tb" data-mode="auto" onclick="setMode('auto')">Auto</button>
 <div class="tb-sep"></div>
@@ -395,15 +404,44 @@ function openEditCurrent(){if(currentId)openEdit(currentId);}
 function applyFontAll(){const s=fontSize+'px',lh=(fontSize*1.65)+'px';
 document.querySelectorAll('.lyrics-single,.split-col,.page-col').forEach(el=>{el.style.fontSize=s;el.style.lineHeight=lh;});
 document.getElementById('font-num').textContent=fontSize;}
-function buildPages(){const wrap=document.getElementById('page-wrap'),track=document.getElementById('page-track');
-const availH=wrap.clientHeight-40;const lineH=fontSize*1.65;const linesPerCol=Math.max(1,Math.floor(availH/lineH));
-const linesPerPage=linesPerCol*2;track.innerHTML='';let i=0;
-while(i<allLines.length){const pg=allLines.slice(i,i+linesPerPage);const c1=pg.slice(0,linesPerCol),c2=pg.slice(linesPerCol);
-const slide=document.createElement('div');slide.className='page-slide';
-const col1=document.createElement('div');col1.className='page-col';col1.textContent=c1.join('\n');col1.style.fontSize=fontSize+'px';col1.style.lineHeight=(fontSize*1.65)+'px';
-const div=document.createElement('div');div.className='page-divider';
-const col2=document.createElement('div');col2.className='page-col';col2.textContent=c2.join('\n');col2.style.fontSize=fontSize+'px';col2.style.lineHeight=(fontSize*1.65)+'px';
-slide.appendChild(col1);slide.appendChild(div);slide.appendChild(col2);track.appendChild(slide);i+=linesPerPage;}
+function buildPages(){var wrap=document.getElementById('page-wrap'),track=document.getElementById('page-track');
+var availH=wrap.clientHeight-40;var availW=wrap.clientWidth;
+if(!availH||!availW||!allLines.length)return;
+
+var lines=allLines.slice();
+while(lines.length&&!lines[lines.length-1].trim())lines.pop();
+var totalLines=lines.length;
+
+// Use manual fontSize, auto-calculate best cols (1-4)
+var maxChars=0;
+for(var i=0;i<lines.length;i++){if(lines[i].length>maxChars)maxChars=lines[i].length;}
+
+var bestCols=1;
+for(var cols=1;cols<=4;cols++){
+var colW=(availW-(cols-1)*10-cols*16)/cols;
+var maxFontByW=maxChars>0?Math.floor(colW/(maxChars*0.52)):999;
+if(fontSize<=maxFontByW)bestCols=cols;
+}
+
+var linesPerCol=Math.max(1,Math.floor(availH/(fontSize*1.5)));
+var linesPerPage=linesPerCol*bestCols;
+
+track.innerHTML='';
+var pageIdx=0;
+while(pageIdx*linesPerPage<totalLines){
+var pageLines=lines.slice(pageIdx*linesPerPage,(pageIdx+1)*linesPerPage);
+var slide=document.createElement('div');slide.className='page-slide';
+for(var c=0;c<bestCols;c++){
+if(c>0){var dv=document.createElement('div');dv.className='page-divider';slide.appendChild(dv);}
+var col=document.createElement('div');col.className='page-col';
+col.style.fontSize=fontSize+'px';col.style.lineHeight=(fontSize*1.5)+'px';
+var start=c*linesPerCol;
+var end=Math.min(start+linesPerCol,pageLines.length);
+col.textContent=pageLines.slice(start,end).join('\n');
+slide.appendChild(col);
+}
+track.appendChild(slide);pageIdx++;
+}
 totalPages=track.children.length;currentPage=0;updatePageUI();}
 function updatePageUI(){document.getElementById('page-track').style.transform='translateX(-'+currentPage*100+'%)';
 const ind=document.getElementById('page-indicator');ind.innerHTML='';
@@ -419,10 +457,121 @@ function setMode(mode){viewMode=mode;stopScroll();
 document.querySelectorAll('.tb[data-mode]').forEach(function(b){b.classList.toggle('active',b.dataset.mode===mode);});
 document.getElementById('lyrics-scroll').classList.toggle('active',mode==='single'||mode==='auto');
 document.getElementById('lyrics-split-wrap').classList.toggle('active',mode==='split');
+document.getElementById('lyrics-fit-wrap').classList.toggle('active',mode==='fit');
 document.getElementById('page-wrap').classList.toggle('active',mode==='page');
 document.getElementById('tb-auto').classList.toggle('visible',mode==='auto');
-if(mode==='page')requestAnimationFrame(function(){requestAnimationFrame(function(){buildPages();});});}
-function changeFontSize(d){fontSize=Math.max(14,Math.min(80,fontSize+d));applyFontAll();if(viewMode==='page')requestAnimationFrame(function(){buildPages();});}
+if(mode==='page')requestAnimationFrame(function(){requestAnimationFrame(function(){buildPages();});});
+if(mode==='fit')requestAnimationFrame(function(){requestAnimationFrame(function(){buildFit();});});}
+function changeFontSize(d){fontSize=Math.max(14,Math.min(80,fontSize+d));applyFontAll();if(viewMode==='page')requestAnimationFrame(function(){buildPages();});if(viewMode==='fit')requestAnimationFrame(function(){buildFit();});}
+
+var fitPage=0,fitTotal=0;
+function buildFit(){
+var wrap=document.getElementById('lyrics-fit-wrap');
+var track=document.getElementById('fit-track');
+if(!wrap||!track||!allLines.length)return;
+var availH=wrap.clientHeight-30;// room for indicator
+var availW=wrap.clientWidth;
+if(!availH||!availW)return;
+
+var lines=allLines.slice();
+while(lines.length&&!lines[lines.length-1].trim())lines.pop();
+var totalLines=lines.length;
+
+// Find max chars in any line
+var maxChars=0;
+for(var i=0;i<lines.length;i++){if(lines[i].length>maxChars)maxChars=lines[i].length;}
+
+// Try different column counts (1-4) and find best font size
+// that fits all lines on minimum pages
+var bestCols=2,bestSize=14,bestPages=999;
+for(var cols=1;cols<=4;cols++){
+var colW=(availW-(cols-1)*10-cols*16)/cols;
+// Max font by width
+var fontW=maxChars>0?Math.floor(colW/(maxChars*0.52)):80;
+// Max font by height for single page
+var linesPerCol=Math.ceil(totalLines/cols);
+var fontH=Math.floor(availH/(linesPerCol*1.5));
+var bestF=Math.min(fontW,fontH,80);
+bestF=Math.max(bestF,10);
+
+if(bestF>=14){
+// Fits on 1 page
+if(bestF>bestSize||(bestF===bestSize&&cols<=bestCols)){
+bestSize=bestF;bestCols=cols;bestPages=1;
+}
+}else{
+// Need multiple pages - use a reasonable font (min 18px)
+var useFont=Math.min(fontW,36);
+useFont=Math.max(useFont,16);
+var lpc=Math.max(1,Math.floor(availH/(useFont*1.5)));
+var linesPerPage=lpc*cols;
+var pages=Math.ceil(totalLines/linesPerPage);
+if(useFont>bestSize||(useFont===bestSize&&pages<=bestPages)){
+bestSize=useFont;bestCols=cols;bestPages=pages;
+}
+}
+}
+
+// Ensure minimum readable size
+bestSize=Math.max(bestSize,16);
+
+// Recalculate lines per column and per page with final font
+var linesPerCol=Math.max(1,Math.floor(availH/(bestSize*1.5)));
+var linesPerPage=linesPerCol*bestCols;
+
+// Build pages
+track.innerHTML='';
+var pageIdx=0;
+while(pageIdx*linesPerPage<totalLines){
+var pageLines=lines.slice(pageIdx*linesPerPage,(pageIdx+1)*linesPerPage);
+var slide=document.createElement('div');
+slide.className='fit-slide';
+for(var c=0;c<bestCols;c++){
+if(c>0){var dv=document.createElement('div');dv.className='fit-divider';slide.appendChild(dv);}
+var col=document.createElement('div');
+col.className='fit-col';
+col.style.fontSize=bestSize+'px';
+col.style.lineHeight=(bestSize*1.5)+'px';
+var start=c*linesPerCol;
+var end=Math.min(start+linesPerCol,pageLines.length);
+col.textContent=pageLines.slice(start,end).join('\n');
+slide.appendChild(col);
+}
+track.appendChild(slide);
+pageIdx++;
+}
+
+fitTotal=track.children.length;
+fitPage=0;
+updateFitUI();
+initFitSwipe();
+}
+
+function updateFitUI(){
+var track=document.getElementById('fit-track');
+track.style.transform='translateX(-'+fitPage*100+'%)';
+var ind=document.getElementById('fit-indicator');
+ind.innerHTML='';
+for(var i=0;i<fitTotal;i++){
+var d=document.createElement('div');
+d.className='page-dot'+(i===fitPage?' active':'');
+d.onclick=(function(x){return function(){fitPage=x;updateFitUI();};})(i);
+ind.appendChild(d);
+}
+document.getElementById('fit-prev').classList.toggle('hidden',fitPage===0);
+document.getElementById('fit-next').classList.toggle('hidden',fitPage>=fitTotal-1);
+}
+function fitGo(dir){var n=fitPage+dir;if(n>=0&&n<fitTotal){fitPage=n;updateFitUI();}}
+
+var fitSwipeInit=false;
+function initFitSwipe(){
+if(fitSwipeInit)return;fitSwipeInit=true;
+var wrap=document.getElementById('lyrics-fit-wrap'),track=document.getElementById('fit-track');
+var sx=0,dx=0,sw=false;
+wrap.addEventListener('touchstart',function(e){if(viewMode!=='fit')return;sx=e.touches[0].clientX;dx=0;sw=true;track.style.transition='none';},{passive:true});
+wrap.addEventListener('touchmove',function(e){if(!sw)return;dx=e.touches[0].clientX-sx;track.style.transform='translateX('+(-(fitPage*wrap.offsetWidth)+dx)+'px)';},{passive:true});
+wrap.addEventListener('touchend',function(){if(!sw)return;sw=false;track.style.transition='transform .35s cubic-bezier(.25,.46,.45,.94)';if(dx<-50&&fitPage<fitTotal-1)fitPage++;else if(dx>50&&fitPage>0)fitPage--;updateFitUI();},{passive:true});
+}
 function setSpeed(v){scrollSpeed=Number(v);document.getElementById('tb-spd').textContent=v;document.getElementById('tb-slider').value=v;}
 function changeSpeed(d){setSpeed(Math.max(0,Math.min(100,scrollSpeed+d)));}
 function getScrollPxPerSec(){return 5+(scrollSpeed*0.7);}
@@ -609,6 +758,7 @@ b.innerHTML=h;
 }
 
 load();loadPV();renderList();initSwipe();loadTheme();renderPads();
+window.addEventListener('resize',function(){if(viewMode==='fit')requestAnimationFrame(function(){buildFit();});if(viewMode==='page')requestAnimationFrame(function(){buildPages();});});
 
 </script>
 </body></html>
