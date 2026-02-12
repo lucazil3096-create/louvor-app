@@ -244,7 +244,7 @@ body.light .pads-header{background:rgba(0,0,0,.97)}
 <button class="tb" data-mode="page" onclick="setMode('page')">Páginas</button>
 <button class="tb" data-mode="auto" onclick="setMode('auto')">Auto</button>
 <div class="tb-sep"></div>
-<button class="tb font sm" onclick="changeFontSize(-3)">A−</button><span class="font-num" id="font-num">32</span><button class="tb font lg" onclick="changeFontSize(3)">A+</button>
+<button class="tb font sm" onclick="changeFontSize(-3)">A−</button><span class="font-num" id="font-num">14</span><button class="tb font lg" onclick="changeFontSize(3)">A+</button>
 <div class="tb-sep"></div>
 <div class="tb-auto" id="tb-auto"><button class="tb-play" id="tb-play" onclick="toggleScroll()">▶</button><button class="tb font" onclick="changeSpeed(-1)">−</button><input type="range" class="tb-slider" id="tb-slider" min="0" max="100" step="1" value="20" oninput="setSpeed(this.value)"><button class="tb font" onclick="changeSpeed(1)">+</button><span class="tb-spd" id="tb-spd">20</span><button class="tb font" onclick="resetScroll()">↑</button></div>
 <div class="tb-sep"></div>
@@ -301,7 +301,7 @@ var saveTimer=null;
 var fbReady=false;
 
 var SK='church-lyrics-v5';var TK='church-today-v1';
-var lyrics=[],currentId=null,editId=null,viewMode='single',fontSize=32,scrollSpeed=20,isScrolling=false,animId=null;
+var lyrics=[],currentId=null,editId=null,viewMode='single',fontSize=14,scrollSpeed=20,isScrolling=false,animId=null;
 var currentPage=0,totalPages=0,allLines=[],touchStartX=0,touchDX=0,isSwiping=false;
 var todayList=[],currentTab='all';
 
@@ -453,7 +453,7 @@ el=el.parentNode;
 }
 document.getElementById('list-content').addEventListener('click',handleListAction);
 function esc(s){var d=document.createElement('div');d.textContent=s;return d.innerHTML;}
-function openView(id){var l=lyrics.find(function(x){return x.id===id;});if(!l)return;currentId=id;
+function openView(id){var l=lyrics.find(function(x){return x.id===id;});if(!l)return;currentId=id;fontSize=14;
 document.getElementById('view-title').textContent=l.title;
 var t=document.getElementById('view-tom');if(l.tom){t.textContent='Tom: '+l.tom;t.style.display='';}else t.style.display='none';
 allLines=l.lyrics.split('\n');
@@ -549,7 +549,7 @@ if(mode==='fit'){document.getElementById('lyrics-fit-wrap').classList.add('activ
 if(mode==='page'){document.getElementById('page-wrap').classList.add('active');document.getElementById('page-wrap').style.display='block';requestAnimationFrame(function(){requestAnimationFrame(function(){buildPages();});});}
 if(mode==='auto'){document.getElementById('tb-auto').classList.add('visible');}
 }
-function changeFontSize(d){fontSize=Math.max(14,Math.min(80,fontSize+d));applyFontAll();if(viewMode==='page')requestAnimationFrame(function(){buildPages();});if(viewMode==='fit')requestAnimationFrame(function(){buildFit();});}
+function changeFontSize(d){fontSize=Math.max(8,Math.min(80,fontSize+d));applyFontAll();if(viewMode==='page')requestAnimationFrame(function(){buildPages();});if(viewMode==='fit')requestAnimationFrame(function(){buildFit();});}
 
 var fitPage=0,fitTotal=0;
 
@@ -648,7 +648,7 @@ bestF=Math.max(bestF,10);
 if(bestF>bestSize){bestSize=bestF;bestCols=cols;}
 }
 
-bestSize=Math.max(bestSize,14);
+bestSize=Math.max(bestSize,8);
 bestSize=Math.min(bestSize,60);
 
 // Check if it all fits on one page
@@ -813,7 +813,7 @@ var best=Math.min(fontW,fontH,60);
 best=Math.max(best,10);
 if(best>bestSize){bestSize=best;bestCols=cols;}
 }
-bestSize=Math.max(bestSize,12);
+bestSize=Math.max(bestSize,8);
 
 var finalCols=distributeStanzas(stanzas,bestCols);
 var wrap=document.createElement('div');
