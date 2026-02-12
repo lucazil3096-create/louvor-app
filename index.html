@@ -415,21 +415,17 @@ if(nav==='pads')renderPads();
 // ===== MP3 PADS - SERVER FILES =====
 var padPlaying={};
 var FADE_TIME=3;
-var detailTom=null;
 var TOMS=['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
 var TOM_NAMES={'C':'Dó','C#':'Dó#','D':'Ré','D#':'Ré#','E':'Mi','F':'Fá','F#':'Fá#','G':'Sol','G#':'Sol#','A':'Lá','A#':'Lá#','B':'Si'};
 var TOM_FOLDER={'C':'C','C#':'Cs','D':'D','D#':'Ds','E':'E','F':'F','F#':'Fs','G':'G','G#':'Gs','A':'A','A#':'As','B':'B'};
-
-// Pads disponíveis - edite aqui quando adicionar MP3
-// Formato: {tom: [slots que existem]}
 var PAD_MAP={
 'C':[1],'C#':[1],'D':[1],'D#':[1],'E':[1],'F':[1],'F#':[1],'G':[1],'G#':[1],'A':[1],'A#':[1],'B':[1]
 };
-// Volume e pan salvos localmente
-var padSettings={};var PSK='church-pad-settings-v1';
-function loadPS(){try{var d=localStorage.getItem(PSK);if(d)padSettings=JSON.parse(d);else padSettings={};}catch(e){padSettings={};}}
-function savePS(){try{localStorage.setItem(PSK,JSON.stringify(padSettings));}catch(e){}}
-function getPS(t,s){return(padSettings[t]&&padSettings[t][s])||{vol:70,pan:0};}
+
+// Global volume and pan
+var padVol=70;var padPan=0;var PVSK='church-pad-global-v1';
+function loadPV(){try{var d=localStorage.getItem(PVSK);if(d){var o=JSON.parse(d);padVol=o.vol||70;padPan=o.pan||0;}}catch(e){}}
+function savePV(){try{localStorage.setItem(PVSK,JSON.stringify({vol:padVol,pan:padPan}));}catch(e){}}
 
 function padUrl(t,s){return'pads/'+TOM_FOLDER[t]+'/pad'+s+'.mp3';}
 function pid(t,s){return t.replace('#','s')+'-'+s;}
@@ -438,23 +434,40 @@ function isPlaying(t){if(!PAD_MAP[t])return false;for(var i=0;i<PAD_MAP[t].lengt
 function isFading(t){if(!PAD_MAP[t])return false;for(var i=0;i<PAD_MAP[t].length;i++){var p=padPlaying[pid(t,PAD_MAP[t][i])];if(p&&p.fading)return true;}return false;}
 function isLoading(t){if(!PAD_MAP[t])return false;for(var i=0;i<PAD_MAP[t].length;i++){var p=padPlaying[pid(t,PAD_MAP[t][i])];if(p&&p.loading)return true;}return false;}
 
+// Get which tom is currently active (playing or fading)
+function activeTom(){
+for(var i=0;i<TOMS.length;i++){if(isPlaying(TOMS[i])||isLoading(TOMS[i]))return TOMS[i];}
+return null;
+}
+
 function tapTom(t){
-if(isFading(t)||isLoading(t))return;
-if(isPlaying(t)){
-if(PAD_MAP[t])PAD_MAP[t].forEach(function(s){if(padPlaying[pid(t,s)])stopPad(t,s);});
-}else{
-if(!hasPad(t))return;
+if(isLoading(t))return;
+var cur=activeTom();
+
+// Tapping same tom that's playing = stop it
+if(cur===t&&isPlaying(t)){
+PAD_MAP[t].forEach(function(s){if(padPlaying[pid(t,s)])stopPad(t,s);});
+return;
+}
+
+// Tapping different tom = crossfade
+if(cur&&cur!==t){
+// Fade out current
+PAD_MAP[cur].forEach(function(s){if(padPlaying[pid(cur,s)])stopPad(cur,s);});
+}
+
+// Play new tom
+if(hasPad(t)){
 PAD_MAP[t].forEach(function(s){playPad(t,s);});
 }
 }
 
 function playPad(t,s){
 var id=pid(t,s);if(padPlaying[id])return;
-var ps=getPS(t,s);
 padPlaying[id]={loading:true,fading:false};renderPads();
 var a=new Audio(padUrl(t,s));
 a.loop=true;a.volume=0;
-var tv=(ps.vol||70)/100;
+var tv=padVol/100;
 a.addEventListener('canplaythrough',function r(){
 a.removeEventListener('canplaythrough',r);
 a.play().then(function(){
@@ -481,8 +494,15 @@ fo();
 
 function stopAllPads(){Object.keys(padPlaying).forEach(function(id){var ps=id.split('-');var m=TOMS.find(function(t){return t.replace('#','s')===ps[0];});if(m)stopPad(m,parseInt(ps[1]));});}
 
-function setVol(t,s,v){if(!padSettings[t])padSettings[t]={};if(!padSettings[t][s])padSettings[t][s]={vol:70,pan:0};padSettings[t][s].vol=+v;var p=padPlaying[pid(t,s)];if(p&&!p.fading&&!p.loading){p.tv=v/100;p.audio.volume=v/100;}savePS();}
-function setPan(t,s,v){if(!padSettings[t])padSettings[t]={};if(!padSettings[t][s])padSettings[t][s]={vol:70,pan:0};padSettings[t][s].pan=+v;savePS();}
+function setGlobalVol(v){
+padVol=+v;savePV();
+Object.keys(padPlaying).forEach(function(id){
+var p=padPlaying[id];
+if(p&&p.audio&&!p.fading&&!p.loading){p.tv=v/100;p.audio.volume=v/100;}
+});
+}
+
+function setGlobalPan(v){padPan=+v;savePV();}
 
 function renderPads(){
 var b=document.getElementById('pads-body');var h='<div class="tom-grid">';
@@ -499,24 +519,18 @@ h+='<span class="tq-status">'+(ld?'carregando...':(fd?'saindo...':(pl?'∞ loop'
 });
 h+='</div>';
 
-// Vol/Pan controls for loaded toms
-var lt=TOMS.filter(function(t){return hasPad(t);});
-if(lt.length){h+='<div class="pad-ctrl-section" style="margin-top:8px">';
-lt.forEach(function(t){
-PAD_MAP[t].forEach(function(s){
-var ps=getPS(t,s);
-var ip=!!padPlaying[pid(t,s)]&&!padPlaying[pid(t,s)].loading;
-h+='<div style="margin-top:6px;font-size:10px;font-weight:600;color:'+(ip?'var(--green)':'var(--gold)')+'">'+t+' — Pad '+s+'</div>';
-h+='<div class="pad-ctrl-row"><span class="pad-ctrl-label">Vol</span><input type="range" class="pad-slider" min="0" max="100" value="'+(ps.vol||70)+'" oninput="setVol(\''+t+'\','+s+',this.value)"></div>';
-h+='<div class="pad-ctrl-row"><span class="pad-ctrl-label">Pan</span><input type="range" class="pad-slider" min="-100" max="100" value="'+(ps.pan||0)+'" oninput="setPan(\''+t+'\','+s+',this.value)"></div>';
+// Global Vol/Pan
+h+='<div class="pad-ctrl-section" style="margin-top:10px">';
+h+='<div style="font-size:11px;font-weight:700;color:var(--gold);margin-bottom:4px">Controles Gerais</div>';
+h+='<div class="pad-ctrl-row"><span class="pad-ctrl-label">Vol</span><input type="range" class="pad-slider" min="0" max="100" value="'+padVol+'" oninput="setGlobalVol(this.value)"><span style="font-size:10px;color:var(--gold);min-width:28px;text-align:right">'+padVol+'%</span></div>';
+h+='<div class="pad-ctrl-row"><span class="pad-ctrl-label">Pan</span><input type="range" class="pad-slider" min="-100" max="100" value="'+padPan+'" oninput="setGlobalPan(this.value)"></div>';
 h+='<div class="pan-labels"><span>L</span><span>Centro</span><span>R</span></div>';
-});});h+='</div>';}
+h+='</div>';
 
-if(!lt.length){h+='<div style="text-align:center;padding:16px;font-size:11px;color:var(--text-dim)">Nenhum pad configurado</div>';}
 b.innerHTML=h;
 }
 
-load();loadPS();renderList();initSwipe();loadTheme();renderPads();
+load();loadPV();renderList();initSwipe();loadTheme();renderPads();
 
 </script>
 </body></html>
