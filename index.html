@@ -85,6 +85,7 @@ body.light .btn-theme{border-color:rgba(100,80,50,.2);color:#8b6b3a}
 .card-preview{font-size:11px;color:var(--text-dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .card-actions{display:flex;gap:1px;padding:0 6px;flex-shrink:0}
 .card-actions button{background:none;border:none;font-size:15px;padding:6px;cursor:pointer;opacity:.5}
+[data-action]{cursor:pointer;-webkit-tap-highlight-color:transparent}
 .card-actions button:active{opacity:1}.card-actions .del{opacity:.3}
 .empty-state{text-align:center;padding:50px 20px}.empty-icon{font-size:46px;opacity:.2;margin-bottom:12px}
 .empty-text{font-size:14px;color:var(--text-dim)}
@@ -276,6 +277,8 @@ body.light .pads-header{background:rgba(0,0,0,.97)}
 </nav>
 
 <script>
+// Polyfill for older Safari
+if(!Element.prototype.closest){Element.prototype.closest=function(s){var el=this;do{if(el.matches(s))return el;el=el.parentElement||el.parentNode;}while(el!==null&&el.nodeType===1);return null;};}
 // Firebase config
 firebase.initializeApp({
 apiKey:"AIzaSyAFmRh89lSPlI9h589w2z7_M0etFYhbQyM",
@@ -290,10 +293,10 @@ var fbDoc=db.collection('app').doc('data');
 var saveTimer=null;
 var isSaving=false;
 
-const SK='church-lyrics-v5';const TK='church-today-v1';
-let lyrics=[],currentId=null,editId=null,viewMode='single',fontSize=32,scrollSpeed=20,isScrolling=false,animId=null;
-let currentPage=0,totalPages=0,allLines=[],touchStartX=0,touchDX=0,isSwiping=false;
-let todayList=[],currentTab='all';
+var SK='church-lyrics-v5';var TK='church-today-v1';
+var lyrics=[],currentId=null,editId=null,viewMode='single',fontSize=32,scrollSpeed=20,isScrolling=false,animId=null;
+var currentPage=0,totalPages=0,allLines=[],touchStartX=0,touchDX=0,isSwiping=false;
+var todayList=[],currentTab='all';
 
 // Merge: keeps ALL songs from both sources, never loses data
 function mergeLyrics(local,remote){
@@ -312,7 +315,6 @@ function load(){
 try{var d=localStorage.getItem(SK);if(d)lyrics=JSON.parse(d);
 var td=localStorage.getItem(TK);if(td)todayList=JSON.parse(td);else todayList=[];
 }catch(e){lyrics=[];todayList=[];}
-if(!lyrics.length){lyrics=[{id:'demo1',title:'Exemplo - Grande é o Senhor',tom:'G',lyrics:'Grande é o Senhor\nE muito digno de louvor\nNa cidade do nosso Deus\nSeu santo monte\n\nAlegria de toda a terra\nGrande é o Senhor\nEm quem nós temos a vitória\nE que nos ajuda contra o inimigo\n\nPor isso diante dele nos prostramos'}];save();}
 // Load from Firebase once - MERGE, never replace
 fbDoc.get().then(function(doc){
 if(doc.exists&&doc.data().lyrics){
@@ -365,7 +367,7 @@ function addToToday(id){if(!isInToday(id)){todayList.push(id);saveToday();render
 function removeFromToday(id){todayList=todayList.filter(function(x){return x!==id;});saveToday();renderList();}
 function clearToday(){if(todayList.length&&confirm('Limpar todas as músicas de hoje?')){todayList=[];saveToday();renderList();}}
 function showScreen(n){
-document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+document.querySelectorAll('.screen').forEach(function(s){s.classList.remove('active');});
 document.getElementById('screen-'+n).classList.add('active');
 stopScroll();
 var nav=document.querySelector('.bottom-nav');
@@ -376,35 +378,83 @@ else{nav.style.display='flex';if(currentNav==='pads')pads.style.display='flex';}
 function goList(){showScreen('list');switchNav('louvor');renderList();}
 function renderList(){
 try{
-const term=document.getElementById('search-input').value.toLowerCase();
+var term=document.getElementById('search-input').value.toLowerCase();
 try{updateTodayCount();}catch(e){}
-const c=document.getElementById('list-content');if(!c)return;
+var c=document.getElementById('list-content');if(!c)return;
 if(currentTab==='today'){
-var ts=todayList.map(id=>lyrics.find(x=>x.id===id)).filter(Boolean);
-if(term)ts=ts.filter(l=>l.title.toLowerCase().includes(term)||l.lyrics.toLowerCase().includes(term));
+var ts=todayList.map(function(id){return lyrics.find(function(x){return x.id===id;});}).filter(Boolean);
+if(term)ts=ts.filter(function(l){return l.title.toLowerCase().includes(term)||l.lyrics.toLowerCase().includes(term);});
 document.getElementById('song-count').textContent=ts.length+' música'+(ts.length!==1?'s':'')+' no culto de hoje';
 if(!ts.length){c.innerHTML='<div class="empty-state"><div class="empty-icon">✝</div><p class="empty-text">'+(term?'Nenhuma encontrada':'Nenhuma música no culto de hoje')+'</p><p style="font-size:12px;color:rgba(232,224,212,.3);margin-top:8px">Vá em "Todas" e toque "+ Hoje"</p></div>';return;}
-c.innerHTML='<div style="text-align:right;margin-bottom:8px"><button onclick="clearToday()" style="background:none;border:none;color:rgba(212,131,106,.5);font-size:11px;cursor:pointer;font-family:var(--fb)">Limpar lista</button></div>'+ts.map((l,i)=>'<div class="lyric-card"><div class="card-main" onclick="openView(\''+l.id+'\')"><div class="today-num">'+(i+1)+'</div><div class="card-info"><div class="card-title">'+esc(l.title)+'</div><div class="card-meta">'+(l.tom?'<span class="card-tom">'+esc(l.tom)+'</span>':'')+'<span class="card-preview">'+esc(l.lyrics.substring(0,50).replace(/\n/g,' '))+'</span></div></div></div><div class="card-actions"><button onclick="openEdit(\''+l.id+'\')">✏️</button><button class="btn-remove" onclick="removeFromToday(\''+l.id+'\')" title="Remover">✕</button></div></div>').join('');
-return;}
-const f=lyrics.filter(l=>l.title.toLowerCase().includes(term)||l.lyrics.toLowerCase().includes(term)||(l.tom&&l.tom.toLowerCase().includes(term)));
+var h='<div style="text-align:right;margin-bottom:8px"><button data-action="clear-today" style="background:none;border:none;color:rgba(212,131,106,.5);font-size:11px;cursor:pointer;font-family:var(--fb)">Limpar lista</button></div>';
+ts.forEach(function(l,i){
+h+='<div class="lyric-card"><div class="card-main" data-action="view" data-id="'+l.id+'"><div class="today-num">'+(i+1)+'</div><div class="card-info"><div class="card-title">'+esc(l.title)+'</div><div class="card-meta">'+(l.tom?'<span class="card-tom">'+esc(l.tom)+'</span>':'')+'<span class="card-preview">'+esc(l.lyrics.substring(0,50).replace(/\n/g,' '))+'</span></div></div></div><div class="card-actions"><button data-action="edit" data-id="'+l.id+'">✏️</button><button class="btn-remove" data-action="remove-today" data-id="'+l.id+'" title="Remover">✕</button></div></div>';
+});
+c.innerHTML=h;return;}
+var f=lyrics.filter(function(l){return l.title.toLowerCase().includes(term)||l.lyrics.toLowerCase().includes(term)||(l.tom&&l.tom.toLowerCase().includes(term));});
 document.getElementById('song-count').textContent=lyrics.length+' música'+(lyrics.length!==1?'s':'');
-if(!f.length){c.innerHTML='<div class="empty-state"><div class="empty-icon">✝</div><p class="empty-text">'+(term?'Nenhuma música encontrada':'Nenhuma música cadastrada')+'</p>'+(!term?'<button class="empty-btn" onclick="openEdit()">+ Adicionar música</button>':'')+'</div>';return;}
-c.innerHTML=f.map(l=>{var inT=isInToday(l.id);return '<div class="lyric-card"><div class="card-main" onclick="openView(\''+l.id+'\')"><div class="card-icon">♪</div><div class="card-info"><div class="card-title">'+esc(l.title)+'</div><div class="card-meta">'+(l.tom?'<span class="card-tom">'+esc(l.tom)+'</span>':'')+'<span class="card-preview">'+esc(l.lyrics.substring(0,40).replace(/\n/g,' '))+'</span></div></div></div><div class="card-actions"><button class="btn-add-today'+(inT?' added':'')+'" onclick="'+(inT?"removeFromToday('"+l.id+"')":"addToToday('"+l.id+"')")+'">'+(inT?'✓ Hoje':'+ Hoje')+'</button><button onclick="openEdit(\''+l.id+'\')">✏️</button><button class="del" onclick="deleteLyric(\''+l.id+'\')">🗑️</button></div></div>';}).join('');
+if(!f.length){c.innerHTML='<div class="empty-state"><div class="empty-icon">✝</div><p class="empty-text">'+(term?'Nenhuma música encontrada':'Nenhuma música cadastrada')+'</p>'+(!term?'<button data-action="new-edit" class="empty-btn">+ Adicionar música</button>':'')+'</div>';return;}
+var h2='';
+f.forEach(function(l){
+var inT=isInToday(l.id);
+h2+='<div class="lyric-card"><div class="card-main" data-action="view" data-id="'+l.id+'"><div class="card-icon">♪</div><div class="card-info"><div class="card-title">'+esc(l.title)+'</div><div class="card-meta">'+(l.tom?'<span class="card-tom">'+esc(l.tom)+'</span>':'')+'<span class="card-preview">'+esc(l.lyrics.substring(0,40).replace(/\n/g,' '))+'</span></div></div></div><div class="card-actions"><button class="btn-add-today'+(inT?' added':'')+'" data-action="'+(inT?'remove-today':'add-today')+'" data-id="'+l.id+'">'+(inT?'✓ Hoje':'+ Hoje')+'</button><button data-action="edit" data-id="'+l.id+'">✏️</button><button class="del" data-action="delete" data-id="'+l.id+'">🗑️</button></div></div>';
+});
+c.innerHTML=h2;
 }catch(e){console.log('renderList error:',e);}
 }
-function esc(s){const d=document.createElement('div');d.textContent=s;return d.innerHTML;}
-function openView(id){const l=lyrics.find(x=>x.id===id);if(!l)return;currentId=id;
+
+// Event delegation - handles all clicks in list (iOS Safari compatible)
+function handleListAction(e){
+var el=e.target;
+while(el&&el!==this){
+if(el.getAttribute&&el.getAttribute('data-action')){
+var action=el.getAttribute('data-action');
+var id=el.getAttribute('data-id');
+e.preventDefault();e.stopPropagation();
+if(action==='view')openView(id);
+else if(action==='edit')openEdit(id);
+else if(action==='delete')deleteLyric(id);
+else if(action==='add-today')addToToday(id);
+else if(action==='remove-today')removeFromToday(id);
+else if(action==='clear-today')clearToday();
+else if(action==='new-edit')openEdit();
+return;
+}
+el=el.parentNode;
+}
+}
+var lc=document.getElementById('list-content');
+lc.addEventListener('click',handleListAction);
+// iOS Safari fix: also listen for touchend
+var touchMoved=false;
+lc.addEventListener('touchstart',function(){touchMoved=false;},{passive:true});
+lc.addEventListener('touchmove',function(){touchMoved=true;},{passive:true});
+lc.addEventListener('touchend',function(e){
+if(touchMoved)return;
+var el=e.target;
+while(el&&el!==this){
+if(el.getAttribute&&el.getAttribute('data-action')){
+e.preventDefault();
+handleListAction.call(this,e);
+return;
+}
+el=el.parentNode;
+}
+});
+function esc(s){var d=document.createElement('div');d.textContent=s;return d.innerHTML;}
+function openView(id){var l=lyrics.find(function(x){return x.id===id;});if(!l)return;currentId=id;
 document.getElementById('view-title').textContent=l.title;
-const t=document.getElementById('view-tom');if(l.tom){t.textContent='Tom: '+l.tom;t.style.display='';}else t.style.display='none';
+var t=document.getElementById('view-tom');if(l.tom){t.textContent='Tom: '+l.tom;t.style.display='';}else t.style.display='none';
 allLines=l.lyrics.split('\n');
 document.getElementById('lyrics-single').textContent=l.lyrics;
-const lines=l.lyrics.split('\n'),mid=Math.ceil(lines.length/2);
-document.getElementById('split-col1').textContent=lines.slice(0,mid).join('\n');
-document.getElementById('split-col2').textContent=lines.slice(mid).join('\n');
+var stanzas=getStanzas(l.lyrics.split('\n'));
+var splitCols=distributeStanzas(stanzas,2);
+document.getElementById('split-col1').textContent=splitCols[0]?colToText(splitCols[0]):'';
+document.getElementById('split-col2').textContent=splitCols[1]?colToText(splitCols[1]):'';
 applyFontAll();setMode(viewMode);showScreen('view');document.getElementById('lyrics-scroll').scrollTop=0;}
 function openEditCurrent(){if(currentId)openEdit(currentId);}
-function applyFontAll(){const s=fontSize+'px',lh=(fontSize*1.65)+'px';
-document.querySelectorAll('.lyrics-single,.split-col,.page-col').forEach(el=>{el.style.fontSize=s;el.style.lineHeight=lh;});
+function applyFontAll(){var s=fontSize+'px',lh=(fontSize*1.65)+'px';
+document.querySelectorAll('.lyrics-single,.split-col,.page-col').forEach(function(el){el.style.fontSize=s;el.style.lineHeight=lh;});
 document.getElementById('font-num').textContent=fontSize;}
 function buildPages(){var wrap=document.getElementById('page-wrap'),track=document.getElementById('page-track');
 var availH=wrap.clientHeight-40;var availW=wrap.clientWidth;
@@ -412,19 +462,16 @@ if(!availH||!availW||!allLines.length)return;
 
 var lines=allLines.slice();
 while(lines.length&&!lines[lines.length-1].trim())lines.pop();
-var totalLines=lines.length;
+var stanzas=getStanzas(lines);
 
 var maxChars=0;
 for(var i=0;i<lines.length;i++){if(lines[i].length>maxChars)maxChars=lines[i].length;}
 
-// Max columns based on screen width
 var maxCols=1;
 if(availW>=900)maxCols=4;
 else if(availW>=600)maxCols=3;
 else if(availW>=400)maxCols=2;
-else maxCols=1;
 
-// Find best col count that fits fontSize
 var bestCols=1;
 for(var cols=1;cols<=maxCols;cols++){
 var colW=(availW-(cols-1)*6-cols*16)/cols;
@@ -436,30 +483,39 @@ if(fontSize<=maxFontByW)bestCols=cols;
 var linesPerCol=Math.max(1,Math.floor(availH/(fontSize*1.45)));
 var linesPerPage=linesPerCol*bestCols;
 
+// Group stanzas into pages respecting breaks
+var pages=[],pageStanzas=[],pageLineCount=0;
+for(var i=0;i<stanzas.length;i++){
+var sLen=stanzas[i].length+(pageStanzas.length>0?1:0);
+if(pageLineCount+sLen>linesPerPage&&pageStanzas.length>0){
+pages.push(pageStanzas);pageStanzas=[stanzas[i]];pageLineCount=stanzas[i].length;
+}else{
+pageStanzas.push(stanzas[i]);pageLineCount+=sLen;
+}
+}
+if(pageStanzas.length)pages.push(pageStanzas);
+
 track.innerHTML='';
-var pageIdx=0;
-while(pageIdx*linesPerPage<totalLines){
-var pageLines=lines.slice(pageIdx*linesPerPage,(pageIdx+1)*linesPerPage);
+for(var p=0;p<pages.length;p++){
+var pgCols=distributeStanzas(pages[p],bestCols);
 var slide=document.createElement('div');slide.className='page-slide';
-for(var c=0;c<bestCols;c++){
+for(var c=0;c<pgCols.length;c++){
 if(c>0){var dv=document.createElement('div');dv.className='page-divider';slide.appendChild(dv);}
 var col=document.createElement('div');col.className='page-col';
 col.style.fontSize=fontSize+'px';col.style.lineHeight=(fontSize*1.45)+'px';
-var start=c*linesPerCol;
-var end=Math.min(start+linesPerCol,pageLines.length);
-col.textContent=pageLines.slice(start,end).join('\n');
+col.textContent=colToText(pgCols[c]);
 slide.appendChild(col);
 }
-track.appendChild(slide);pageIdx++;
+track.appendChild(slide);
 }
 totalPages=track.children.length;currentPage=0;updatePageUI();}
 function updatePageUI(){document.getElementById('page-track').style.transform='translateX(-'+currentPage*100+'%)';
-const ind=document.getElementById('page-indicator');ind.innerHTML='';
-for(let i=0;i<totalPages;i++){const d=document.createElement('div');d.className='page-dot'+(i===currentPage?' active':'');d.onclick=(function(x){return function(){currentPage=x;updatePageUI();};})(i);ind.appendChild(d);}
+var ind=document.getElementById('page-indicator');ind.innerHTML='';
+for(var i=0;i<totalPages;i++){var d=document.createElement('div');d.className='page-dot'+(i===currentPage?' active':'');d.onclick=(function(x){return function(){currentPage=x;updatePageUI();};})(i);ind.appendChild(d);}
 document.getElementById('page-prev').classList.toggle('hidden',currentPage===0);
 document.getElementById('page-next').classList.toggle('hidden',currentPage>=totalPages-1);}
-function pageGo(dir){const n=currentPage+dir;if(n>=0&&n<totalPages){currentPage=n;updatePageUI();}}
-function initSwipe(){const c=document.getElementById('page-wrap'),t=document.getElementById('page-track');
+function pageGo(dir){var n=currentPage+dir;if(n>=0&&n<totalPages){currentPage=n;updatePageUI();}}
+function initSwipe(){var c=document.getElementById('page-wrap'),t=document.getElementById('page-track');
 c.addEventListener('touchstart',function(e){if(viewMode!=='page')return;touchStartX=e.touches[0].clientX;touchDX=0;isSwiping=true;t.style.transition='none';},{passive:true});
 c.addEventListener('touchmove',function(e){if(!isSwiping)return;touchDX=e.touches[0].clientX-touchStartX;t.style.transform='translateX('+(-(currentPage*c.offsetWidth)+touchDX)+'px)';},{passive:true});
 c.addEventListener('touchend',function(){if(!isSwiping)return;isSwiping=false;t.style.transition='transform .35s cubic-bezier(.25,.46,.45,.94)';if(touchDX<-50&&currentPage<totalPages-1)currentPage++;else if(touchDX>50&&currentPage>0)currentPage--;updatePageUI();},{passive:true});}
@@ -485,12 +541,62 @@ if(mode==='auto'){document.getElementById('tb-auto').classList.add('visible');}
 function changeFontSize(d){fontSize=Math.max(14,Math.min(80,fontSize+d));applyFontAll();if(viewMode==='page')requestAnimationFrame(function(){buildPages();});if(viewMode==='fit')requestAnimationFrame(function(){buildFit();});}
 
 var fitPage=0,fitTotal=0;
+
+// Split lines into stanzas (groups separated by empty lines)
+function getStanzas(lines){
+var stanzas=[],current=[];
+for(var i=0;i<lines.length;i++){
+if(lines[i].trim()===''){
+if(current.length){stanzas.push(current);current=[];}
+}else{current.push(lines[i]);}
+}
+if(current.length)stanzas.push(current);
+return stanzas;
+}
+
+// Count total lines in stanza array (including gaps between)
+function stanzaLineCount(arr){
+var n=0;
+for(var i=0;i<arr.length;i++){
+if(i>0)n++;// gap between stanzas
+n+=arr[i].length;
+}
+return n;
+}
+
+// Distribute stanzas into N columns, balanced, never splitting a stanza
+function distributeStanzas(stanzas,cols){
+var totalLines=stanzaLineCount(stanzas);
+var target=Math.ceil(totalLines/cols);
+var columns=[],col=[],colLines=0;
+for(var i=0;i<stanzas.length;i++){
+var sLen=stanzas[i].length;
+var addLen=col.length>0?sLen+1:sLen;// +1 for gap
+if(colLines+addLen>target&&col.length>0&&columns.length<cols-1){
+columns.push(col);col=[stanzas[i]];colLines=sLen;
+}else{
+col.push(stanzas[i]);colLines+=addLen;
+}
+}
+if(col.length)columns.push(col);
+// If we got fewer columns, that's fine
+return columns;
+}
+
+// Convert column (array of stanzas) to text
+function colToText(stanzaArr){
+var parts=[];
+for(var i=0;i<stanzaArr.length;i++){
+parts.push(stanzaArr[i].join('\n'));
+}
+return parts.join('\n\n');
+}
+
 function buildFit(){
 var wrap=document.getElementById('lyrics-fit-wrap');
 var track=document.getElementById('fit-track');
 if(!wrap||!track||!allLines.length)return;
 
-// Force layout recalc after rotation
 wrap.style.display='block';
 var availH=wrap.clientHeight-35;
 var availW=wrap.clientWidth;
@@ -498,79 +604,98 @@ if(availH<50||availW<50)return;
 
 var lines=allLines.slice();
 while(lines.length&&!lines[lines.length-1].trim())lines.pop();
-var totalLines=lines.length;
+var stanzas=getStanzas(lines);
+var totalLines=stanzaLineCount(stanzas);
 
 // Max columns based on screen width
 var maxCols=1;
 if(availW>=900)maxCols=4;
 else if(availW>=600)maxCols=3;
 else if(availW>=400)maxCols=2;
-else maxCols=1;
 
 // Find max chars in any line
 var maxChars=0;
 for(var i=0;i<lines.length;i++){if(lines[i].length>maxChars)maxChars=lines[i].length;}
 
-// Try each column count, pick the one with biggest font that fits
-var bestCols=1,bestSize=12,bestPages=999;
+// Try each column count
+var bestCols=1,bestSize=12;
 for(var cols=1;cols<=maxCols;cols++){
 var colW=(availW-(cols-1)*6-cols*16)/cols;
-if(colW<80)continue;// Column too narrow, skip
-
-// Max font that fits width (0.48em per char average)
+if(colW<80)continue;
 var fontW=maxChars>0?Math.floor(colW/(maxChars*0.48)):80;
 fontW=Math.min(fontW,60);
-
-// Check if fits on 1 page
-var linesPerCol=Math.ceil(totalLines/cols);
-var fontH=Math.floor(availH/(linesPerCol*1.45));
-var singlePageFont=Math.min(fontW,fontH);
-
-if(singlePageFont>=14){
-// Fits on 1 page! Pick largest font
-if(singlePageFont>bestSize){
-bestSize=singlePageFont;bestCols=cols;bestPages=1;
+// Distribute to find max lines in any column
+var testCols=distributeStanzas(stanzas,cols);
+var maxLinesInCol=0;
+for(var j=0;j<testCols.length;j++){
+var cl=stanzaLineCount(testCols[j]);
+if(cl>maxLinesInCol)maxLinesInCol=cl;
 }
-}else{
-// Needs multiple pages - use reasonable font
-var useFont=Math.min(fontW,32);
-useFont=Math.max(useFont,14);
-var lpc=Math.max(1,Math.floor(availH/(useFont*1.45)));
-var lpp=lpc*cols;
-var pages=Math.ceil(totalLines/lpp);
-// Prefer: fewer pages, then larger font
-if(pages<bestPages||(pages===bestPages&&useFont>bestSize)){
-bestSize=useFont;bestCols=cols;bestPages=pages;
-}
-}
+var fontH=Math.floor(availH/(maxLinesInCol*1.45));
+var bestF=Math.min(fontW,fontH,60);
+bestF=Math.max(bestF,10);
+if(bestF>bestSize){bestSize=bestF;bestCols=cols;}
 }
 
 bestSize=Math.max(bestSize,14);
 bestSize=Math.min(bestSize,60);
 
-// Build pages with final values
-var linesPerCol=Math.max(1,Math.floor(availH/(bestSize*1.45)));
-var linesPerPage=linesPerCol*bestCols;
+// Check if it all fits on one page
+var finalCols=distributeStanzas(stanzas,bestCols);
+var maxLinesInCol=0;
+for(var j=0;j<finalCols.length;j++){
+var cl=stanzaLineCount(finalCols[j]);
+if(cl>maxLinesInCol)maxLinesInCol=cl;
+}
+var fitsOnePage=(maxLinesInCol*bestSize*1.45)<=availH;
 
 track.innerHTML='';
-var pageIdx=0;
-while(pageIdx*linesPerPage<totalLines){
-var pageLines=lines.slice(pageIdx*linesPerPage,(pageIdx+1)*linesPerPage);
+
+if(fitsOnePage){
+// Single page - distribute by stanzas
 var slide=document.createElement('div');
 slide.className='fit-slide';
-for(var c=0;c<bestCols;c++){
+for(var c=0;c<finalCols.length;c++){
 if(c>0){var dv=document.createElement('div');dv.className='fit-divider';slide.appendChild(dv);}
 var col=document.createElement('div');
 col.className='fit-col';
 col.style.fontSize=bestSize+'px';
 col.style.lineHeight=(bestSize*1.45)+'px';
-var start=c*linesPerCol;
-var end=Math.min(start+linesPerCol,pageLines.length);
-col.textContent=pageLines.slice(start,end).join('\n');
+col.textContent=colToText(finalCols[c]);
 slide.appendChild(col);
 }
 track.appendChild(slide);
-pageIdx++;
+}else{
+// Multiple pages - split stanzas into pages, each page has bestCols columns
+var linesPerCol=Math.max(1,Math.floor(availH/(bestSize*1.45)));
+var linesPerPage=linesPerCol*bestCols;
+// Group stanzas into pages
+var pages=[],pageStanzas=[],pageLineCount=0;
+for(var i=0;i<stanzas.length;i++){
+var sLen=stanzas[i].length+(pageStanzas.length>0?1:0);
+if(pageLineCount+sLen>linesPerPage&&pageStanzas.length>0){
+pages.push(pageStanzas);pageStanzas=[stanzas[i]];pageLineCount=stanzas[i].length;
+}else{
+pageStanzas.push(stanzas[i]);pageLineCount+=sLen;
+}
+}
+if(pageStanzas.length)pages.push(pageStanzas);
+
+for(var p=0;p<pages.length;p++){
+var pgCols=distributeStanzas(pages[p],bestCols);
+var slide=document.createElement('div');
+slide.className='fit-slide';
+for(var c=0;c<pgCols.length;c++){
+if(c>0){var dv=document.createElement('div');dv.className='fit-divider';slide.appendChild(dv);}
+var col=document.createElement('div');
+col.className='fit-col';
+col.style.fontSize=bestSize+'px';
+col.style.lineHeight=(bestSize*1.45)+'px';
+col.textContent=colToText(pgCols[c]);
+slide.appendChild(col);
+}
+track.appendChild(slide);
+}
 }
 
 fitTotal=track.children.length;
@@ -645,46 +770,47 @@ el.style.display='flex';
 requestAnimationFrame(function(){requestAnimationFrame(function(){
 var lines=l.lyrics.split('\n');
 while(lines.length&&!lines[lines.length-1].trim())lines.pop();
-var totalLines=lines.length;
+var stanzas=getStanzas(lines);
+var totalLines=stanzaLineCount(stanzas);
 var availH=el.clientHeight-80;
 var availW=el.clientWidth-60;
 
 var maxChars=0;
 for(var i=0;i<lines.length;i++){if(lines[i].length>maxChars)maxChars=lines[i].length;}
 
-// Max columns based on width
 var maxCols=1;
 if(availW>=900)maxCols=4;
 else if(availW>=600)maxCols=3;
 else if(availW>=400)maxCols=2;
 
-// Find best cols + font
 var bestCols=1,bestSize=12;
 for(var cols=1;cols<=maxCols;cols++){
 var colW=(availW-(cols-1)*12-cols*16)/cols;
 if(colW<60)continue;
 var fontW=maxChars>0?Math.floor(colW/(maxChars*0.48)):80;
-var linesPerCol=Math.ceil(totalLines/cols);
-var fontH=Math.floor(availH/(linesPerCol*1.45));
+var testCols=distributeStanzas(stanzas,cols);
+var maxLinesInCol=0;
+for(var j=0;j<testCols.length;j++){
+var cl=stanzaLineCount(testCols[j]);
+if(cl>maxLinesInCol)maxLinesInCol=cl;
+}
+var fontH=Math.floor(availH/(maxLinesInCol*1.45));
 var best=Math.min(fontW,fontH,60);
 best=Math.max(best,10);
 if(best>bestSize){bestSize=best;bestCols=cols;}
 }
 bestSize=Math.max(bestSize,12);
 
-// Build columns
+var finalCols=distributeStanzas(stanzas,bestCols);
 var wrap=document.createElement('div');
 wrap.style.cssText='display:flex;gap:0;max-width:95%;max-height:90vh;align-items:flex-start';
-var linesPerCol=Math.ceil(totalLines/bestCols);
-for(var c=0;c<bestCols;c++){
+for(var c=0;c<finalCols.length;c++){
 if(c>0){var dv=document.createElement('div');dv.className='pres-split-div';wrap.appendChild(dv);}
 var col=document.createElement('div');
 col.className='pres-split-col';
 col.style.fontSize=bestSize+'px';
 col.style.lineHeight=(bestSize*1.45)+'px';
-var start=c*linesPerCol;
-var end=Math.min(start+linesPerCol,totalLines);
-col.textContent=lines.slice(start,end).join('\n');
+col.textContent=colToText(finalCols[c]);
 wrap.appendChild(col);
 }
 lyr.appendChild(wrap);
