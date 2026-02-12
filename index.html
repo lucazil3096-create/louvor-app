@@ -154,6 +154,38 @@ body.light .nav-btn.active{background:rgba(224,120,64,.08);color:#8b4020}
 /* ===== PADS SCREEN ===== */
 .pads-screen{display:none;flex-direction:column;height:calc(100vh - 52px);height:calc(100dvh - 52px)}
 .pads-screen.active{display:flex}
+
+/* ===== ENSAIO SCREEN ===== */
+.ensaio-screen{display:none;flex-direction:column;height:calc(100vh - 52px);height:calc(100dvh - 52px)}
+.ensaio-screen.active{display:flex}
+.ensaio-header{padding:10px 14px;background:rgba(0,0,0,.97);border-bottom:1px solid rgba(224,120,64,.25);flex-shrink:0}
+.ensaio-title{font-family:var(--fd);font-size:18px;font-weight:700;color:var(--gold);margin-bottom:8px}
+.ensaio-input-row{display:flex;gap:8px;align-items:center}
+.ensaio-url{flex:1;padding:9px 12px;background:var(--gold-bg);border:1px solid var(--gold-border);border-radius:8px;color:var(--text);font-size:14px;font-family:var(--fb);outline:none}
+.ensaio-url:focus{border-color:var(--accent)}
+.ensaio-url::placeholder{color:var(--text-dim)}
+.ensaio-btn{background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff;padding:9px 16px;font-size:13px;font-weight:700;border-radius:8px;border:none;cursor:pointer;font-family:var(--fb);white-space:nowrap}
+.ensaio-btn:active{opacity:.8}
+.ensaio-body{flex:1;display:flex;flex-direction:column;padding:10px 14px;overflow-y:auto}
+.ensaio-empty{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;opacity:.3;text-align:center}
+.ensaio-empty-icon{font-size:48px;margin-bottom:12px}
+.ensaio-empty-text{font-size:14px;line-height:1.6}
+.ensaio-item{display:flex;align-items:center;gap:10px;padding:10px;background:var(--card-bg);border:1px solid var(--card-border);border-radius:10px;margin-bottom:8px}
+.ensaio-thumb{width:64px;height:36px;border-radius:6px;object-fit:cover;background:#222;flex-shrink:0}
+.ensaio-info{flex:1;min-width:0}
+.ensaio-name{font-size:13px;font-weight:600;color:var(--text);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;line-height:1.3}
+.ensaio-actions{display:flex;gap:4px;flex-shrink:0}
+.ensaio-play{background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff;border:none;border-radius:50%;width:36px;height:36px;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center}
+.ensaio-play:active{opacity:.7}
+.ensaio-del{background:none;border:none;font-size:15px;cursor:pointer;opacity:.4;padding:4px}
+/* Overlay player */
+.ensaio-overlay{display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.95);z-index:200;flex-direction:column;align-items:center;justify-content:center}
+.ensaio-overlay.active{display:flex}
+.ensaio-close{position:absolute;top:12px;right:16px;background:rgba(255,255,255,.15);border:none;color:#fff;font-size:22px;width:40px;height:40px;border-radius:50%;cursor:pointer;z-index:201;display:flex;align-items:center;justify-content:center}
+.ensaio-close:active{background:rgba(255,255,255,.3)}
+.ensaio-video{width:95%;max-width:800px;aspect-ratio:16/9;border-radius:12px;overflow:hidden;background:#000}
+.ensaio-video iframe{width:100%;height:100%;border:none}
+.ensaio-now-title{color:var(--gold);font-family:var(--fd);font-size:14px;margin-top:12px;text-align:center;padding:0 20px;max-width:90%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .pads-header{padding:10px 14px;background:rgba(0,0,0,.97);border-bottom:1px solid rgba(224,120,64,.25);flex-shrink:0;display:flex;align-items:center;justify-content:space-between}
 .pads-title{font-family:var(--fd);font-size:18px;font-weight:700;color:var(--gold)}
 .pad-stop-all{background:rgba(212,131,106,.12);border:1px solid rgba(212,131,106,.3);color:var(--danger);border-radius:8px;padding:7px 14px;font-size:12px;font-weight:700;cursor:pointer;font-family:var(--fb);white-space:nowrap}
@@ -277,9 +309,35 @@ body.light .pads-header{background:rgba(0,0,0,.97)}
 <div class="pads-body" id="pads-body"></div>
 </div>
 
+<!-- ENSAIO SCREEN -->
+<div id="screen-ensaio" class="ensaio-screen">
+<div class="ensaio-header">
+<div class="ensaio-title">🎬 Ensaio</div>
+<div class="ensaio-input-row">
+<input type="text" class="ensaio-url" id="ensaio-url" placeholder="Cole o link do YouTube..." autocomplete="off">
+<button class="ensaio-btn" onclick="addEnsaioLink()">+ Salvar</button>
+</div>
+</div>
+<div class="ensaio-body" id="ensaio-body">
+<div id="ensaio-list"></div>
+<div class="ensaio-empty" id="ensaio-empty">
+<div class="ensaio-empty-icon">🎵</div>
+<div class="ensaio-empty-text">Cole um link do YouTube<br>e toque <b>+ Salvar</b><br>para montar seu ensaio</div>
+</div>
+</div>
+</div>
+
+<!-- ENSAIO OVERLAY PLAYER -->
+<div class="ensaio-overlay" id="ensaio-overlay">
+<button class="ensaio-close" onclick="closeEnsaioPlayer()">✕</button>
+<div class="ensaio-video" id="ensaio-video"></div>
+<div class="ensaio-now-title" id="ensaio-now-title"></div>
+</div>
+
 <!-- BOTTOM NAV -->
 <nav class="bottom-nav">
 <button class="nav-btn active" id="nav-louvor" onclick="switchNav('louvor')"><span class="nav-icon">♪</span>Louvor</button>
+<button class="nav-btn" id="nav-ensaio" onclick="switchNav('ensaio')"><span class="nav-icon">🎬</span>Ensaio</button>
 <button class="nav-btn" id="nav-pads" onclick="switchNav('pads')"><span class="nav-icon">🎹</span>Pads</button>
 </nav>
 
@@ -397,8 +455,18 @@ if(target){target.classList.add('active');target.style.display='flex';}
 stopScroll();
 var nav=document.querySelector('.bottom-nav');
 var pads=document.getElementById('screen-pads');
-if(n==='view'||n==='edit'){nav.style.display='none';pads.style.display='none';pads.classList.remove('active');}
-else{nav.style.display='flex';if(currentNav==='pads'){pads.style.display='flex';pads.classList.add('active');}else{pads.style.display='none';pads.classList.remove('active');}}
+var ensaio=document.getElementById('screen-ensaio');
+if(n==='view'||n==='edit'){
+nav.style.display='none';
+pads.style.display='none';pads.classList.remove('active');
+ensaio.style.display='none';ensaio.classList.remove('active');
+}else{
+nav.style.display='flex';
+if(currentNav==='pads'){pads.style.display='flex';pads.classList.add('active');}
+else{pads.style.display='none';pads.classList.remove('active');}
+if(currentNav==='ensaio'){ensaio.style.display='flex';ensaio.classList.add('active');}
+else{ensaio.style.display='none';ensaio.classList.remove('active');}
+}
 }
 function goList(){showScreen('list');switchNav('louvor');renderList();}
 function renderList(){
@@ -840,9 +908,12 @@ function switchNav(nav){
 currentNav=nav;
 document.getElementById('nav-louvor').classList.toggle('active',nav==='louvor');
 document.getElementById('nav-pads').classList.toggle('active',nav==='pads');
+document.getElementById('nav-ensaio').classList.toggle('active',nav==='ensaio');
 document.getElementById('screen-list').style.display=nav==='louvor'?'flex':'none';
 document.getElementById('screen-pads').style.display=nav==='pads'?'flex':'none';
+document.getElementById('screen-ensaio').style.display=nav==='ensaio'?'flex':'none';
 if(nav==='pads')renderPads();
+if(nav==='ensaio')renderEnsaioList();
 }
 
 // ===== MP3 PADS - SERVER FILES =====
@@ -985,6 +1056,120 @@ if(viewMode==='page')buildPages();
 if(document.getElementById('presentation').style.display==='flex'){var l=lyrics.find(function(x){return x.id===currentId;});if(l)enterPresentation();}
 },300);
 });
+// ===== ENSAIO - YOUTUBE =====
+var ESK='church-ensaio-v1';
+var ensaioLinks=[];
+
+function loadEnsaioLinks(){
+try{var d=localStorage.getItem(ESK);if(d)ensaioLinks=JSON.parse(d);}catch(e){ensaioLinks=[];}
+}
+
+function saveEnsaioLinks(){
+try{localStorage.setItem(ESK,JSON.stringify(ensaioLinks));}catch(e){}
+}
+
+function extractYoutubeId(url){
+if(!url)return null;
+url=url.trim();
+var patterns=[
+/(?:youtube\.com\/watch\?v=|youtube\.com\/watch\?.+&v=)([a-zA-Z0-9_-]{11})/,
+/youtu\.be\/([a-zA-Z0-9_-]{11})/,
+/youtube\.com\/embed\/([a-zA-Z0-9_-]{11})/,
+/youtube\.com\/shorts\/([a-zA-Z0-9_-]{11})/,
+/youtube\.com\/live\/([a-zA-Z0-9_-]{11})/
+];
+for(var i=0;i<patterns.length;i++){
+var m=url.match(patterns[i]);
+if(m)return m[1];
+}
+return null;
+}
+
+function addEnsaioLink(){
+var input=document.getElementById('ensaio-url');
+var url=input.value.trim();
+if(!url){return;}
+var id=extractYoutubeId(url);
+if(!id){alert('Link inválido. Cole um link do YouTube.');return;}
+// Check duplicate
+for(var i=0;i<ensaioLinks.length;i++){if(ensaioLinks[i].id===id)return;}
+ensaioLinks.push({id:id,name:url,date:Date.now()});
+saveEnsaioLinks();
+input.value='';
+renderEnsaioList();
+}
+
+function removeEnsaioLink(idx){
+if(!confirm('Remover este link?'))return;
+ensaioLinks.splice(idx,1);
+saveEnsaioLinks();
+renderEnsaioList();
+}
+
+function openEnsaioPlayer(id,name){
+var overlay=document.getElementById('ensaio-overlay');
+var video=document.getElementById('ensaio-video');
+video.innerHTML='<iframe src="https://www.youtube-nocookie.com/embed/'+id+'?autoplay=1&rel=0&playsinline=1&modestbranding=1" allow="autoplay;encrypted-media;picture-in-picture" allowfullscreen></iframe>';
+var title=document.getElementById('ensaio-now-title');
+title.innerHTML=(name||'')+'<br><a href="https://www.youtube.com/watch?v='+id+'" target="_blank" style="color:var(--accent);font-size:12px;text-decoration:underline">Abrir no YouTube ↗</a>';
+overlay.classList.add('active');
+overlay.style.display='flex';
+}
+
+function closeEnsaioPlayer(){
+var overlay=document.getElementById('ensaio-overlay');
+var video=document.getElementById('ensaio-video');
+video.innerHTML='';
+overlay.classList.remove('active');
+overlay.style.display='none';
+}
+
+function renderEnsaioList(){
+loadEnsaioLinks();
+var container=document.getElementById('ensaio-list');
+var empty=document.getElementById('ensaio-empty');
+if(!ensaioLinks.length){container.innerHTML='';empty.style.display='flex';return;}
+empty.style.display='none';
+var h='';
+ensaioLinks.forEach(function(item,idx){
+var thumb='https://img.youtube.com/vi/'+item.id+'/mqdefault.jpg';
+h+='<div class="ensaio-item">';
+h+='<img class="ensaio-thumb" src="'+thumb+'" alt="">';
+h+='<div class="ensaio-info"><div class="ensaio-name">'+(item.name||'Video')+'</div></div>';
+h+='<div class="ensaio-actions">';
+h+='<button class="ensaio-play" data-ens-action="play" data-ens-id="'+item.id+'" data-ens-name="'+(item.name||'').replace(/"/g,'&quot;')+'">▶</button>';
+h+='<button class="ensaio-del" data-ens-action="del" data-ens-idx="'+idx+'">🗑️</button>';
+h+='</div></div>';
+});
+container.innerHTML=h;
+}
+
+// Event delegation for ensaio list
+document.getElementById('ensaio-body').addEventListener('click',function(e){
+var el=e.target;
+while(el&&el!==this){
+if(el.getAttribute&&el.getAttribute('data-ens-action')){
+var action=el.getAttribute('data-ens-action');
+if(action==='play'){
+var vid=el.getAttribute('data-ens-id');
+var name=el.getAttribute('data-ens-name');
+if(vid)openEnsaioPlayer(vid,name);
+}else if(action==='del'){
+var idx=parseInt(el.getAttribute('data-ens-idx'));
+if(!isNaN(idx))removeEnsaioLink(idx);
+}
+return;
+}
+el=el.parentNode;
+}
+});
+
+// Enter key to add link
+document.getElementById('ensaio-url').addEventListener('keydown',function(e){
+if(e.key==='Enter'){e.preventDefault();addEnsaioLink();}
+});
+
+loadEnsaioLinks();
 
 </script>
 </body></html>
