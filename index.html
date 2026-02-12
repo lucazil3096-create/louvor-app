@@ -90,22 +90,22 @@ body.light .btn-theme{border-color:rgba(100,80,50,.2);color:#8b6b3a}
 .empty-text{font-size:14px;color:var(--text-dim)}
 .empty-btn{margin-top:14px;display:inline-block;background:rgba(224,120,64,.2);border:1px solid rgba(224,120,64,.4);color:#fff;border-radius:9px;padding:10px 20px;font-size:13px;cursor:pointer;font-family:var(--fb)}
 .view-body{flex:1;overflow:hidden;position:relative;display:flex;flex-direction:column}
-.lyrics-scroll{flex:1;overflow-y:auto;padding:20px 18px;display:none;scroll-behavior:auto;-webkit-overflow-scrolling:touch;will-change:scroll-position}.lyrics-scroll.active{display:block}
+.lyrics-scroll{flex:1;overflow-y:auto;padding:20px 18px;display:none;scroll-behavior:auto;-webkit-overflow-scrolling:touch;will-change:scroll-position}
 .lyrics-single{white-space:pre-wrap;max-width:800px;margin:0 auto;word-wrap:break-word;font-weight:700;letter-spacing:.3px;color:#fff}
-.lyrics-split-wrap{flex:1;overflow-y:auto;padding:20px 14px;display:none}.lyrics-split-wrap.active{display:flex;gap:0}
+.lyrics-split-wrap{flex:1;overflow-y:auto;padding:20px 14px;display:none;gap:0}
 .split-col{flex:1;white-space:pre-wrap;padding:0 10px;word-wrap:break-word;font-weight:700;letter-spacing:.3px;color:#fff}
 .split-divider{width:2px;background:rgba(224,120,64,.2);align-self:stretch;flex-shrink:0}
-.page-wrap{flex:1;overflow:hidden;position:relative;display:none}.page-wrap.active{display:block}
-.lyrics-fit-wrap{flex:1;overflow:hidden;display:none;position:relative}.lyrics-fit-wrap.active{display:block}
+.page-wrap{flex:1;overflow:hidden;position:relative;display:none}
+.lyrics-fit-wrap{flex:1;overflow:hidden;display:none;position:relative}
 .fit-track{display:flex;height:100%;transition:transform .35s cubic-bezier(.25,.46,.45,.94)}
 .fit-slide{min-width:100%;height:100%;display:flex;padding:12px 10px;gap:0;overflow:hidden}
-.fit-col{flex:1;white-space:pre-wrap;word-wrap:break-word;font-weight:700;letter-spacing:.3px;color:#fff;padding:0 8px;overflow:hidden}
+.fit-col{flex:1;white-space:pre-wrap;word-wrap:break-word;font-weight:700;letter-spacing:.3px;color:#fff;padding:0 8px;overflow:hidden;text-overflow:clip}
 .fit-divider{width:2px;background:rgba(224,120,64,.15);align-self:stretch;flex-shrink:0}
 body.light .fit-col{color:#1a1a1a}
 body.light .fit-divider{background:rgba(224,120,64,.1)}
 .page-track{display:flex;height:100%;transition:transform .35s cubic-bezier(.25,.46,.45,.94)}
 .page-slide{min-width:100%;height:100%;display:flex;gap:0;padding:18px 14px 30px;overflow:hidden}
-.page-col{flex:1;white-space:pre-wrap;word-wrap:break-word;padding:0 10px;overflow:hidden;font-weight:700;letter-spacing:.3px;color:#fff}
+.page-col{flex:1;white-space:pre-wrap;word-wrap:break-word;padding:0 10px;overflow:hidden;text-overflow:clip;font-weight:700;letter-spacing:.3px;color:#fff}
 .page-divider{width:2px;background:rgba(224,120,64,.2);align-self:stretch;flex-shrink:0}
 .page-footer{position:absolute;bottom:0;left:0;right:0;display:flex;align-items:center;justify-content:center;gap:6px;padding:6px 0;background:linear-gradient(transparent,rgba(0,0,0,.9) 40%);pointer-events:none}
 .page-dot{width:7px;height:7px;border-radius:50%;background:rgba(200,175,130,.2);transition:all .3s;pointer-events:auto;cursor:pointer}
@@ -465,13 +465,23 @@ c.addEventListener('touchmove',function(e){if(!isSwiping)return;touchDX=e.touche
 c.addEventListener('touchend',function(){if(!isSwiping)return;isSwiping=false;t.style.transition='transform .35s cubic-bezier(.25,.46,.45,.94)';if(touchDX<-50&&currentPage<totalPages-1)currentPage++;else if(touchDX>50&&currentPage>0)currentPage--;updatePageUI();},{passive:true});}
 function setMode(mode){viewMode=mode;stopScroll();
 document.querySelectorAll('.tb[data-mode]').forEach(function(b){b.classList.toggle('active',b.dataset.mode===mode);});
-document.getElementById('lyrics-scroll').classList.toggle('active',mode==='single'||mode==='auto');
-document.getElementById('lyrics-split-wrap').classList.toggle('active',mode==='split');
-document.getElementById('lyrics-fit-wrap').classList.toggle('active',mode==='fit');
-document.getElementById('page-wrap').classList.toggle('active',mode==='page');
-document.getElementById('tb-auto').classList.toggle('visible',mode==='auto');
-if(mode==='page')requestAnimationFrame(function(){requestAnimationFrame(function(){buildPages();});});
-if(mode==='fit')requestAnimationFrame(function(){requestAnimationFrame(function(){buildFit();});});}
+// HIDE ALL first
+document.getElementById('lyrics-scroll').classList.remove('active');
+document.getElementById('lyrics-scroll').style.display='none';
+document.getElementById('lyrics-split-wrap').classList.remove('active');
+document.getElementById('lyrics-split-wrap').style.display='none';
+document.getElementById('lyrics-fit-wrap').classList.remove('active');
+document.getElementById('lyrics-fit-wrap').style.display='none';
+document.getElementById('page-wrap').classList.remove('active');
+document.getElementById('page-wrap').style.display='none';
+document.getElementById('tb-auto').classList.remove('visible');
+// SHOW selected
+if(mode==='single'||mode==='auto'){document.getElementById('lyrics-scroll').classList.add('active');document.getElementById('lyrics-scroll').style.display='block';}
+if(mode==='split'){document.getElementById('lyrics-split-wrap').classList.add('active');document.getElementById('lyrics-split-wrap').style.display='flex';}
+if(mode==='fit'){document.getElementById('lyrics-fit-wrap').classList.add('active');document.getElementById('lyrics-fit-wrap').style.display='block';requestAnimationFrame(function(){requestAnimationFrame(function(){buildFit();});});}
+if(mode==='page'){document.getElementById('page-wrap').classList.add('active');document.getElementById('page-wrap').style.display='block';requestAnimationFrame(function(){requestAnimationFrame(function(){buildPages();});});}
+if(mode==='auto'){document.getElementById('tb-auto').classList.add('visible');}
+}
 function changeFontSize(d){fontSize=Math.max(14,Math.min(80,fontSize+d));applyFontAll();if(viewMode==='page')requestAnimationFrame(function(){buildPages();});if(viewMode==='fit')requestAnimationFrame(function(){buildFit();});}
 
 var fitPage=0,fitTotal=0;
@@ -629,14 +639,58 @@ var el=document.getElementById('presentation');
 document.getElementById('pres-title').textContent=l.title;
 document.getElementById('pres-tom').textContent=l.tom?'Tom: '+l.tom:'';
 var lyr=document.getElementById('pres-lyrics');lyr.innerHTML='';
-var lines=l.lyrics.split('\n');var mid=Math.ceil(lines.length/2);
-var wrap=document.createElement('div');wrap.className='pres-split';
-var c1=document.createElement('div');c1.className='pres-split-col';c1.textContent=lines.slice(0,mid).join('\n');
-var dv=document.createElement('div');dv.className='pres-split-div';
-var c2=document.createElement('div');c2.className='pres-split-col';c2.textContent=lines.slice(mid).join('\n');
-wrap.appendChild(c1);wrap.appendChild(dv);wrap.appendChild(c2);lyr.appendChild(wrap);
-var fs=fontSize+'px',lh=(fontSize*1.65)+'px';c1.style.fontSize=fs;c1.style.lineHeight=lh;c2.style.fontSize=fs;c2.style.lineHeight=lh;
-el.style.display='flex';try{document.documentElement.requestFullscreen();}catch(e){}}
+el.style.display='flex';
+
+// Wait for display, then auto-fit
+requestAnimationFrame(function(){requestAnimationFrame(function(){
+var lines=l.lyrics.split('\n');
+while(lines.length&&!lines[lines.length-1].trim())lines.pop();
+var totalLines=lines.length;
+var availH=el.clientHeight-80;
+var availW=el.clientWidth-60;
+
+var maxChars=0;
+for(var i=0;i<lines.length;i++){if(lines[i].length>maxChars)maxChars=lines[i].length;}
+
+// Max columns based on width
+var maxCols=1;
+if(availW>=900)maxCols=4;
+else if(availW>=600)maxCols=3;
+else if(availW>=400)maxCols=2;
+
+// Find best cols + font
+var bestCols=1,bestSize=12;
+for(var cols=1;cols<=maxCols;cols++){
+var colW=(availW-(cols-1)*12-cols*16)/cols;
+if(colW<60)continue;
+var fontW=maxChars>0?Math.floor(colW/(maxChars*0.48)):80;
+var linesPerCol=Math.ceil(totalLines/cols);
+var fontH=Math.floor(availH/(linesPerCol*1.45));
+var best=Math.min(fontW,fontH,60);
+best=Math.max(best,10);
+if(best>bestSize){bestSize=best;bestCols=cols;}
+}
+bestSize=Math.max(bestSize,12);
+
+// Build columns
+var wrap=document.createElement('div');
+wrap.style.cssText='display:flex;gap:0;max-width:95%;max-height:90vh;align-items:flex-start';
+var linesPerCol=Math.ceil(totalLines/bestCols);
+for(var c=0;c<bestCols;c++){
+if(c>0){var dv=document.createElement('div');dv.className='pres-split-div';wrap.appendChild(dv);}
+var col=document.createElement('div');
+col.className='pres-split-col';
+col.style.fontSize=bestSize+'px';
+col.style.lineHeight=(bestSize*1.45)+'px';
+var start=c*linesPerCol;
+var end=Math.min(start+linesPerCol,totalLines);
+col.textContent=lines.slice(start,end).join('\n');
+wrap.appendChild(col);
+}
+lyr.appendChild(wrap);
+});});
+
+try{document.documentElement.requestFullscreen();}catch(e){}}
 function exitPresentation(){document.getElementById('presentation').style.display='none';try{if(document.fullscreenElement)document.exitFullscreen();}catch(e){}}
 document.addEventListener('fullscreenchange',function(){if(!document.fullscreenElement)document.getElementById('presentation').style.display='none';});
 
@@ -779,12 +833,16 @@ b.innerHTML=h;
 }
 
 load();loadPV();renderList();initSwipe();loadTheme();renderPads();
-window.addEventListener('resize',function(){if(viewMode==='fit')requestAnimationFrame(function(){buildFit();});if(viewMode==='page')requestAnimationFrame(function(){buildPages();});});
+window.addEventListener('resize',function(){
+if(viewMode==='fit')requestAnimationFrame(function(){buildFit();});
+if(viewMode==='page')requestAnimationFrame(function(){buildPages();});
+if(document.getElementById('presentation').style.display==='flex'){var l=lyrics.find(function(x){return x.id===currentId;});if(l)enterPresentation();}
+});
 window.addEventListener('orientationchange',function(){
-// Wait for rotation animation to finish
 setTimeout(function(){
 if(viewMode==='fit')buildFit();
 if(viewMode==='page')buildPages();
+if(document.getElementById('presentation').style.display==='flex'){var l=lyrics.find(function(x){return x.id===currentId;});if(l)enterPresentation();}
 },300);
 });
 
