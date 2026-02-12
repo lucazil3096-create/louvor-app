@@ -298,59 +298,73 @@ appId:"1:599364196472:web:3fecfe67cfa7f38c81758d"
 var db=firebase.firestore();
 var fbDoc=db.collection('app').doc('data');
 var saveTimer=null;
-var isSaving=false;
+var fbReady=false;
 
 var SK='church-lyrics-v5';var TK='church-today-v1';
 var lyrics=[],currentId=null,editId=null,viewMode='single',fontSize=32,scrollSpeed=20,isScrolling=false,animId=null;
 var currentPage=0,totalPages=0,allLines=[],touchStartX=0,touchDX=0,isSwiping=false;
 var todayList=[],currentTab='all';
 
-// Merge: keeps ALL songs from both sources, never loses data
-function mergeLyrics(local,remote){
-if(!remote||!remote.length)return local;
-if(!local||!local.length)return remote;
-var map={};
-local.forEach(function(l){map[l.id]=l;});
-remote.forEach(function(l){if(!map[l.id])map[l.id]=l;});
-// Keep local order first, then add any remote-only
-var result=local.slice();
-remote.forEach(function(l){if(!local.find(function(x){return x.id===l.id;}))result.push(l);});
-return result;
-}
-
 function load(){
+// 1. Load local cache first (instant)
 try{var d=localStorage.getItem(SK);if(d)lyrics=JSON.parse(d);
 var td=localStorage.getItem(TK);if(td)todayList=JSON.parse(td);else todayList=[];
 }catch(e){lyrics=[];todayList=[];}
-// Load from Firebase once - MERGE, never replace
+renderList();try{updateTodayCount();}catch(e){}
+// Migration: first run of v2 sync, force push local to Firebase to clean old merged data
+var syncVersion=localStorage.getItem('church-sync-v');
+if(syncVersion!=='2'){
+localStorage.setItem('church-sync-v','2');
+localStorage.setItem('church-last-save',String(Date.now()));
+fbSaveNow();// Push current local state to Firebase (overwrites old merged junk)
+return;
+}
+// 2. Then check Firebase (async) - Firebase WINS if newer
 fbDoc.get().then(function(doc){
+fbReady=true;
 if(doc.exists&&doc.data().lyrics){
 var remoteLyrics=JSON.parse(doc.data().lyrics);
-lyrics=mergeLyrics(lyrics,remoteLyrics);
+var localStr=JSON.stringify(lyrics);
+var remoteStr=JSON.stringify(remoteLyrics);
+if(localStr!==remoteStr){
+var remoteTime=doc.data().updatedAt?doc.data().updatedAt.toMillis():0;
+var localTime=0;
+try{localTime=parseInt(localStorage.getItem('church-last-save'))||0;}catch(e){}
+if(localTime>remoteTime&&lyrics.length>0){
+// Local is newer - push to Firebase
+fbSaveNow();
+}else{
+// Firebase is newer - use Firebase data
+lyrics=remoteLyrics;
 localStorage.setItem(SK,JSON.stringify(lyrics));
-if(doc.data().todayList)todayList=JSON.parse(doc.data().todayList);
+if(doc.data().todayList){
+todayList=JSON.parse(doc.data().todayList);
 localStorage.setItem(TK,JSON.stringify(todayList));
+}
 renderList();try{updateTodayCount();}catch(e){}
-fbSaveNow();// Push merged result back
-}else{fbSaveNow();}
-}).catch(function(){});
+}
+}
+}else if(!doc.exists&&lyrics.length>0){
+fbSaveNow();
+}
+}).catch(function(e){console.log('Firebase load error:',e);});
 }
 
 function fbSaveNow(){
+var now=Date.now();
+try{localStorage.setItem('church-last-save',String(now));}catch(e){}
 fbDoc.set({
 lyrics:JSON.stringify(lyrics),
 todayList:JSON.stringify(todayList),
 updatedAt:firebase.firestore.FieldValue.serverTimestamp()
-}).catch(function(){});
+}).catch(function(e){console.log('Firebase save error:',e);});
 }
 
 function fbSave(){
-isSaving=true;
 if(saveTimer)clearTimeout(saveTimer);
 saveTimer=setTimeout(function(){
 fbSaveNow();
-setTimeout(function(){isSaving=false;},1000);
-},200);
+},300);
 }
 
 function save(){
@@ -751,7 +765,10 @@ text=document.getElementById('edit-text').value.trim();if(!title||!text)return;
 if(editId){var i=lyrics.findIndex(function(l){return l.id===editId;});if(i>=0){lyrics[i].title=title;lyrics[i].tom=tom;lyrics[i].lyrics=text;}}
 else lyrics.push({id:Date.now().toString(),title:title,tom:tom,lyrics:text});save();goList();}
 function deleteLyric(id){var l=lyrics.find(function(x){return x.id===id;});if(!l||!confirm('Excluir "'+l.title+'"?'))return;
-lyrics=lyrics.filter(function(x){return x.id!==id;});save();if(currentId===id)goList();renderList();}
+lyrics=lyrics.filter(function(x){return x.id!==id;});
+try{localStorage.setItem(SK,JSON.stringify(lyrics));}catch(e){}
+fbSaveNow();// Save immediately - no delay for deletions
+if(currentId===id)goList();renderList();}
 document.addEventListener('keydown',function(e){if(viewMode!=='page')return;if(e.key==='ArrowLeft')pageGo(-1);if(e.key==='ArrowRight')pageGo(1);});
 var isLight=false;
 function toggleTheme(){isLight=!isLight;document.body.classList.toggle('light',isLight);document.getElementById('btn-theme').textContent=isLight?'🌙':'☀️';try{localStorage.setItem('church-theme',isLight?'light':'dark');}catch(e){}}
