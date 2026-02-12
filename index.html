@@ -415,6 +415,7 @@ if(nav==='pads')renderPads();
 // ===== MP3 PADS - SERVER FILES =====
 var padPlaying={};
 var FADE_TIME=3;
+var audioCtx=null;
 var TOMS=['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
 var TOM_NAMES={'C':'Dó','C#':'Dó#','D':'Ré','D#':'Ré#','E':'Mi','F':'Fá','F#':'Fá#','G':'Sol','G#':'Sol#','A':'Lá','A#':'Lá#','B':'Si'};
 var TOM_FOLDER={'C':'C','C#':'Cs','D':'D','D#':'Ds','E':'E','F':'F','F#':'Fs','G':'G','G#':'Gs','A':'A','A#':'As','B':'B'};
@@ -422,10 +423,11 @@ var PAD_MAP={
 'C':[1],'C#':[1],'D':[1],'D#':[1],'E':[1],'F':[1],'F#':[1],'G':[1],'G#':[1],'A':[1],'A#':[1],'B':[1]
 };
 
-// Global volume and pan
 var padVol=70;var padPan=0;var PVSK='church-pad-global-v1';
-function loadPV(){try{var d=localStorage.getItem(PVSK);if(d){var o=JSON.parse(d);padVol=o.vol||70;padPan=o.pan||0;}}catch(e){}}
+function loadPV(){try{var d=localStorage.getItem(PVSK);if(d){var o=JSON.parse(d);padVol=o.vol!=null?o.vol:70;padPan=o.pan!=null?o.pan:0;}}catch(e){}}
 function savePV(){try{localStorage.setItem(PVSK,JSON.stringify({vol:padVol,pan:padPan}));}catch(e){}}
+
+function getCtx(){if(!audioCtx)audioCtx=new(window.AudioContext||window.webkitAudioContext)();if(audioCtx.state==='suspended')audioCtx.resume();return audioCtx;}
 
 function padUrl(t,s){return'pads/'+TOM_FOLDER[t]+'/pad'+s+'.mp3';}
 function pid(t,s){return t.replace('#','s')+'-'+s;}
@@ -434,7 +436,6 @@ function isPlaying(t){if(!PAD_MAP[t])return false;for(var i=0;i<PAD_MAP[t].lengt
 function isFading(t){if(!PAD_MAP[t])return false;for(var i=0;i<PAD_MAP[t].length;i++){var p=padPlaying[pid(t,PAD_MAP[t][i])];if(p&&p.fading)return true;}return false;}
 function isLoading(t){if(!PAD_MAP[t])return false;for(var i=0;i<PAD_MAP[t].length;i++){var p=padPlaying[pid(t,PAD_MAP[t][i])];if(p&&p.loading)return true;}return false;}
 
-// Get which tom is currently active (playing or fading)
 function activeTom(){
 for(var i=0;i<TOMS.length;i++){if(isPlaying(TOMS[i])||isLoading(TOMS[i]))return TOMS[i];}
 return null;
@@ -443,20 +444,13 @@ return null;
 function tapTom(t){
 if(isLoading(t))return;
 var cur=activeTom();
-
-// Tapping same tom that's playing = stop it
 if(cur===t&&isPlaying(t)){
 PAD_MAP[t].forEach(function(s){if(padPlaying[pid(t,s)])stopPad(t,s);});
 return;
 }
-
-// Tapping different tom = crossfade
 if(cur&&cur!==t){
-// Fade out current
 PAD_MAP[cur].forEach(function(s){if(padPlaying[pid(cur,s)])stopPad(cur,s);});
 }
-
-// Play new tom
 if(hasPad(t)){
 PAD_MAP[t].forEach(function(s){playPad(t,s);});
 }
@@ -465,16 +459,22 @@ PAD_MAP[t].forEach(function(s){playPad(t,s);});
 function playPad(t,s){
 var id=pid(t,s);if(padPlaying[id])return;
 padPlaying[id]={loading:true,fading:false};renderPads();
+var ctx=getCtx();
 var a=new Audio(padUrl(t,s));
-a.loop=true;a.volume=0;
+a.crossOrigin='anonymous';
+a.loop=true;
 var tv=padVol/100;
 a.addEventListener('canplaythrough',function r(){
 a.removeEventListener('canplaythrough',r);
+var src=ctx.createMediaElementSource(a);
+var gain=ctx.createGain();
+gain.gain.value=0;
+var pan=ctx.createStereoPanner();
+pan.pan.value=padPan/100;
+src.connect(gain);gain.connect(pan);pan.connect(ctx.destination);
 a.play().then(function(){
-var st=Date.now();
-function fi(){var e=(Date.now()-st)/1000;var pr=Math.min(e/FADE_TIME,1);a.volume=pr*tv;if(pr<1)requestAnimationFrame(fi);}
-fi();
-padPlaying[id]={audio:a,fading:false,loading:false,tv:tv};renderPads();
+gain.gain.setTargetAtTime(tv,ctx.currentTime,FADE_TIME/3);
+padPlaying[id]={audio:a,src:src,gain:gain,pan:pan,fading:false,loading:false,tv:tv};renderPads();
 }).catch(function(){delete padPlaying[id];renderPads();});
 });
 a.addEventListener('error',function(){delete padPlaying[id];renderPads();});
@@ -484,25 +484,35 @@ a.load();
 function stopPad(t,s){
 var id=pid(t,s);var p=padPlaying[id];if(!p||p.fading||p.loading)return;
 p.fading=true;renderPads();
-var sv=p.audio.volume,st=Date.now();
-function fo(){var e=(Date.now()-st)/1000;var pr=Math.min(e/FADE_TIME,1);
-try{p.audio.volume=sv*(1-pr);}catch(x){}
-if(pr<1){requestAnimationFrame(fo);}
-else{try{p.audio.pause();p.audio.src='';}catch(x){}delete padPlaying[id];renderPads();}}
-fo();
+var ctx=getCtx();
+p.gain.gain.cancelScheduledValues(ctx.currentTime);
+p.gain.gain.setValueAtTime(p.gain.gain.value,ctx.currentTime);
+p.gain.gain.setTargetAtTime(0,ctx.currentTime,FADE_TIME/3);
+setTimeout(function(){
+try{p.audio.pause();p.audio.src='';}catch(x){}
+delete padPlaying[id];renderPads();
+},FADE_TIME*1000+500);
 }
 
 function stopAllPads(){Object.keys(padPlaying).forEach(function(id){var ps=id.split('-');var m=TOMS.find(function(t){return t.replace('#','s')===ps[0];});if(m)stopPad(m,parseInt(ps[1]));});}
 
 function setGlobalVol(v){
 padVol=+v;savePV();
+var ctx=getCtx();
 Object.keys(padPlaying).forEach(function(id){
 var p=padPlaying[id];
-if(p&&p.audio&&!p.fading&&!p.loading){p.tv=v/100;p.audio.volume=v/100;}
+if(p&&p.gain&&!p.fading&&!p.loading){p.tv=v/100;p.gain.gain.setTargetAtTime(v/100,ctx.currentTime,0.1);}
 });
 }
 
-function setGlobalPan(v){padPan=+v;savePV();}
+function setGlobalPan(v){
+padPan=+v;savePV();
+var ctx=getCtx();
+Object.keys(padPlaying).forEach(function(id){
+var p=padPlaying[id];
+if(p&&p.pan&&!p.fading&&!p.loading){p.pan.pan.setTargetAtTime(v/100,ctx.currentTime,0.1);}
+});
+}
 
 function renderPads(){
 var b=document.getElementById('pads-body');var h='<div class="tom-grid">';
@@ -519,11 +529,10 @@ h+='<span class="tq-status">'+(ld?'carregando...':(fd?'saindo...':(pl?'∞ loop'
 });
 h+='</div>';
 
-// Global Vol/Pan
 h+='<div class="pad-ctrl-section" style="margin-top:10px">';
 h+='<div style="font-size:11px;font-weight:700;color:var(--gold);margin-bottom:4px">Controles Gerais</div>';
 h+='<div class="pad-ctrl-row"><span class="pad-ctrl-label">Vol</span><input type="range" class="pad-slider" min="0" max="100" value="'+padVol+'" oninput="setGlobalVol(this.value)"><span style="font-size:10px;color:var(--gold);min-width:28px;text-align:right">'+padVol+'%</span></div>';
-h+='<div class="pad-ctrl-row"><span class="pad-ctrl-label">Pan</span><input type="range" class="pad-slider" min="-100" max="100" value="'+padPan+'" oninput="setGlobalPan(this.value)"></div>';
+h+='<div class="pad-ctrl-row"><span class="pad-ctrl-label">Pan</span><input type="range" class="pad-slider" min="-100" max="100" value="'+padPan+'" oninput="setGlobalPan(this.value)"><span style="font-size:10px;color:var(--gold);min-width:28px;text-align:right">'+(padPan>0?'R '+padPan:(padPan<0?'L '+Math.abs(padPan):'C'))+'</span></div>';
 h+='<div class="pan-labels"><span>L</span><span>Centro</span><span>R</span></div>';
 h+='</div>';
 
