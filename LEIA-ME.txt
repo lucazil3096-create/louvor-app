@@ -1,0 +1,66 @@
+==========================================
+  MINISTÉRIO AOS PÉS DA CRUZ - APP LETRAS
+==========================================
+
+COMO SUBIR PRO GITHUB PAGES:
+
+1. Cria uma conta no GitHub (github.com)
+2. Clica em "New Repository" (botão verde)
+3. Nome: louvor-app (ou o que quiser)
+4. Marca "Public"
+5. Clica "Create repository"
+6. Clica "uploading an existing file"
+7. Arrasta TODOS os arquivos desta pasta (index.html + pasta pads/)
+8. Clica "Commit changes"
+9. Vai em Settings > Pages
+10. Source: "Deploy from a branch"
+11. Branch: main, /(root)
+12. Clica Save
+13. Espera ~2 min, o link aparece no topo!
+
+COMO ADICIONAR MAIS PADS:
+
+1. Renomeia o MP3 para "pad1.mp3" (ou pad2, pad3, pad4)
+2. Coloca na pasta do tom correto:
+   pads/C/pad1.mp3    (Dó)
+   pads/Cs/pad1.mp3   (Dó#)
+   pads/D/pad1.mp3    (Ré)
+   pads/Ds/pad1.mp3   (Ré#)
+   pads/E/pad1.mp3    (Mi)
+   pads/F/pad1.mp3    (Fá)
+   pads/Fs/pad1.mp3   (Fá#)
+   pads/G/pad1.mp3    (Sol)
+   pads/Gs/pad1.mp3   (Sol#)
+   pads/A/pad1.mp3    (Lá)
+   pads/As/pad1.mp3   (Lá#)
+   pads/B/pad1.mp3    (Si)
+
+3. IMPORTANTE: Edita o index.html e atualiza o PAD_MAP:
+   Procura por "var PAD_MAP=" e adiciona os tons.
+   Exemplo com C, D, G tendo 1 pad cada e E com 2 pads:
+   
+   var PAD_MAP={
+   'C':[1],
+   'D':[1],
+   'E':[1,2],
+   'G':[1]
+   };
+
+4. Sobe os arquivos novos pro GitHub
+
+ESTRUTURA DE PASTAS:
+louvor-app/
+  index.html
+  pads/
+    C/pad1.mp3
+    Cs/
+    D/
+    Ds/
+    E/
+    F/
+    Fs/
+    G/
+    Gs/
+    A/
+    As/
+    B/
