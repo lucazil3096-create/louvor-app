@@ -189,39 +189,41 @@ body.light .nav-btn.active{background:rgba(224,120,64,.08);color:#8b4020}
 /* ===== MULTITRACK ===== */
 .multi-screen{display:none;flex-direction:column;height:calc(100vh - 52px);height:calc(100dvh - 52px)}
 .multi-screen.active{display:flex}
-.multi-header{padding:10px 14px;background:rgba(0,0,0,.97);border-bottom:1px solid rgba(224,120,64,.25);flex-shrink:0;display:flex;align-items:center;justify-content:space-between}
-.multi-title{font-family:var(--fd);font-size:18px;font-weight:700;color:var(--gold)}
-.multi-add{background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff;padding:7px 14px;font-size:12px;font-weight:700;border-radius:8px;border:none;cursor:pointer;font-family:var(--fb)}
-.multi-body{flex:1;overflow-y:auto;padding:10px 14px}
-.multi-card{background:var(--card-bg);border:1px solid var(--card-border);border-radius:10px;padding:12px;margin-bottom:8px;display:flex;align-items:center;gap:10px}
-.multi-card-info{flex:1;min-width:0}
-.multi-card-name{font-size:15px;font-weight:700;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.multi-card-count{font-size:11px;color:var(--text-dim);margin-top:2px}
-.multi-card-play{background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff;border:none;border-radius:50%;width:40px;height:40px;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0}
-.multi-player{display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:var(--bg);z-index:200;flex-direction:column}
-.multi-player.active{display:flex}
-.multi-player-top{padding:10px 14px;background:rgba(0,0,0,.97);border-bottom:1px solid rgba(224,120,64,.25);display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
-.multi-player-name{font-family:var(--fd);font-size:16px;font-weight:700;color:var(--gold)}
-.multi-player-close{background:rgba(255,255,255,.1);border:none;color:#fff;font-size:18px;width:36px;height:36px;border-radius:50%;cursor:pointer}
-.multi-player-body{flex:1;overflow-y:auto;padding:10px}
-.multi-player-controls{padding:10px 14px;background:rgba(0,0,0,.97);border-top:1px solid rgba(224,120,64,.25);flex-shrink:0}
+.multi-hdr{padding:10px 14px;background:rgba(0,0,0,.97);border-bottom:1px solid rgba(224,120,64,.25);flex-shrink:0;display:flex;align-items:center;justify-content:space-between}
+.multi-hdr h2{font-family:var(--fd);font-size:18px;font-weight:700;color:var(--gold);margin:0}
+.multi-hdr button{background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff;padding:7px 14px;font-size:12px;font-weight:700;border-radius:8px;border:none;cursor:pointer;font-family:var(--fb)}
+.ml-body{flex:1;overflow-y:auto;padding:10px 14px}
+.ml-card{background:var(--card-bg);border:1px solid var(--card-border);border-radius:10px;padding:12px;margin-bottom:8px;display:flex;align-items:center;gap:10px}
+.ml-info{flex:1;min-width:0}
+.ml-name{font-size:15px;font-weight:700;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ml-sub{font-size:11px;color:var(--text-dim);margin-top:2px}
+.ml-btn{border:none;border-radius:50%;width:38px;height:38px;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;background:rgba(255,255,255,.08);color:var(--text)}
+.ml-btn.play{background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff}
+.ml-btn.cached{color:var(--green)}
+/* Player overlay */
+.mp-overlay{display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:var(--bg);z-index:200;flex-direction:column}
+.mp-overlay.active{display:flex}
+.mp-top{padding:10px 14px;background:rgba(0,0,0,.97);border-bottom:1px solid rgba(224,120,64,.25);display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
+.mp-top h2{font-family:var(--fd);font-size:16px;font-weight:700;color:var(--gold);margin:0}
+.mp-close{background:rgba(255,255,255,.1);border:none;color:#fff;font-size:18px;width:36px;height:36px;border-radius:50%;cursor:pointer}
+.mp-body{flex:1;overflow-y:auto;padding:10px}
+.mp-ctrl{padding:10px 14px;background:rgba(0,0,0,.97);border-top:1px solid rgba(224,120,64,.25);flex-shrink:0}
 .mp-btns{display:flex;align-items:center;justify-content:center;gap:14px;margin-bottom:8px}
-.mp-btn{background:none;border:2px solid var(--accent);color:var(--accent);width:40px;height:40px;border-radius:50%;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center}
-.mp-btn.big{width:52px;height:52px;font-size:20px;background:var(--accent);color:#fff}
+.mp-b{background:none;border:2px solid var(--accent);color:var(--accent);width:40px;height:40px;border-radius:50%;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center}
+.mp-b.big{width:52px;height:52px;font-size:20px;background:var(--accent);color:#fff}
 .mp-time{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--text-dim)}
-.mp-seek{flex:1;height:4px;-webkit-appearance:none;appearance:none;background:rgba(255,255,255,.1);border-radius:2px;outline:none}
-.mp-seek::-webkit-slider-thumb{-webkit-appearance:none;width:14px;height:14px;background:var(--accent);border-radius:50%;cursor:pointer}
-.mt-row{display:flex;align-items:center;gap:5px;padding:5px 8px;background:var(--card-bg);border:1px solid var(--card-border);border-radius:7px;margin-bottom:3px}
-.mt-dot{width:6px;height:6px;border-radius:50%;background:var(--text-dim);flex-shrink:0}
-.mt-dot.ok{background:var(--green)}.mt-dot.err{background:var(--danger)}.mt-dot.loading{background:var(--accent)}
-.mt-name{width:60px;font-size:10px;font-weight:700;color:var(--gold);flex-shrink:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.mt-btn{background:none;border:1px solid var(--card-border);color:var(--text);width:24px;height:24px;border-radius:4px;font-size:9px;cursor:pointer;font-weight:700;flex-shrink:0;padding:0}
-.mt-btn.m-on{background:var(--danger);border-color:var(--danger);color:#fff}
-.mt-btn.s-on{background:var(--green);border-color:var(--green);color:#000}
-.mt-vol{flex:1;height:3px;-webkit-appearance:none;appearance:none;background:rgba(255,255,255,.15);border-radius:2px;outline:none;min-width:30px}
-.mt-vol::-webkit-slider-thumb{-webkit-appearance:none;width:10px;height:10px;background:var(--gold);border-radius:50%;cursor:pointer}
-.mt-pan-btn{background:none;border:1px solid var(--card-border);color:var(--text-dim);width:26px;height:26px;border-radius:5px;font-size:9px;cursor:pointer;font-weight:700;flex-shrink:0}
-.mt-pan-btn.active{background:var(--accent);border-color:var(--accent);color:#fff}
+.mp-bar{flex:1;height:4px;-webkit-appearance:none;appearance:none;background:rgba(255,255,255,.1);border-radius:2px;outline:none}
+.mp-bar::-webkit-slider-thumb{-webkit-appearance:none;width:14px;height:14px;background:var(--accent);border-radius:50%;cursor:pointer}
+.tr{display:flex;align-items:center;gap:4px;padding:5px 6px;background:var(--card-bg);border:1px solid var(--card-border);border-radius:7px;margin-bottom:3px}
+.tr-dot{width:6px;height:6px;border-radius:50%;background:var(--text-dim);flex-shrink:0}
+.tr-dot.ok{background:var(--green)}.tr-dot.err{background:var(--danger)}.tr-dot.ld{background:var(--accent)}
+.tr-nm{width:55px;font-size:10px;font-weight:700;color:var(--gold);flex-shrink:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tr-b{background:none;border:1px solid var(--card-border);color:var(--text);width:24px;height:24px;border-radius:4px;font-size:9px;cursor:pointer;font-weight:700;flex-shrink:0;padding:0}
+.tr-b.m-on{background:var(--danger);border-color:var(--danger);color:#fff}
+.tr-b.s-on{background:var(--green);border-color:var(--green);color:#000}
+.tr-b.l-on,.tr-b.r-on{background:var(--accent);border-color:var(--accent);color:#fff}
+.tr-vol{flex:1;height:3px;-webkit-appearance:none;appearance:none;background:rgba(255,255,255,.15);border-radius:2px;outline:none;min-width:30px}
+.tr-vol::-webkit-slider-thumb{-webkit-appearance:none;width:10px;height:10px;background:var(--gold);border-radius:50%;cursor:pointer}
 .pads-header{padding:10px 14px;background:rgba(0,0,0,.97);border-bottom:1px solid rgba(224,120,64,.25);flex-shrink:0;display:flex;align-items:center;justify-content:space-between}
 .pads-title{font-family:var(--fd);font-size:18px;font-weight:700;color:var(--gold)}
 .pad-stop-all{background:rgba(212,131,106,.12);border:1px solid rgba(212,131,106,.3);color:var(--danger);border-radius:8px;padding:7px 14px;font-size:12px;font-weight:700;cursor:pointer;font-family:var(--fb);white-space:nowrap}
@@ -370,33 +372,31 @@ body.light .pads-header{background:rgba(0,0,0,.97)}
 <div class="ensaio-now-title" id="ensaio-now-title"></div>
 </div>
 
-<!-- MULTITRACK SCREEN -->
+<!-- MULTITRACK -->
 <div id="screen-multi" class="multi-screen">
-<div class="multi-header">
-<div class="multi-title">🎚️ Multitrack</div>
-<button class="multi-add" onclick="mtScan()">🔄 Atualizar</button>
+<div class="multi-hdr">
+<h2>🎚️ Multitrack</h2>
+<button onclick="mtScan()">🔄 Atualizar</button>
 </div>
-<div class="multi-body" id="mt-list"></div>
+<div class="ml-body" id="ml-body"></div>
 </div>
-
-<!-- MULTITRACK PLAYER -->
-<div class="multi-player" id="mt-player">
-<div class="multi-player-top">
-<div class="multi-player-name" id="mt-song-name"></div>
-<button class="multi-player-close" onclick="mtClose()">✕</button>
+<div class="mp-overlay" id="mp-overlay">
+<div class="mp-top">
+<h2 id="mp-title"></h2>
+<button class="mp-close" onclick="mpClose()">✕</button>
 </div>
-<div class="multi-player-body" id="mt-tracks"></div>
-<div class="multi-player-controls">
+<div class="mp-body" id="mp-body"></div>
+<div class="mp-ctrl">
 <div class="mp-btns">
-<button class="mp-btn" onclick="mtSeek(-10)">⏪</button>
-<button class="mp-btn big" id="mt-playbtn" onclick="mtToggle()">▶</button>
-<button class="mp-btn" onclick="mtSeek(10)">⏩</button>
-<button class="mp-btn" onclick="mtStopAll()">⏹</button>
+<button class="mp-b" onclick="mpRel(-10)">⏪</button>
+<button class="mp-b big" id="mp-pp" onclick="mpToggle()">▶</button>
+<button class="mp-b" onclick="mpRel(10)">⏩</button>
+<button class="mp-b" onclick="mpStop()">⏹</button>
 </div>
 <div class="mp-time">
-<span id="mt-time-cur">0:00</span>
-<input type="range" class="mp-seek" id="mt-seekbar" min="0" max="1000" value="0" oninput="mtSeekTo(this.value)">
-<span id="mt-time-dur">0:00</span>
+<span id="mp-cur">0:00</span>
+<input type="range" class="mp-bar" id="mp-bar" min="0" max="1000" value="0" oninput="mpSeekTo(this.value)">
+<span id="mp-dur">0:00</span>
 </div>
 </div>
 </div>
@@ -994,7 +994,7 @@ document.getElementById('screen-ensaio').style.display=nav==='ensaio'?'flex':'no
 document.getElementById('screen-multi').style.display=nav==='multi'?'flex':'none';
 if(nav==='pads')renderPads();
 if(nav==='ensaio')renderEnsaioList();
-if(nav==='multi'){renderMultiList();if(!multiSongs.length)scanDriveFolder();}
+if(nav==='multi'){mtRenderList();if(!mtSongs.length)mtScan();}
 }
 
 // ===== MP3 PADS - SERVER FILES =====
@@ -1248,530 +1248,316 @@ if(e.key==='Enter'){e.preventDefault();addEnsaioLink();}
 loadEnsaioLinks();
 
 // ===== MULTITRACK - GOOGLE DRIVE =====
-var DRIVE_API_KEY='AIzaSyB03CW89laDc5t24seNfw4oS_HKL_uFYLg';
-var DRIVE_FOLDER_ID='1acwOPnLirP5QhDbgSWaYUTj1I9GGEDRb';
-var MSK='church-multi-v2';
-var multiSongs=[];
-var multiAudios=[];
-var multiPlaying=false;
-var multiTimerId=null;
-var multiSoloIdx=-1;
-var multiScanning=false;
+var GKEY='AIzaSyB03CW89laDc5t24seNfw4oS_HKL_uFYLg';
+var GFOLDER='1acwOPnLirP5QhDbgSWaYUTj1I9GGEDRb';
+var CACHE_NAME='mt-audio-v1';
+var mtSongs=[],mtAudios=[],mtPlaying=false,mtTimer=null,mtSolo=-1;
 
-function loadMultiCache(){
-try{var d=localStorage.getItem(MSK);if(d)multiSongs=JSON.parse(d);}catch(e){multiSongs=[];}
-}
-function saveMultiCache(){
-try{localStorage.setItem(MSK,JSON.stringify(multiSongs));}catch(e){}
-}
-
-function driveAudioUrl(fileId){
-return 'https://drive.google.com/uc?export=download&confirm=t&id='+fileId;
-}
-
-function driveApiList(folderId,callback){
-var url='https://www.googleapis.com/drive/v3/files?q=%27'+folderId+'%27+in+parents+and+trashed+%3D+false&key='+DRIVE_API_KEY+'&fields=files(id,name,mimeType)&pageSize=100&orderBy=name';
-var xhr=new XMLHttpRequest();
-xhr.open('GET',url);
-xhr.onload=function(){
-if(xhr.status===200){
-try{var data=JSON.parse(xhr.responseText);callback(null,data.files||[]);}
-catch(e){callback(e,null);}
-}else{callback(new Error('API error: '+xhr.status),null);}
+// --- Drive API ---
+function gList(folderId,cb){
+var x=new XMLHttpRequest();
+x.open('GET','https://www.googleapis.com/drive/v3/files?q=%27'+folderId+'%27+in+parents+and+trashed%3Dfalse&key='+GKEY+'&fields=files(id,name,mimeType)&pageSize=200&orderBy=name');
+x.onload=function(){
+if(x.status===200){try{cb(null,JSON.parse(x.responseText).files||[]);}catch(e){cb(e);}}
+else cb(new Error('HTTP '+x.status));
 };
-xhr.onerror=function(){callback(new Error('Network error'),null);};
-xhr.send();
+x.onerror=function(){cb(new Error('Rede'));};
+x.send();
 }
 
-function scanDriveFolder(){
-if(multiScanning)return;
-multiScanning=true;
-var c=document.getElementById('multi-body');
-c.innerHTML='<div style="text-align:center;padding:40px 20px;opacity:.5"><div style="font-size:32px;margin-bottom:8px">🔄</div><p style="font-size:13px">Lendo pasta do Drive...</p></div>';
+function gAudioUrl(id){return 'https://www.googleapis.com/drive/v3/files/'+id+'?alt=media&key='+GKEY;}
 
-driveApiList(DRIVE_FOLDER_ID,function(err,folders){
-if(err){
-multiScanning=false;
-c.innerHTML='<div style="text-align:center;padding:40px 20px;color:var(--danger)"><p>Erro ao ler Drive</p><p style="font-size:11px;opacity:.6">'+err.message+'</p></div>';
-return;
-}
-// Filter only folders
-var songFolders=folders.filter(function(f){return f.mimeType==='application/vnd.google-apps.folder';});
-if(!songFolders.length){
-multiScanning=false;
-c.innerHTML='<div style="text-align:center;padding:40px 20px;opacity:.3"><div style="font-size:46px;margin-bottom:12px">📁</div><p style="font-size:14px">Nenhuma subpasta encontrada<br>Crie pastas dentro de "Multitrack"<br>com os arquivos de áudio</p></div>';
-return;
-}
-// For each folder, get files
-var pending=songFolders.length;
-var songs=[];
-songFolders.forEach(function(folder){
-driveApiList(folder.id,function(err2,files){
-if(!err2&&files){
-var audioFiles=files.filter(function(f){
-var n=f.name.toLowerCase();
-var byExt=n.endsWith('.mp3')||n.endsWith('.wav')||n.endsWith('.ogg')||n.endsWith('.m4a')||n.endsWith('.flac')||n.endsWith('.aac');
-var byMime=f.mimeType&&f.mimeType.indexOf('audio')===0;
-return byExt||byMime;
+// --- Scan Drive ---
+function mtScan(){
+var el=document.getElementById('ml-body');
+el.innerHTML='<div style="text-align:center;padding:40px;opacity:.5">🔄 Lendo Drive...</div>';
+gList(GFOLDER,function(err,items){
+if(err){el.innerHTML='<div style="text-align:center;padding:40px;color:var(--danger)">❌ Erro: '+err.message+'<br><span style="font-size:11px;opacity:.6">Verifique se está no GitHub Pages (não local)</span></div>';return;}
+var folders=items.filter(function(f){return f.mimeType==='application/vnd.google-apps.folder';});
+if(!folders.length){el.innerHTML='<div style="text-align:center;padding:40px;opacity:.4">📁 Nenhuma subpasta em Multitrack</div>';return;}
+var songs=[],pending=folders.length;
+folders.forEach(function(folder){
+gList(folder.id,function(err2,files){
+if(!err2){
+var audio=files.filter(function(f){
+return f.mimeType.indexOf('audio')===0||/\.(mp3|wav|ogg|m4a|flac|aac)$/i.test(f.name);
 });
-if(audioFiles.length){
-var tracks=audioFiles.map(function(f){
-var name=f.name.replace(/\.[^.]+$/,'');// Remove extension
-return{name:name,fileId:f.id};
-});
-songs.push({id:folder.id,name:folder.name,tracks:tracks});
+if(audio.length){
+songs.push({id:folder.id,name:folder.name,tracks:audio.map(function(f){return{id:f.id,name:f.name.replace(/\.[^.]+$/,'')};})});
 }
 }
 pending--;
-if(pending<=0){
-// Sort by name
+if(!pending){
 songs.sort(function(a,b){return a.name.localeCompare(b.name);});
-multiSongs=songs;
-saveMultiCache();
-multiScanning=false;
-renderMultiList();
+mtSongs=songs;
+try{localStorage.setItem('mt-cache-v1',JSON.stringify(songs));}catch(e){}
+mtRenderList();
 }
 });
 });
 });
 }
 
-function renderMultiList(){
-var c=document.getElementById('multi-body');
-if(!multiSongs.length){
-c.innerHTML='<div style="text-align:center;padding:40px 20px;opacity:.3"><div style="font-size:46px;margin-bottom:12px">🎚️</div><p style="font-size:14px">Nenhuma multitrack<br>Toque 🔄 Atualizar</p></div>';
-return;
-}
+// --- List ---
+function mtRenderList(){
+var el=document.getElementById('ml-body');
+if(!mtSongs.length){el.innerHTML='<div style="text-align:center;padding:40px;opacity:.4">🎚️ Nenhuma multitrack<br>Toque 🔄 Atualizar</div>';return;}
 var h='';
-multiSongs.forEach(function(s){
-h+='<div class="multi-card">';
-h+='<div class="multi-card-info"><div class="multi-card-name">'+s.name+'</div>';
-h+='<div class="multi-card-count" id="mc-st-'+s.id+'">'+s.tracks.length+' faixa'+(s.tracks.length>1?'s':'')+'</div></div>';
-h+='<div class="multi-card-actions">';
-h+='<button class="multi-card-btn" data-mc-action="cache" data-mc-id="'+s.id+'" id="mc-dl-'+s.id+'" title="Baixar">⬇️</button>';
-h+='<button class="multi-card-play" data-mc-action="play" data-mc-id="'+s.id+'">▶</button>';
-h+='</div></div>';
+mtSongs.forEach(function(s,i){
+h+='<div class="ml-card" data-mt="'+i+'">';
+h+='<div class="ml-info"><div class="ml-name">'+s.name+'</div>';
+h+='<div class="ml-sub" id="ml-sub-'+i+'">'+s.tracks.length+' faixa'+(s.tracks.length>1?'s':'')+'</div></div>';
+h+='<button class="ml-btn" data-act="dl" data-i="'+i+'" id="ml-dl-'+i+'" title="Baixar">⬇️</button>';
+h+='<button class="ml-btn play" data-act="play" data-i="'+i+'">▶</button>';
+h+='</div>';
 });
-c.innerHTML=h;
-// Check cache status for each song
-multiSongs.forEach(function(s){checkCacheStatus(s);});
+el.innerHTML=h;
+// Check cached status
+mtSongs.forEach(function(s,i){mtCheckCached(s,i);});
 }
 
-// Event delegation for multi list
-document.getElementById('multi-body').addEventListener('click',function(e){
-var el=e.target;
-while(el&&el!==this){
-if(el.getAttribute&&el.getAttribute('data-mc-action')){
-var action=el.getAttribute('data-mc-action');
-var id=el.getAttribute('data-mc-id');
-if(action==='play')openMultiPlayer(id);
-if(action==='cache')cacheSong(id);
-return;
-}
-el=el.parentNode;
-}
+document.getElementById('ml-body').addEventListener('click',function(e){
+var t=e.target.closest('[data-act]');
+if(!t)return;
+var act=t.getAttribute('data-act'),idx=parseInt(t.getAttribute('data-i'));
+if(act==='play')mpOpen(idx);
+if(act==='dl')mtDownload(idx);
 });
 
-// ---- Cache System ----
-var CACHE_NAME='multitrack-audio-v1';
+// --- Cache/Download ---
+function mtCacheKey(fileId){return 'https://mt-cache/'+fileId;}
 
-function trackCacheKey(fileId){
-return 'https://multitrack-cache/'+fileId;
-}
-
-function checkCacheStatus(song){
+function mtCheckCached(song,idx){
 if(!window.caches)return;
-caches.open(CACHE_NAME).then(function(cache){
-var checks=song.tracks.map(function(t){
-return cache.match(trackCacheKey(t.fileId)).then(function(r){return !!r;});
-});
-Promise.all(checks).then(function(results){
-var cached=results.filter(function(r){return r;}).length;
-var st=document.getElementById('mc-st-'+song.id);
-var dl=document.getElementById('mc-dl-'+song.id);
-if(cached===song.tracks.length){
-if(st)st.textContent=song.tracks.length+' faixa'+(song.tracks.length>1?'s':'')+' • ✅ salvo';
-if(dl){dl.textContent='✅';dl.title='Salvo no dispositivo';}
-}else if(cached>0){
-if(st)st.textContent=cached+'/'+song.tracks.length+' salvas';
-if(dl){dl.textContent='⬇️';dl.title='Baixar restante';}
+caches.open(CACHE_NAME).then(function(c){
+Promise.all(song.tracks.map(function(t){return c.match(mtCacheKey(t.id)).then(function(r){return!!r;});})).then(function(res){
+var n=res.filter(Boolean).length;
+var sub=document.getElementById('ml-sub-'+idx);
+var dl=document.getElementById('ml-dl-'+idx);
+if(n===song.tracks.length){
+if(sub)sub.textContent=song.tracks.length+' faixas • ✅ salvo';
+if(dl){dl.textContent='✅';dl.classList.add('cached');}
 }
 });
 });
 }
 
-function cacheSong(id){
-var song=multiSongs.find(function(s){return s.id===id;});
-if(!song||!window.caches)return;
-var dl=document.getElementById('mc-dl-'+id);
-var st=document.getElementById('mc-st-'+id);
+function mtDownload(idx){
+var song=mtSongs[idx];if(!song||!window.caches)return;
+var dl=document.getElementById('ml-dl-'+idx);
+var sub=document.getElementById('ml-sub-'+idx);
 if(dl)dl.textContent='⏳';
-if(st)st.textContent='Baixando...';
-
+if(sub)sub.textContent='Baixando...';
 caches.open(CACHE_NAME).then(function(cache){
-var done=0;
-var total=song.tracks.length;
+var done=0,total=song.tracks.length;
 song.tracks.forEach(function(t){
-var key=trackCacheKey(t.fileId);
+var key=mtCacheKey(t.id);
 cache.match(key).then(function(existing){
-if(existing){
-done++;
-if(st)st.textContent='Baixando... '+done+'/'+total;
-if(done===total){finishCache(id,song);}
-return;
+if(existing){done++;check();return;}
+fetch(gAudioUrl(t.id)).then(function(r){
+if(r.ok)return cache.put(key,r);
+}).then(function(){done++;check();}).catch(function(){done++;check();});
+});
+});
+function check(){
+if(sub)sub.textContent='Baixando... '+done+'/'+total;
+if(done>=total){
+if(sub)sub.textContent=total+' faixas • ✅ salvo';
+if(dl){dl.textContent='✅';dl.classList.add('cached');}
 }
-var url='https://www.googleapis.com/drive/v3/files/'+t.fileId+'?alt=media&key='+DRIVE_API_KEY;
-fetch(url).then(function(resp){
-if(resp.ok){
-return cache.put(key,resp);
 }
-}).then(function(){
-done++;
-if(st)st.textContent='Baixando... '+done+'/'+total;
-if(done===total){finishCache(id,song);}
-}).catch(function(){
-done++;
-if(st)st.textContent='Baixando... '+done+'/'+total;
-if(done===total){finishCache(id,song);}
-});
-});
-});
 });
 }
 
-function finishCache(id,song){
-var dl=document.getElementById('mc-dl-'+id);
-var st=document.getElementById('mc-st-'+id);
-if(dl){dl.textContent='✅';dl.title='Salvo no dispositivo';}
-if(st)st.textContent=song.tracks.length+' faixa'+(song.tracks.length>1?'s':'')+' • ✅ salvo';
+function mtGetUrl(fileId,cb){
+if(!window.caches){cb(gAudioUrl(fileId));return;}
+caches.open(CACHE_NAME).then(function(c){
+c.match(mtCacheKey(fileId)).then(function(r){
+if(r){r.blob().then(function(b){cb(URL.createObjectURL(b));});}
+else{cb(gAudioUrl(fileId));}
+});
+}).catch(function(){cb(gAudioUrl(fileId));});
 }
 
-function deleteSongCache(id){
-var song=multiSongs.find(function(s){return s.id===id;});
-if(!song||!window.caches)return;
-caches.open(CACHE_NAME).then(function(cache){
-song.tracks.forEach(function(t){cache.delete(trackCacheKey(t.fileId));});
-});
-}
-
-function getTrackAudioUrl(fileId,callback){
-// Try cache first, fallback to online
-if(!window.caches){
-callback('https://www.googleapis.com/drive/v3/files/'+fileId+'?alt=media&key='+DRIVE_API_KEY);
-return;
-}
-caches.open(CACHE_NAME).then(function(cache){
-cache.match(trackCacheKey(fileId)).then(function(resp){
-if(resp){
-resp.blob().then(function(blob){
-callback(URL.createObjectURL(blob));
-});
-}else{
-callback('https://www.googleapis.com/drive/v3/files/'+fileId+'?alt=media&key='+DRIVE_API_KEY);
-}
-});
-}).catch(function(){
-callback('https://www.googleapis.com/drive/v3/files/'+fileId+'?alt=media&key='+DRIVE_API_KEY);
-});
-}
-
-// ---- Player ----
-var multiCtx=null;
-function getMultiCtx(){if(!multiCtx)multiCtx=new(window.AudioContext||window.webkitAudioContext)();return multiCtx;}
-
-function openMultiPlayer(id){
-var song=multiSongs.find(function(s){return s.id===id;});
-if(!song)return;
-closeMultiPlayer();
-multiAudios=[];
-multiSoloIdx=-1;
-multiPlaying=false;
-document.getElementById('mp-name').textContent=song.name;
-var body=document.getElementById('mp-tracks');
+// --- Player ---
+function mpOpen(idx){
+var song=mtSongs[idx];if(!song)return;
+mpClose();
+mtAudios=[];mtSolo=-1;mtPlaying=false;
+document.getElementById('mp-title').textContent=song.name;
+var body=document.getElementById('mp-body');
 var h='';
 song.tracks.forEach(function(t,i){
-h+='<div class="mt-row">';
-h+='<div class="mt-status" id="mt-st-'+i+'"></div>';
-h+='<div class="mt-name" title="'+t.name+'">'+t.name+'</div>';
-h+='<button class="mt-mute" id="mt-m-'+i+'" data-mp-action="mute" data-mp-idx="'+i+'">M</button>';
-h+='<button class="mt-solo" id="mt-s-'+i+'" data-mp-action="solo" data-mp-idx="'+i+'">S</button>';
-h+='<input type="range" class="mt-vol" min="0" max="100" value="80" data-mp-action="vol" data-mp-idx="'+i+'" title="Vol">';
-h+='<button class="mt-pan-btn" id="mt-panL-'+i+'" data-mp-action="panL" data-mp-idx="'+i+'">L</button>';
-h+='<button class="mt-pan-btn" id="mt-panR-'+i+'" data-mp-action="panR" data-mp-idx="'+i+'">R</button>';
+h+='<div class="tr">';
+h+='<div class="tr-dot" id="td-'+i+'"></div>';
+h+='<div class="tr-nm" title="'+t.name+'">'+t.name+'</div>';
+h+='<button class="tr-b" data-pa="m" data-pi="'+i+'">M</button>';
+h+='<button class="tr-b" data-pa="s" data-pi="'+i+'">S</button>';
+h+='<input type="range" class="tr-vol" min="0" max="100" value="80" data-pa="v" data-pi="'+i+'">';
+h+='<button class="tr-b" data-pa="l" data-pi="'+i+'" id="tl-'+i+'">L</button>';
+h+='<button class="tr-b" data-pa="r" data-pi="'+i+'" id="tr2-'+i+'">R</button>';
 h+='</div>';
 });
 body.innerHTML=h;
 
+// Create audio for each track
+var loaded=0;
 song.tracks.forEach(function(t,i){
-var audio=new Audio();
-audio.preload='auto';
-audio.volume=0.8;
+var a=new Audio();
+a.preload='auto';
+a.volume=0.8;
+var dot=document.getElementById('td-'+i);
 
-// Load from cache (blob) or online
-getTrackAudioUrl(t.fileId,function(url){
-// If blob URL, no CORS issues, Web Audio works perfectly
-var isBlob=url.indexOf('blob:')===0;
-if(isBlob){
-audio.src=url;
-}else{
-audio.crossOrigin='anonymous';
-audio.src=url;
-}
+mtGetUrl(t.id,function(url){
+a.src=url;
 });
 
-var webAudioOk=false;
-audio.addEventListener('canplaythrough',function(){
-if(!webAudioOk){
-try{
-var ctx=getMultiCtx();
-var srcNode=ctx.createMediaElementSource(audio);
-var gain=ctx.createGain();gain.gain.value=0.8;
-var pan=ctx.createStereoPanner();pan.pan.value=0;
-srcNode.connect(gain);gain.connect(pan);pan.connect(ctx.destination);
-multiAudios[i].gain=gain;
-multiAudios[i].pan=pan;
-multiAudios[i].webAudio=true;
-webAudioOk=true;
-}catch(e){}
-}
-var st=document.getElementById('mt-st-'+i);
-if(st){st.classList.add('loaded');st.classList.remove('error');st.style.background='';}
-});
-audio.addEventListener('loadstart',function(){
-var st=document.getElementById('mt-st-'+i);
-if(st)st.style.background='var(--accent)';
-});
-audio.addEventListener('error',function(){
-var st=document.getElementById('mt-st-'+i);
-if(st){st.classList.add('error');st.style.background='';}
+a.addEventListener('canplaythrough',function(){if(dot){dot.classList.add('ok');dot.classList.remove('err','ld');}});
+a.addEventListener('loadstart',function(){if(dot)dot.classList.add('ld');});
+a.addEventListener('error',function(){if(dot){dot.classList.add('err');dot.classList.remove('ok','ld');}});
+
+mtAudios.push({a:a,muted:false,vol:0.8,pan:0});
 });
 
-multiAudios.push({audio:audio,gain:null,pan:null,muted:false,vol:0.8,panVal:0,webAudio:false});
-});
-
-document.getElementById('mp-play').textContent='▶';
-document.getElementById('mp-play').classList.remove('playing');
+document.getElementById('mp-pp').textContent='▶';
 document.getElementById('mp-cur').textContent='0:00';
 document.getElementById('mp-dur').textContent='0:00';
-document.getElementById('mp-seek').value=0;
-document.getElementById('multi-player').classList.add('active');
-document.getElementById('multi-player').style.display='flex';
+document.getElementById('mp-bar').value=0;
+document.getElementById('mp-overlay').classList.add('active');
+document.getElementById('mp-overlay').style.display='flex';
 }
 
-function closeMultiPlayer(){
-multiStop();
-multiAudios.forEach(function(a){
-if(a&&a.audio){try{a.audio.pause();a.audio.src='';}catch(e){}}
-});
-multiAudios=[];
-document.getElementById('multi-player').classList.remove('active');
-document.getElementById('multi-player').style.display='none';
+function mpClose(){
+mpStop();
+mtAudios.forEach(function(t){try{t.a.pause();t.a.src='';}catch(e){}});
+mtAudios=[];
+document.getElementById('mp-overlay').classList.remove('active');
+document.getElementById('mp-overlay').style.display='none';
 }
 
-function multiTogglePlay(){
-if(multiPlaying){multiPause();}
-else{multiPlay();}
-}
+function mpToggle(){mtPlaying?mpPause():mpPlay();}
 
-function multiPlay(){
-if(!multiAudios.length)return;
-// First, pause all and sync to same time
-var targetTime=multiAudios[0].audio.currentTime||0;
-multiAudios.forEach(function(a){
-if(a&&a.audio){
-a.audio.pause();
-a.audio.currentTime=targetTime;
-}
-});
-// Small delay to let seeking settle, then play all at once
+function mpPlay(){
+if(!mtAudios.length)return;
+var time=mtAudios[0].a.currentTime||0;
+mtAudios.forEach(function(t){t.a.currentTime=time;});
 setTimeout(function(){
-multiAudios.forEach(function(a){
-if(a&&a.audio){
-a.audio.currentTime=targetTime;
-a.audio.play().catch(function(e){console.log('Play error',e);});
-}
-});
-multiPlaying=true;
-document.getElementById('mp-play').textContent='⏸';
-document.getElementById('mp-play').classList.add('playing');
-if(multiTimerId)clearInterval(multiTimerId);
-multiTimerId=setInterval(function(){
-updateMultiTime();
-// Re-sync check every 2 seconds
-multiResync();
-},200);
-},50);
+mtAudios.forEach(function(t){t.a.play().catch(function(){});});
+mtPlaying=true;
+document.getElementById('mp-pp').textContent='⏸';
+if(mtTimer)clearInterval(mtTimer);
+mtTimer=setInterval(mpTick,250);
+},30);
 }
 
-function multiResync(){
-if(!multiPlaying||multiAudios.length<2)return;
-var master=multiAudios[0].audio.currentTime;
-multiAudios.forEach(function(a,i){
-if(i===0||!a||!a.audio)return;
-var diff=Math.abs(a.audio.currentTime-master);
-if(diff>0.15){// More than 150ms out of sync
-a.audio.currentTime=master;
-}
-});
+function mpPause(){
+mtAudios.forEach(function(t){t.a.pause();});
+mtPlaying=false;
+document.getElementById('mp-pp').textContent='▶';
+if(mtTimer){clearInterval(mtTimer);mtTimer=null;}
 }
 
-function multiPause(){
-multiAudios.forEach(function(a){if(a&&a.audio)a.audio.pause();});
-multiPlaying=false;
-document.getElementById('mp-play').textContent='▶';
-document.getElementById('mp-play').classList.remove('playing');
-if(multiTimerId){clearInterval(multiTimerId);multiTimerId=null;}
-}
-
-function multiStop(){
-multiAudios.forEach(function(a){
-if(a&&a.audio){a.audio.pause();a.audio.currentTime=0;}
-});
-multiPlaying=false;
-document.getElementById('mp-play').textContent='▶';
-document.getElementById('mp-play').classList.remove('playing');
+function mpStop(){
+mpPause();
+mtAudios.forEach(function(t){t.a.currentTime=0;});
 document.getElementById('mp-cur').textContent='0:00';
-document.getElementById('mp-seek').value=0;
-if(multiTimerId){clearInterval(multiTimerId);multiTimerId=null;}
+document.getElementById('mp-bar').value=0;
 }
 
-function multiSeek(val){
-if(!multiAudios.length)return;
-var dur=multiAudios[0].audio.duration||0;
+function mpRel(sec){
+if(!mtAudios.length)return;
+var t=Math.max(0,mtAudios[0].a.currentTime+sec);
+mtAudios.forEach(function(x){x.a.currentTime=t;});
+}
+
+function mpSeekTo(val){
+if(!mtAudios.length)return;
+var dur=mtAudios[0].a.duration||0;
 if(!dur)return;
-var t=dur*(val/100);
-multiAudios.forEach(function(a){if(a&&a.audio)a.audio.currentTime=t;});
+var t=dur*(val/1000);
+mtAudios.forEach(function(x){x.a.currentTime=t;});
 }
 
-function multiSeekRel(sec){
-if(!multiAudios.length)return;
-var cur=multiAudios[0].audio.currentTime||0;
-var t=Math.max(0,cur+sec);
-multiAudios.forEach(function(a){if(a&&a.audio)a.audio.currentTime=t;});
+function mpTick(){
+if(!mtAudios.length)return;
+var a=mtAudios[0].a;
+var c=a.currentTime||0,d=a.duration||0;
+document.getElementById('mp-cur').textContent=mpFmt(c);
+document.getElementById('mp-dur').textContent=mpFmt(d);
+if(d>0)document.getElementById('mp-bar').value=Math.round(c/d*1000);
+if(c>=d&&d>0)mpStop();
+// Re-sync drifted tracks
+var master=c;
+for(var i=1;i<mtAudios.length;i++){
+if(Math.abs(mtAudios[i].a.currentTime-master)>0.15)mtAudios[i].a.currentTime=master;
+}
 }
 
-function updateMultiTime(){
-if(!multiAudios.length||!multiAudios[0].audio)return;
-var a=multiAudios[0].audio;
-var cur=a.currentTime||0;
-var dur=a.duration||0;
-document.getElementById('mp-cur').textContent=fmtTime(cur);
-document.getElementById('mp-dur').textContent=fmtTime(dur);
-if(dur>0)document.getElementById('mp-seek').value=(cur/dur)*100;
-if(cur>=dur&&dur>0&&multiPlaying)multiStop();
+function mpFmt(s){var m=Math.floor(s/60),ss=Math.floor(s%60);return m+':'+(ss<10?'0':'')+ss;}
+
+// --- Track controls ---
+function trMute(i){
+var t=mtAudios[i];if(!t)return;
+t.muted=!t.muted;
+trApplyVol();
+var b=document.querySelector('[data-pa="m"][data-pi="'+i+'"]');
+if(b)b.classList.toggle('m-on',t.muted);
 }
 
-function fmtTime(s){
-var m=Math.floor(s/60);
-var sec=Math.floor(s%60);
-return m+':'+(sec<10?'0':'')+sec;
-}
-
-function multiSetMute(idx){
-if(!multiAudios[idx])return;
-var a=multiAudios[idx];
-a.muted=!a.muted;
-if(multiSoloIdx===-1){
-if(a.webAudio&&a.gain)a.gain.gain.value=a.muted?0:a.vol;
-else a.audio.volume=a.muted?0:a.vol;
-}
-var btn=document.getElementById('mt-m-'+idx);
-if(btn)btn.classList.toggle('muted',a.muted);
-if(a.muted&&multiSoloIdx===idx){multiSoloIdx=-1;updateSoloState();}
-}
-
-function multiSetSolo(idx){
-if(multiSoloIdx===idx){multiSoloIdx=-1;}
-else{multiSoloIdx=idx;}
-updateSoloState();
-}
-
-function updateSoloState(){
-multiAudios.forEach(function(a,i){
-if(!a)return;
-var btn=document.getElementById('mt-s-'+i);
-if(multiSoloIdx===-1){
-var v=a.muted?0:a.vol;
-if(a.webAudio&&a.gain)a.gain.gain.value=v;
-else a.audio.volume=v;
-if(btn)btn.classList.remove('active');
-}else{
-var v=(i===multiSoloIdx)?a.vol:0;
-if(a.webAudio&&a.gain)a.gain.gain.value=v;
-else a.audio.volume=v;
-if(btn)btn.classList.toggle('active',i===multiSoloIdx);
-}
+function trSolo(i){
+mtSolo=(mtSolo===i)?-1:i;
+trApplyVol();
+mtAudios.forEach(function(t,j){
+var b=document.querySelector('[data-pa="s"][data-pi="'+j+'"]');
+if(b)b.classList.toggle('s-on',mtSolo===j);
 });
 }
 
-function multiSetVol(idx,val){
-if(!multiAudios[idx])return;
-var a=multiAudios[idx];
-a.vol=val/100;
-if(multiSoloIdx===-1&&!a.muted){
-if(a.webAudio&&a.gain)a.gain.gain.value=val/100;
-else a.audio.volume=val/100;
-}else if(multiSoloIdx===idx){
-if(a.webAudio&&a.gain)a.gain.gain.value=val/100;
-else a.audio.volume=val/100;
-}
+function trVol(i,v){
+mtAudios[i].vol=v/100;
+trApplyVol();
 }
 
-function multiSetPanL(idx){
-if(!multiAudios[idx])return;
-var a=multiAudios[idx];
-var btnL=document.getElementById('mt-panL-'+idx);
-var btnR=document.getElementById('mt-panR-'+idx);
-if(a.panVal===-1){
-// Already L, toggle off → Center
-a.panVal=0;
-if(btnL)btnL.classList.remove('active');
-}else{
-a.panVal=-1;
-if(btnL)btnL.classList.add('active');
-if(btnR)btnR.classList.remove('active');
-}
-if(a.webAudio&&a.pan)a.pan.pan.value=a.panVal;
+function trPanL(i){
+var t=mtAudios[i];
+t.pan=(t.pan===-1)?0:-1;
+document.getElementById('tl-'+i).classList.toggle('l-on',t.pan===-1);
+document.getElementById('tr2-'+i).classList.remove('r-on');
 }
 
-function multiSetPanR(idx){
-if(!multiAudios[idx])return;
-var a=multiAudios[idx];
-var btnL=document.getElementById('mt-panL-'+idx);
-var btnR=document.getElementById('mt-panR-'+idx);
-if(a.panVal===1){
-// Already R, toggle off → Center
-a.panVal=0;
-if(btnR)btnR.classList.remove('active');
-}else{
-a.panVal=1;
-if(btnR)btnR.classList.add('active');
-if(btnL)btnL.classList.remove('active');
-}
-if(a.webAudio&&a.pan)a.pan.pan.value=a.panVal;
+function trPanR(i){
+var t=mtAudios[i];
+t.pan=(t.pan===1)?0:1;
+document.getElementById('tr2-'+i).classList.toggle('r-on',t.pan===1);
+document.getElementById('tl-'+i).classList.remove('l-on');
 }
 
-// Event delegation for player controls
-document.getElementById('mp-tracks').addEventListener('click',function(e){
-var el=e.target;
-var action=el.getAttribute('data-mp-action');
-var idx=parseInt(el.getAttribute('data-mp-idx'));
-if(action==='mute')multiSetMute(idx);
-if(action==='solo')multiSetSolo(idx);
-if(action==='panL')multiSetPanL(idx);
-if(action==='panR')multiSetPanR(idx);
+function trApplyVol(){
+mtAudios.forEach(function(t,i){
+var v=t.vol;
+if(mtSolo!==-1)v=(i===mtSolo)?t.vol:0;
+else if(t.muted)v=0;
+t.a.volume=v;
 });
-document.getElementById('mp-tracks').addEventListener('input',function(e){
-var el=e.target;
-var action=el.getAttribute('data-mp-action');
-var idx=parseInt(el.getAttribute('data-mp-idx'));
-if(action==='vol')multiSetVol(idx,el.value);
+}
+
+// Event delegation for player
+document.getElementById('mp-body').addEventListener('click',function(e){
+var b=e.target.closest('[data-pa]');
+if(!b)return;
+var a=b.getAttribute('data-pa'),i=parseInt(b.getAttribute('data-pi'));
+if(a==='m')trMute(i);
+if(a==='s')trSolo(i);
+if(a==='l')trPanL(i);
+if(a==='r')trPanR(i);
+});
+document.getElementById('mp-body').addEventListener('input',function(e){
+if(e.target.getAttribute('data-pa')==='v')trVol(parseInt(e.target.getAttribute('data-pi')),e.target.value);
 });
 
-// Load cache first, then auto-scan
-loadMultiCache();
-if(multiSongs.length)renderMultiList();
-else scanDriveFolder();
+// --- Init ---
+try{var mc=localStorage.getItem('mt-cache-v1');if(mc)mtSongs=JSON.parse(mc);}catch(e){}
+if(mtSongs.length)mtRenderList();
 
 </script>
 </body></html>
