@@ -1250,7 +1250,6 @@ loadEnsaioLinks();
 // ===== MULTITRACK - GOOGLE DRIVE =====
 var GKEY='AIzaSyB03CW89laDc5t24seNfw4oS_HKL_uFYLg';
 var GFOLDER='1acwOPnLirP5QhDbgSWaYUTj1I9GGEDRb';
-var CACHE_NAME='mt-audio-v1';
 var mtSongs=[],mtAudios=[],mtPlaying=false,mtTimer=null,mtSolo=-1;
 
 // --- Drive API ---
@@ -1324,59 +1323,103 @@ if(act==='play')mpOpen(idx);
 if(act==='dl')mtDownload(idx);
 });
 
-// --- Cache/Download ---
-function mtCacheKey(fileId){return 'https://mt-cache/'+fileId;}
+// --- IndexedDB Storage (persiste no dispositivo) ---
+var mtDB=null;
+function mtOpenDB(cb){
+if(mtDB){cb(mtDB);return;}
+var req=indexedDB.open('multitrack-db',1);
+req.onupgradeneeded=function(e){e.target.result.createObjectStore('audio');};
+req.onsuccess=function(e){mtDB=e.target.result;cb(mtDB);};
+req.onerror=function(){cb(null);};
+}
+
+function mtSaveBlob(fileId,blob,cb){
+mtOpenDB(function(db){
+if(!db){if(cb)cb();return;}
+var tx=db.transaction('audio','readwrite');
+tx.objectStore('audio').put(blob,fileId);
+tx.oncomplete=function(){if(cb)cb();};
+tx.onerror=function(){if(cb)cb();};
+});
+}
+
+function mtGetBlob(fileId,cb){
+mtOpenDB(function(db){
+if(!db){cb(null);return;}
+var tx=db.transaction('audio','readonly');
+var req=tx.objectStore('audio').get(fileId);
+req.onsuccess=function(){cb(req.result||null);};
+req.onerror=function(){cb(null);};
+});
+}
 
 function mtCheckCached(song,idx){
-if(!window.caches)return;
-caches.open(CACHE_NAME).then(function(c){
-Promise.all(song.tracks.map(function(t){return c.match(mtCacheKey(t.id)).then(function(r){return!!r;});})).then(function(res){
-var n=res.filter(Boolean).length;
+mtOpenDB(function(db){
+if(!db)return;
+var tx=db.transaction('audio','readonly');
+var store=tx.objectStore('audio');
+var count=0,total=song.tracks.length;
+song.tracks.forEach(function(t){
+var r=store.get(t.id);
+r.onsuccess=function(){
+if(r.result)count++;
+total--;
+if(total<=0){
 var sub=document.getElementById('ml-sub-'+idx);
 var dl=document.getElementById('ml-dl-'+idx);
-if(n===song.tracks.length){
+if(count===song.tracks.length){
 if(sub)sub.textContent=song.tracks.length+' faixas • ✅ salvo';
 if(dl){dl.textContent='✅';dl.classList.add('cached');}
 }
+}
+};
+r.onerror=function(){total--;};
 });
 });
 }
 
 function mtDownload(idx){
-var song=mtSongs[idx];if(!song||!window.caches)return;
+var song=mtSongs[idx];if(!song)return;
 var dl=document.getElementById('ml-dl-'+idx);
 var sub=document.getElementById('ml-sub-'+idx);
 if(dl)dl.textContent='⏳';
-if(sub)sub.textContent='Baixando...';
-caches.open(CACHE_NAME).then(function(cache){
+if(sub)sub.textContent='Baixando 0/'+song.tracks.length+'...';
 var done=0,total=song.tracks.length;
+
 song.tracks.forEach(function(t){
-var key=mtCacheKey(t.id);
-cache.match(key).then(function(existing){
-if(existing){done++;check();return;}
+// Check if already saved
+mtGetBlob(t.id,function(existing){
+if(existing){done++;updateProgress();return;}
+// Download via fetch
 fetch(gAudioUrl(t.id)).then(function(r){
-if(r.ok)return cache.put(key,r);
-}).then(function(){done++;check();}).catch(function(){done++;check();});
+if(!r.ok)throw new Error('HTTP '+r.status);
+return r.blob();
+}).then(function(blob){
+mtSaveBlob(t.id,blob,function(){done++;updateProgress();});
+}).catch(function(e){
+console.log('Download error:',t.name,e);
+done++;updateProgress();
 });
 });
-function check(){
-if(sub)sub.textContent='Baixando... '+done+'/'+total;
+});
+
+function updateProgress(){
+if(sub)sub.textContent='Baixando '+done+'/'+total+'...';
 if(done>=total){
 if(sub)sub.textContent=total+' faixas • ✅ salvo';
 if(dl){dl.textContent='✅';dl.classList.add('cached');}
 }
 }
-});
 }
 
-function mtGetUrl(fileId,cb){
-if(!window.caches){cb(gAudioUrl(fileId));return;}
-caches.open(CACHE_NAME).then(function(c){
-c.match(mtCacheKey(fileId)).then(function(r){
-if(r){r.blob().then(function(b){cb(URL.createObjectURL(b));});}
-else{cb(gAudioUrl(fileId));}
+function mtGetAudioSrc(fileId,audioEl){
+mtGetBlob(fileId,function(blob){
+if(blob){
+audioEl.src=URL.createObjectURL(blob);
+}else{
+audioEl.src=gAudioUrl(fileId);
+}
 });
-}).catch(function(){cb(gAudioUrl(fileId));});
 }
 
 // --- Player ---
@@ -1400,17 +1443,14 @@ h+='</div>';
 });
 body.innerHTML=h;
 
-// Create audio for each track
-var loaded=0;
+// Create audio for each track - use saved blob if available
 song.tracks.forEach(function(t,i){
 var a=new Audio();
 a.preload='auto';
 a.volume=0.8;
 var dot=document.getElementById('td-'+i);
 
-mtGetUrl(t.id,function(url){
-a.src=url;
-});
+mtGetAudioSrc(t.id,a);
 
 a.addEventListener('canplaythrough',function(){if(dot){dot.classList.add('ok');dot.classList.remove('err','ld');}});
 a.addEventListener('loadstart',function(){if(dot)dot.classList.add('ld');});
@@ -1429,7 +1469,10 @@ document.getElementById('mp-overlay').style.display='flex';
 
 function mpClose(){
 mpStop();
-mtAudios.forEach(function(t){try{t.a.pause();t.a.src='';}catch(e){}});
+mtAudios.forEach(function(t){
+try{t.a.pause();}catch(e){}
+if(t.a.src&&t.a.src.indexOf('blob:')===0)URL.revokeObjectURL(t.a.src);
+});
 mtAudios=[];
 document.getElementById('mp-overlay').classList.remove('active');
 document.getElementById('mp-overlay').style.display='none';
