@@ -1408,7 +1408,6 @@ song.tracks.forEach(function(t,i){
 var audio=new Audio();
 audio.preload='auto';
 audio.volume=0.8;
-// Direct Drive download link - audio tags don't need CORS
 audio.src='https://drive.google.com/uc?export=download&confirm=t&id='+t.fileId;
 
 audio.addEventListener('canplaythrough',function(){
@@ -1453,11 +1452,19 @@ else{multiPlay();}
 
 function multiPlay(){
 if(!multiAudios.length)return;
-// Sync: set all to same time, then play all
-var t=multiAudios[0].audio.currentTime||0;
+// First, pause all and sync to same time
+var targetTime=multiAudios[0].audio.currentTime||0;
 multiAudios.forEach(function(a){
 if(a&&a.audio){
-a.audio.currentTime=t;
+a.audio.pause();
+a.audio.currentTime=targetTime;
+}
+});
+// Small delay to let seeking settle, then play all at once
+setTimeout(function(){
+multiAudios.forEach(function(a){
+if(a&&a.audio){
+a.audio.currentTime=targetTime;
 a.audio.play().catch(function(e){console.log('Play error',e);});
 }
 });
@@ -1465,7 +1472,24 @@ multiPlaying=true;
 document.getElementById('mp-play').textContent='⏸';
 document.getElementById('mp-play').classList.add('playing');
 if(multiTimerId)clearInterval(multiTimerId);
-multiTimerId=setInterval(updateMultiTime,200);
+multiTimerId=setInterval(function(){
+updateMultiTime();
+// Re-sync check every 2 seconds
+multiResync();
+},200);
+},50);
+}
+
+function multiResync(){
+if(!multiPlaying||multiAudios.length<2)return;
+var master=multiAudios[0].audio.currentTime;
+multiAudios.forEach(function(a,i){
+if(i===0||!a||!a.audio)return;
+var diff=Math.abs(a.audio.currentTime-master);
+if(diff>0.15){// More than 150ms out of sync
+a.audio.currentTime=master;
+}
+});
 }
 
 function multiPause(){
