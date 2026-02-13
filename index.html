@@ -369,13 +369,17 @@ try{var d=localStorage.getItem(SK);if(d)lyrics=JSON.parse(d);
 var td=localStorage.getItem(TK);if(td)todayList=JSON.parse(td);else todayList=[];
 }catch(e){lyrics=[];todayList=[];}
 renderList();try{updateTodayCount();}catch(e){}
-// Migration: first run of v2 sync, force push local to Firebase to clean old merged data
+// Migration: first run of v2 sync
 var syncVersion=localStorage.getItem('church-sync-v');
-if(syncVersion!=='4'){
-localStorage.setItem('church-sync-v','4');
+if(syncVersion!=='5'){
+localStorage.setItem('church-sync-v','5');
+if(lyrics.length>0){
+// Has local data - push to Firebase
 localStorage.setItem('church-last-save',String(Date.now()));
-fbSaveNow();// Push current local state to Firebase (overwrites old merged junk)
+fbSaveNow();
 return;
+}
+// No local data (new device) - fall through to pull from Firebase
 }
 // 2. Then check Firebase (async) - Firebase WINS if newer
 fbDoc.get().then(function(doc){
@@ -389,12 +393,13 @@ var remoteTime=doc.data().updatedAt?doc.data().updatedAt.toMillis():0;
 var localTime=0;
 try{localTime=parseInt(localStorage.getItem('church-last-save'))||0;}catch(e){}
 if(localTime>remoteTime&&lyrics.length>0){
-// Local is newer - push to Firebase
+// Local is newer AND has data - push to Firebase
 fbSaveNow();
 }else{
-// Firebase is newer - use Firebase data
+// Firebase is newer OR local is empty - use Firebase data
 lyrics=remoteLyrics;
 localStorage.setItem(SK,JSON.stringify(lyrics));
+localStorage.setItem('church-last-save',String(Date.now()));
 if(doc.data().todayList){
 todayList=JSON.parse(doc.data().todayList);
 localStorage.setItem(TK,JSON.stringify(todayList));
@@ -412,6 +417,8 @@ fbSaveNow();
 }
 
 function fbSaveNow(){
+// PROTECTION: never save empty lyrics to Firebase
+if(!lyrics||lyrics.length===0){console.log('Skip save: lyrics empty');return;}
 var now=Date.now();
 try{localStorage.setItem('church-last-save',String(now));}catch(e){}
 var data={
