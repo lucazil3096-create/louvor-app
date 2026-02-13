@@ -1275,7 +1275,7 @@ try{localStorage.setItem(MSK,JSON.stringify(multiSongs));}catch(e){}
 }
 
 function driveAudioUrl(fileId){
-return 'https://www.googleapis.com/drive/v3/files/'+fileId+'?alt=media&key='+DRIVE_API_KEY;
+return 'https://drive.google.com/uc?export=download&confirm=t&id='+fileId;
 }
 
 function driveApiList(folderId,callback){
@@ -1319,7 +1319,9 @@ driveApiList(folder.id,function(err2,files){
 if(!err2&&files){
 var audioFiles=files.filter(function(f){
 var n=f.name.toLowerCase();
-return n.endsWith('.mp3')||n.endsWith('.wav')||n.endsWith('.ogg')||n.endsWith('.m4a')||n.endsWith('.flac');
+var byExt=n.endsWith('.mp3')||n.endsWith('.wav')||n.endsWith('.ogg')||n.endsWith('.m4a')||n.endsWith('.flac')||n.endsWith('.aac');
+var byMime=f.mimeType&&f.mimeType.indexOf('audio')===0;
+return byExt||byMime;
 });
 if(audioFiles.length){
 var tracks=audioFiles.map(function(f){
@@ -1392,7 +1394,7 @@ var h='';
 song.tracks.forEach(function(t,i){
 h+='<div class="mt-row">';
 h+='<div class="mt-status" id="mt-st-'+i+'"></div>';
-h+='<div class="mt-name">'+t.name+'</div>';
+h+='<div class="mt-name" title="'+t.name+'">'+t.name+'</div>';
 h+='<button class="mt-mute" id="mt-m-'+i+'" data-mp-action="mute" data-mp-idx="'+i+'">M</button>';
 h+='<button class="mt-solo" id="mt-s-'+i+'" data-mp-action="solo" data-mp-idx="'+i+'">S</button>';
 h+='<input type="range" class="mt-vol" min="0" max="100" value="80" data-mp-action="vol" data-mp-idx="'+i+'" title="Vol">';
@@ -1402,48 +1404,27 @@ h+='</div>';
 });
 body.innerHTML=h;
 
-var ctx=getMultiCtx();
-if(ctx.state==='suspended')ctx.resume();
-
 song.tracks.forEach(function(t,i){
 var audio=new Audio();
 audio.preload='auto';
-audio.src=driveAudioUrl(t.fileId);
 audio.volume=0.8;
+// Direct Drive download link - audio tags don't need CORS
+audio.src='https://drive.google.com/uc?export=download&confirm=t&id='+t.fileId;
 
-var gain=null;
-var pan=null;
-var useWebAudio=false;
-
-audio.addEventListener('canplay',function(){
-// Try to connect Web Audio for pan control (only once)
-if(!useWebAudio&&!gain){
-try{
-var ctx=getMultiCtx();
-var srcNode=ctx.createMediaElementSource(audio);
-gain=ctx.createGain();gain.gain.value=0.8;
-pan=ctx.createStereoPanner();pan.pan.value=0;
-srcNode.connect(gain);gain.connect(pan);pan.connect(ctx.destination);
-useWebAudio=true;
-multiAudios[i].gain=gain;
-multiAudios[i].pan=pan;
-multiAudios[i].useWebAudio=true;
-}catch(e){
-// CORS blocked - use basic audio.volume (no pan)
-console.log('Web Audio unavailable for track '+i+', using basic volume');
-useWebAudio=false;
-}
-}
+audio.addEventListener('canplaythrough',function(){
 var st=document.getElementById('mt-st-'+i);
-if(st){st.classList.add('loaded');st.classList.remove('error');}
+if(st){st.classList.add('loaded');st.classList.remove('error');st.style.background='';}
 });
-audio.addEventListener('error',function(e){
-console.log('Audio error track '+i+': '+t.name,audio.error);
+audio.addEventListener('loadstart',function(){
 var st=document.getElementById('mt-st-'+i);
-if(st){st.classList.add('error');st.classList.remove('loaded');}
+if(st)st.style.background='var(--accent)';
+});
+audio.addEventListener('error',function(){
+var st=document.getElementById('mt-st-'+i);
+if(st){st.classList.add('error');st.style.background='';}
 });
 
-multiAudios.push({audio:audio,gain:null,pan:null,muted:false,vol:0.8,panVal:0,useWebAudio:false});
+multiAudios.push({audio:audio,muted:false,vol:0.8,panVal:0});
 });
 
 document.getElementById('mp-play').textContent='▶';
@@ -1472,8 +1453,6 @@ else{multiPlay();}
 
 function multiPlay(){
 if(!multiAudios.length)return;
-var ctx=getMultiCtx();
-if(ctx.state==='suspended')ctx.resume();
 // Sync: set all to same time, then play all
 var t=multiAudios[0].audio.currentTime||0;
 multiAudios.forEach(function(a){
@@ -1546,8 +1525,7 @@ if(!multiAudios[idx])return;
 var a=multiAudios[idx];
 a.muted=!a.muted;
 if(multiSoloIdx===-1){
-if(a.useWebAudio&&a.gain)a.gain.gain.value=a.muted?0:a.vol;
-else a.audio.volume=a.muted?0:a.vol;
+a.audio.volume=a.muted?0:a.vol;
 }
 var btn=document.getElementById('mt-m-'+idx);
 if(btn)btn.classList.toggle('muted',a.muted);
@@ -1565,14 +1543,10 @@ multiAudios.forEach(function(a,i){
 if(!a)return;
 var btn=document.getElementById('mt-s-'+i);
 if(multiSoloIdx===-1){
-var v=a.muted?0:a.vol;
-if(a.useWebAudio&&a.gain)a.gain.gain.value=v;
-else a.audio.volume=v;
+a.audio.volume=a.muted?0:a.vol;
 if(btn)btn.classList.remove('active');
 }else{
-var v=(i===multiSoloIdx)?a.vol:0;
-if(a.useWebAudio&&a.gain)a.gain.gain.value=v;
-else a.audio.volume=v;
+a.audio.volume=(i===multiSoloIdx)?a.vol:0;
 if(btn)btn.classList.toggle('active',i===multiSoloIdx);
 }
 });
@@ -1583,20 +1557,17 @@ if(!multiAudios[idx])return;
 var a=multiAudios[idx];
 a.vol=val/100;
 if(multiSoloIdx===-1&&!a.muted){
-if(a.useWebAudio&&a.gain)a.gain.gain.value=val/100;
-else a.audio.volume=val/100;
+a.audio.volume=val/100;
 }else if(multiSoloIdx===idx){
-if(a.useWebAudio&&a.gain)a.gain.gain.value=val/100;
-else a.audio.volume=val/100;
+a.audio.volume=val/100;
 }
 }
 
 function multiSetPan(idx,val){
 if(!multiAudios[idx])return;
 multiAudios[idx].panVal=val/100;
-if(multiAudios[idx].useWebAudio&&multiAudios[idx].pan){
-multiAudios[idx].pan.pan.value=val/100;
-}
+// Pan needs Web Audio - not available with Drive CORS
+// Will work in future if files served from same origin
 var label=document.getElementById('mt-pl-'+idx);
 if(label){
 if(val==0)label.textContent='C';
