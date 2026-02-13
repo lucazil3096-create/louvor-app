@@ -1408,7 +1408,7 @@ song.tracks.forEach(function(t,i){
 var audio=new Audio();
 audio.preload='auto';
 audio.volume=0.8;
-audio.src='https://drive.google.com/uc?export=download&confirm=t&id='+t.fileId;
+audio.src='https://www.googleapis.com/drive/v3/files/'+t.fileId+'?alt=media&key='+DRIVE_API_KEY;
 
 audio.addEventListener('canplaythrough',function(){
 var st=document.getElementById('mt-st-'+i);
