@@ -207,6 +207,8 @@ body.light .nav-btn.active{color:var(--accent)}
 .ensaio-video{width:94%;max-width:800px;aspect-ratio:16/9;border-radius:16px;overflow:hidden;background:#000}
 .ensaio-video iframe{width:100%;height:100%;border:none}
 .ensaio-now-title{color:var(--text);font-family:var(--fd);font-size:18px;margin-top:16px;text-align:center;padding:0 24px;max-width:90%;opacity:.7;letter-spacing:1px;text-transform:uppercase}
+.ensaio-yt-btn{margin-top:16px;background:none;border:1px solid rgba(255,255,255,.2);color:rgba(255,255,255,.6);padding:10px 24px;border-radius:12px;font-size:13px;font-family:var(--fb);font-weight:600;cursor:pointer;transition:all .2s;letter-spacing:.3px}
+.ensaio-yt-btn:active{background:rgba(255,255,255,.1);transform:scale(.96)}
 
 /* Pads */
 .pads-header{padding:14px 16px;background:var(--surface);border-bottom:1px solid rgba(255,255,255,.04);flex-shrink:0;display:flex;align-items:center;justify-content:space-between}
@@ -352,6 +354,7 @@ body.light .pads-header{background:var(--surface)}
 <button class="ensaio-close" onclick="closeEnsaioPlayer()">✕</button>
 <div class="ensaio-video" id="ensaio-video"></div>
 <div class="ensaio-now-title" id="ensaio-now-title"></div>
+<button class="ensaio-yt-btn" onclick="openInYouTube()">▶ Abrir no YouTube</button>
 </div>
 
 <!-- BOTTOM NAV -->
@@ -1142,7 +1145,21 @@ renderEnsaioList();
 }
 
 function openEnsaioPlayer(id,name){
-window.open('https://www.youtube.com/watch?v='+id,'_blank');
+var overlay=document.getElementById('ensaio-overlay');
+var video=document.getElementById('ensaio-video');
+var title=document.getElementById('ensaio-now-title');
+video.innerHTML='<iframe src="https://www.youtube.com/embed/'+id+'?autoplay=1&rel=0&modestbranding=1&playsinline=1" allow="autoplay; encrypted-media; picture-in-picture" allowfullscreen></iframe>';
+title.textContent=name||'';
+overlay.style.display='flex';
+overlay.classList.add('active');
+// Store current video id for "open in YouTube" button
+overlay.setAttribute('data-current-id',id);
+}
+
+function openInYouTube(){
+var overlay=document.getElementById('ensaio-overlay');
+var id=overlay.getAttribute('data-current-id');
+if(id)window.open('https://www.youtube.com/watch?v='+id,'_blank');
 }
 
 function closeEnsaioPlayer(){
