@@ -54,12 +54,15 @@ body.light .btn-theme{border-color:var(--card-border);color:var(--gold)}
 .presentation .pres-lyrics{white-space:pre-wrap;word-wrap:break-word;text-align:center;flex:1;display:flex;align-items:center;justify-content:center;overflow:hidden;font-family:var(--fb);width:100%;padding:0 30px}
 .presentation .pres-title{position:absolute;top:12px;left:0;right:0;text-align:center;font-family:var(--fd);font-size:18px;color:var(--gold-dim);opacity:.6;letter-spacing:1.5px;text-transform:uppercase}
 .presentation .pres-tom{position:absolute;top:12px;right:16px;font-size:13px;font-weight:700;color:var(--gold-dim);opacity:.6}
-.presentation .pres-hint{position:absolute;bottom:8px;font-size:10px;color:var(--text-dim);opacity:.3;left:0;right:0;text-align:center}
-.pres-nav{position:absolute;bottom:30px;left:0;right:0;display:flex;align-items:center;justify-content:space-between;padding:0 20px;z-index:1000}
+.presentation .pres-hint{position:absolute;bottom:8px;font-size:10px;color:var(--text-dim);opacity:.3;left:0;right:0;text-align:center;pointer-events:none}
+.pres-controls{position:absolute;bottom:30px;left:0;right:0;display:flex;flex-direction:column;align-items:center;gap:10px;z-index:1000}
+.pres-nav{display:flex;align-items:center;justify-content:space-between;width:100%;padding:0 20px;box-sizing:border-box}
 .pres-nav-btn{padding:10px 20px;border-radius:12px;border:1px solid rgba(255,255,255,.15);background:rgba(255,255,255,.08);color:var(--text);font-size:14px;font-weight:600;cursor:pointer;font-family:var(--fb);backdrop-filter:blur(10px);transition:all .15s}
 .pres-nav-btn:active{background:rgba(255,255,255,.2);transform:scale(.95)}
 .pres-nav-btn:disabled{opacity:.15;pointer-events:none}
 .pres-nav-info{font-size:12px;color:var(--text-dim);opacity:.5}
+.pres-font-ctrl{display:flex;gap:6px}
+.pres-font-btn{padding:8px 14px!important;font-size:15px!important;min-width:44px}
 .presentation .pres-split{display:flex;gap:20px;max-width:95%;max-height:90vh}
 .presentation .pres-split-col{flex:1;white-space:pre-wrap;word-wrap:break-word;font-family:var(--fb);font-weight:700;letter-spacing:.3px;color:#fff}
 .presentation .pres-split-div{width:2px;background:rgba(178,34,34,.12);align-self:stretch}
@@ -417,10 +420,16 @@ body.light .pads-header{background:var(--surface)}
 <div class="pres-title" id="pres-title"></div>
 <div class="pres-tom" id="pres-tom"></div>
 <div class="pres-lyrics" id="pres-lyrics"></div>
+<div class="pres-controls" id="pres-controls">
 <div class="pres-nav" id="pres-nav" style="display:none">
 <button class="pres-nav-btn" id="pres-prev" onclick="presNavGo(-1)">← Anterior</button>
 <span class="pres-nav-info" id="pres-nav-info"></span>
 <button class="pres-nav-btn" id="pres-next" onclick="presNavGo(1)">Próxima →</button>
+</div>
+<div class="pres-font-ctrl">
+<button class="pres-nav-btn pres-font-btn" onclick="presFontSize(-2)">A−</button>
+<button class="pres-nav-btn pres-font-btn" onclick="presFontSize(2)">A+</button>
+</div>
 </div>
 <div class="pres-hint">Toque no centro para sair</div>
 </div>
@@ -1091,7 +1100,7 @@ var lines=l.lyrics.split('\n');
 while(lines.length&&!lines[lines.length-1].trim())lines.pop();
 var stanzas=getStanzas(lines);
 var totalLines=stanzaLineCount(stanzas);
-var availH=el.clientHeight-(todayList.indexOf(currentId)>=0?130:80);
+var availH=el.clientHeight-140;
 var availW=el.clientWidth-60;
 
 var maxChars=0;
@@ -1169,8 +1178,8 @@ for(var c=0;c<forcedTexts.length;c++){
 if(c>0){var dv=document.createElement('div');dv.className='pres-split-div';wrap.appendChild(dv);}
 var col=document.createElement('div');
 col.className='pres-split-col';
-col.style.fontSize=bestSize+'px';
-col.style.lineHeight=(bestSize*1.45)+'px';
+col.style.fontSize=(bestSize+presFontOffset)+'px';
+col.style.lineHeight=((bestSize+presFontOffset)*1.45)+'px';
 col.textContent=forcedTexts[c];
 wrap.appendChild(col);
 }
@@ -1179,8 +1188,8 @@ for(var c=0;c<finalCols.length;c++){
 if(c>0){var dv=document.createElement('div');dv.className='pres-split-div';wrap.appendChild(dv);}
 var col=document.createElement('div');
 col.className='pres-split-col';
-col.style.fontSize=bestSize+'px';
-col.style.lineHeight=(bestSize*1.45)+'px';
+col.style.fontSize=(bestSize+presFontOffset)+'px';
+col.style.lineHeight=((bestSize+presFontOffset)*1.45)+'px';
 col.textContent=colToText(finalCols[c]);
 wrap.appendChild(col);
 }
@@ -1200,8 +1209,19 @@ document.getElementById('pres-next').disabled=(pti>=todayList.length-1);
 }else{pnav.style.display='none';}
 }
 function exitPresentation(){document.getElementById('presentation').style.display='none';try{if(document.fullscreenElement)document.exitFullscreen();}catch(e){}}
+var presFontOffset=0;
+function presFontSize(d){
+presFontOffset+=d;
+var cols=document.querySelectorAll('#pres-lyrics .pres-split-col');
+cols.forEach(function(c){
+var cur=parseFloat(c.style.fontSize)||14;
+var nv=Math.max(6,Math.min(80,cur+d));
+c.style.fontSize=nv+'px';
+c.style.lineHeight=(nv*1.45)+'px';
+});
+}
 function presClick(e){
-if(e.target.closest('.pres-nav-btn'))return;
+if(e.target.closest('.pres-controls'))return;
 exitPresentation();
 }
 function presNavGo(dir){
