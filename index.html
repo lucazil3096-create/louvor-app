@@ -1079,11 +1079,33 @@ var availW=el.clientWidth-60;
 var maxChars=0;
 for(var i=0;i<lines.length;i++){if(lines[i].length>maxChars)maxChars=lines[i].length;}
 
+// Respect viewMode for column count
+var fixedCols=0;
+if(viewMode==='single'||viewMode==='auto')fixedCols=1;
+else if(viewMode==='split')fixedCols=2;
+
 var maxCols=1;
 if(availW>=900)maxCols=4;
 else if(availW>=600)maxCols=3;
 else if(availW>=400)maxCols=2;
 
+if(fixedCols>0){
+// Use fixed column count from viewMode, only auto-fit font size
+var useCols=Math.min(fixedCols,maxCols);
+var colW=(availW-(useCols-1)*12-useCols*20)/useCols;
+var fontW=maxChars>0?Math.floor(colW/(maxChars*0.55)):80;
+var testCols=distributeStanzas(stanzas,useCols);
+var maxLinesInCol=0;
+for(var j=0;j<testCols.length;j++){
+var cl=stanzaLineCount(testCols[j]);
+if(cl>maxLinesInCol)maxLinesInCol=cl;
+}
+var fontH=Math.floor(availH/(maxLinesInCol*1.45));
+var bestSize=Math.min(fontW,fontH,60);
+bestSize=Math.max(bestSize,8);
+var bestCols=useCols;
+} else {
+// Auto mode (fit/page): find best column+size combo
 var bestCols=1,bestSize=12;
 for(var cols=1;cols<=maxCols;cols++){
 var colW=(availW-(cols-1)*12-cols*20)/cols;
@@ -1101,6 +1123,7 @@ best=Math.max(best,10);
 if(best>bestSize){bestSize=best;bestCols=cols;}
 }
 bestSize=Math.max(bestSize,8);
+}
 
 var finalCols=distributeStanzas(stanzas,bestCols);
 var wrap=document.createElement('div');
