@@ -182,6 +182,14 @@ body.light .nav-btn.active{color:var(--accent)}
 .ensaio-header{padding:14px 16px;background:var(--surface);border-bottom:1px solid rgba(255,255,255,.04);flex-shrink:0}
 .ensaio-title{font-family:var(--fd);font-size:24px;font-weight:400;color:var(--text);margin-bottom:10px;letter-spacing:1.5px;text-transform:uppercase}
 .ensaio-input-row{display:flex;gap:8px;align-items:center}
+.ensaio-tabs{display:flex;gap:0;margin-bottom:10px}
+.ensaio-tab{flex:1;padding:10px 8px;text-align:center;font-size:12px;font-weight:600;cursor:pointer;border:1px solid var(--card-border);background:var(--card-bg);color:var(--text-dim);transition:all .2s;font-family:var(--fb)}
+.ensaio-tab:first-child{border-radius:10px 0 0 10px}
+.ensaio-tab:last-child{border-radius:0 10px 10px 0}
+.ensaio-tab.active{background:var(--accent-glow);border-color:var(--accent);color:var(--accent2)}
+.ensaio-tab-count{font-size:10px;background:rgba(178,34,34,.2);color:var(--accent2);padding:2px 6px;border-radius:10px;margin-left:4px;font-weight:700}
+.ensaio-move-btn{background:none;border:1px solid var(--card-border);color:var(--text-dim);border-radius:6px;padding:4px 8px;font-size:10px;cursor:pointer;font-family:var(--fb);transition:all .2s;white-space:nowrap}
+.ensaio-move-btn:active{background:var(--accent-glow);border-color:var(--accent)}
 .ensaio-url{flex:1;padding:10px 14px;background:var(--card-bg);border:1px solid var(--card-border);border-radius:12px;color:var(--text);font-size:13px;font-family:var(--fb);outline:none;transition:border-color .2s}
 .ensaio-url:focus{border-color:var(--accent)}
 .ensaio-url::placeholder{color:var(--text-dim)}
@@ -259,6 +267,31 @@ body.light .pad-link-input{background:var(--card-bg);border-color:var(--card-bor
 .pad-slider::-moz-range-thumb{width:18px;height:18px;background:var(--accent);border-radius:50%;cursor:pointer;border:none}
 .pan-labels{display:flex;justify-content:space-between;font-size:8px;color:var(--text-dim);padding-left:30px}
 @keyframes pad-pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.3;transform:scale(.6)}}
+
+/* Metronome */
+.metro-section{border-top:1px solid var(--card-border);padding-top:14px;margin-top:14px}
+.metro-title{font-family:var(--fd);font-size:20px;color:var(--text);letter-spacing:1.5px;text-transform:uppercase;margin-bottom:12px;display:flex;align-items:center;gap:8px}
+.metro-bpm-row{display:flex;align-items:center;justify-content:center;gap:12px;margin-bottom:14px}
+.metro-bpm-btn{width:44px;height:44px;border-radius:50%;border:1px solid var(--card-border);background:var(--card-bg);color:var(--text);font-size:22px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-family:var(--fb);transition:all .2s}
+.metro-bpm-btn:active{background:var(--accent-glow);border-color:var(--accent);transform:scale(.92)}
+.metro-bpm-display{font-family:var(--fd);font-size:52px;color:var(--text);letter-spacing:2px;min-width:100px;text-align:center;line-height:1}
+.metro-bpm-label{font-size:11px;color:var(--text-dim);text-align:center;margin-top:-4px;margin-bottom:10px;letter-spacing:1px;text-transform:uppercase}
+.metro-beats{display:flex;gap:8px;justify-content:center;margin-bottom:14px}
+.metro-beat-dot{width:18px;height:18px;border-radius:50%;background:var(--card-border);transition:background .08s,transform .08s}
+.metro-beat-dot.active{background:var(--accent);transform:scale(1.3)}
+.metro-beat-dot.first.active{background:var(--green);transform:scale(1.4)}
+.metro-controls{display:flex;gap:8px;justify-content:center;margin-bottom:14px;flex-wrap:wrap}
+.metro-play{padding:12px 32px;border-radius:14px;border:2px solid var(--accent);background:var(--accent-glow);color:var(--accent2);font-size:14px;font-weight:700;cursor:pointer;font-family:var(--fb);transition:all .2s;letter-spacing:.5px}
+.metro-play:active{transform:scale(.95)}
+.metro-play.playing{background:var(--accent);color:#fff}
+.metro-tap{padding:12px 20px;border-radius:14px;border:1px solid var(--card-border);background:var(--card-bg);color:var(--text-dim);font-size:12px;font-weight:600;cursor:pointer;font-family:var(--fb);transition:all .2s}
+.metro-tap:active{background:var(--accent-glow);border-color:var(--accent);transform:scale(.95)}
+.metro-time-row{display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:10px}
+.metro-time-btn{padding:6px 14px;border-radius:8px;border:1px solid var(--card-border);background:var(--card-bg);color:var(--text-dim);font-size:12px;font-weight:600;cursor:pointer;font-family:var(--fb);transition:all .2s}
+.metro-time-btn.active{background:var(--accent-glow);border-color:var(--accent);color:var(--accent2)}
+.metro-time-btn:active{transform:scale(.95)}
+.metro-slider-row{display:flex;align-items:center;gap:6px;margin-bottom:3px;padding:0 10px}
+.metro-slider-label{font-size:9px;color:var(--gold-dim);text-transform:uppercase;min-width:28px;text-align:right;letter-spacing:.5px}
 
 body.light .tom-sq{background:var(--card-bg);border-color:var(--card-border)}
 body.light .tom-sq .tq-note{color:var(--text-dim)}
@@ -360,7 +393,10 @@ body.light .pads-header{background:var(--surface)}
 <div class="pads-title">🎹 Pads</div>
 <button class="pad-stop-all" onclick="stopAllPads()">⏹ Parar Todos</button>
 </div>
-<div class="pads-body" id="pads-body"></div>
+<div class="pads-body" id="pads-body">
+<div id="pads-grid-area"></div>
+<div id="metro-area"></div>
+</div>
 </div>
 
 <!-- ENSAIO SCREEN -->
@@ -376,6 +412,10 @@ body.light .pads-header{background:var(--surface)}
 </div>
 </div>
 <div class="ensaio-body" id="ensaio-body">
+<div class="ensaio-tabs">
+<div class="ensaio-tab active" id="ensaio-tab-now" onclick="switchEnsaioTab('now')">🎵 Ensaiando <span class="ensaio-tab-count" id="ensaio-count-now">0</span></div>
+<div class="ensaio-tab" id="ensaio-tab-next" onclick="switchEnsaioTab('next')">📋 Para Ensaiar <span class="ensaio-tab-count" id="ensaio-count-next">0</span></div>
+</div>
 <div id="ensaio-list"></div>
 <div class="ensaio-empty" id="ensaio-empty">
 <div class="ensaio-empty-icon">🎵</div>
@@ -991,7 +1031,7 @@ document.getElementById('nav-ensaio').classList.toggle('active',nav==='ensaio');
 document.getElementById('screen-list').style.display=nav==='louvor'?'flex':'none';
 document.getElementById('screen-pads').style.display=nav==='pads'?'flex':'none';
 document.getElementById('screen-ensaio').style.display=nav==='ensaio'?'flex':'none';
-if(nav==='pads')renderPads();
+if(nav==='pads'){renderPads();renderMetro();}
 if(nav==='ensaio')renderEnsaioList();
 }
 
@@ -1098,7 +1138,7 @@ if(p&&p.pan&&!p.fading&&!p.loading){p.pan.pan.setTargetAtTime(v/100,ctx.currentT
 }
 
 function renderPads(){
-var b=document.getElementById('pads-body');var h='<div class="tom-grid">';
+var b=document.getElementById('pads-grid-area');var h='<div class="tom-grid">';
 TOMS.forEach(function(t){
 var pl=isPlaying(t),fd=isFading(t),ld=isLoading(t),ha=hasPad(t);
 var ds=[];
@@ -1122,7 +1162,142 @@ h+='</div>';
 b.innerHTML=h;
 }
 
-load();loadPV();renderList();initSwipe();loadTheme();renderPads();
+function renderMetro(){
+var b=document.getElementById('metro-area');
+var h='<div class="metro-section">';
+h+='<div class="metro-title">🥁 Metrônomo</div>';
+h+='<div class="metro-bpm-row">';
+h+='<button class="metro-bpm-btn" onclick="metroBpm(-5)">−</button>';
+h+='<div class="metro-bpm-display" id="metro-bpm-num">'+metroBPM+'</div>';
+h+='<button class="metro-bpm-btn" onclick="metroBpm(5)">+</button>';
+h+='</div>';
+h+='<div class="metro-bpm-label">BPM</div>';
+h+='<div class="metro-beats" id="metro-beats">';
+for(var bi=0;bi<metroBeats;bi++){h+='<div class="metro-beat-dot'+(bi===0?' first':'')+'" id="metro-dot-'+bi+'"></div>';}
+h+='</div>';
+h+='<div class="metro-time-row">';
+[2,3,4,6].forEach(function(b){h+='<button class="metro-time-btn'+(metroBeats===b?' active':'')+'" onclick="setMetroBeats('+b+')">'+b+'/4</button>';});
+h+='</div>';
+h+='<div class="metro-controls">';
+h+='<button class="metro-play'+(metroRunning?' playing':'')+'" id="metro-play-btn" onclick="toggleMetro()">'+(metroRunning?'⏹ Parar':'▶ Iniciar')+'</button>';
+h+='<button class="metro-tap" onclick="tapTempo()">🫳 Tap</button>';
+h+='</div>';
+h+='<div class="metro-slider-row"><span class="metro-slider-label">Vol</span><input type="range" class="pad-slider" min="0" max="100" value="'+metroVol+'" oninput="setMetroVol(this.value)"><span style="font-size:10px;color:var(--gold);min-width:28px;text-align:right">'+metroVol+'%</span></div>';
+h+='<div class="metro-slider-row"><span class="metro-slider-label">Pan</span><input type="range" class="pad-slider" min="-100" max="100" value="'+metroPan+'" oninput="setMetroPan(this.value)"><span style="font-size:10px;color:var(--gold);min-width:28px;text-align:right">'+(metroPan>0?'R '+metroPan:(metroPan<0?'L '+Math.abs(metroPan):'C'))+'</span></div>';
+h+='<div class="pan-labels" style="padding-left:34px"><span>L</span><span>Centro</span><span>R</span></div>';
+h+='</div>';
+b.innerHTML=h;
+}
+
+// ===== METRONOME =====
+var metroBPM=120,metroBeats=4,metroVol=80,metroPan=0,metroRunning=false;
+var metroInterval=null,metroBeat=0;
+var metroGain=null,metroPanNode=null;
+var tapTimes=[];
+var METSK='church-metro-v1';
+
+function loadMetroSettings(){try{var d=localStorage.getItem(METSK);if(d){var o=JSON.parse(d);metroBPM=o.bpm||120;metroBeats=o.beats||4;metroVol=o.vol!=null?o.vol:80;metroPan=o.pan!=null?o.pan:0;}}catch(e){}}
+function saveMetroSettings(){try{localStorage.setItem(METSK,JSON.stringify({bpm:metroBPM,beats:metroBeats,vol:metroVol,pan:metroPan}));}catch(e){}}
+
+function metroBpm(d){
+metroBPM=Math.max(30,Math.min(300,metroBPM+d));
+saveMetroSettings();
+if(metroRunning){stopMetro();startMetro();}
+var el=document.getElementById('metro-bpm-num');
+if(el)el.textContent=metroBPM;
+}
+
+function setMetroBeats(b){
+metroBeats=b;metroBeat=0;
+saveMetroSettings();
+renderMetro();
+if(metroRunning){stopMetro();startMetro();}
+}
+
+function setMetroVol(v){
+metroVol=+v;saveMetroSettings();
+if(metroGain){var ctx=getCtx();metroGain.gain.setTargetAtTime(v/100,ctx.currentTime,0.05);}
+}
+
+function setMetroPan(v){
+metroPan=+v;saveMetroSettings();
+if(metroPanNode){var ctx=getCtx();metroPanNode.pan.setTargetAtTime(v/100,ctx.currentTime,0.05);}
+}
+
+function playClick(accent){
+var ctx=getCtx();
+if(!metroGain){
+metroGain=ctx.createGain();
+metroGain.gain.value=metroVol/100;
+metroPanNode=ctx.createStereoPanner();
+metroPanNode.pan.value=metroPan/100;
+metroGain.connect(metroPanNode);
+metroPanNode.connect(ctx.destination);
+}
+var osc=ctx.createOscillator();
+var env=ctx.createGain();
+osc.type='sine';
+osc.frequency.value=accent?1200:800;
+env.gain.value=1;
+env.gain.setTargetAtTime(0,ctx.currentTime,0.03);
+osc.connect(env);
+env.connect(metroGain);
+osc.start(ctx.currentTime);
+osc.stop(ctx.currentTime+0.05);
+}
+
+function metroBeatTick(){
+playClick(metroBeat===0);
+// Update dots visually
+for(var i=0;i<metroBeats;i++){
+var dot=document.getElementById('metro-dot-'+i);
+if(dot){
+dot.classList.toggle('active',i===metroBeat);
+}
+}
+metroBeat=(metroBeat+1)%metroBeats;
+}
+
+function startMetro(){
+metroRunning=true;metroBeat=0;
+metroBeatTick();
+metroInterval=setInterval(metroBeatTick,60000/metroBPM);
+}
+
+function stopMetro(){
+metroRunning=false;metroBeat=0;
+if(metroInterval){clearInterval(metroInterval);metroInterval=null;}
+for(var i=0;i<metroBeats;i++){var dot=document.getElementById('metro-dot-'+i);if(dot)dot.classList.remove('active');}
+}
+
+function toggleMetro(){
+if(metroRunning)stopMetro();else startMetro();
+renderMetro();
+}
+
+function tapTempo(){
+var now=Date.now();
+tapTimes.push(now);
+if(tapTimes.length>6)tapTimes.shift();
+if(tapTimes.length>=2){
+var diffs=[];
+for(var i=1;i<tapTimes.length;i++){
+var d=tapTimes[i]-tapTimes[i-1];
+if(d>2000){tapTimes=[now];return;}
+diffs.push(d);
+}
+var avg=diffs.reduce(function(a,b){return a+b;},0)/diffs.length;
+metroBPM=Math.round(60000/avg);
+metroBPM=Math.max(30,Math.min(300,metroBPM));
+saveMetroSettings();
+if(metroRunning){stopMetro();startMetro();}
+renderMetro();
+}
+}
+
+loadMetroSettings();
+
+load();loadPV();renderList();initSwipe();loadTheme();renderPads();renderMetro();
 window.addEventListener('resize',function(){
 if(viewMode==='fit')requestAnimationFrame(function(){buildFit();});
 if(viewMode==='page')requestAnimationFrame(function(){buildPages();});
@@ -1197,11 +1372,14 @@ document.getElementById('profile-screen').classList.remove('hidden');
 // ===== ENSAIO - YOUTUBE =====
 var ensaioData={g1:[],g2:[]};
 var ENK='church-ensaio-v2';
+var ensaioTab='now';
 
 function loadEnsaioData(){
 try{var d=localStorage.getItem(ENK);if(d){var parsed=JSON.parse(d);ensaioData.g1=parsed.g1||[];ensaioData.g2=parsed.g2||[];}}catch(e){ensaioData={g1:[],g2:[]};}
 // Migration from old single-group format
 try{var old=localStorage.getItem('church-ensaio-v1');if(old&&!localStorage.getItem('church-ensaio-migrated')){var oldLinks=JSON.parse(old);if(oldLinks.length>0&&ensaioData.g1.length===0){ensaioData.g1=oldLinks;saveEnsaioData();}localStorage.setItem('church-ensaio-migrated','1');}}catch(e){}
+// Ensure all items have a list property
+[ensaioData.g1,ensaioData.g2].forEach(function(arr){arr.forEach(function(item){if(!item.list)item.list='now';});});
 }
 
 function saveEnsaioData(){
@@ -1213,6 +1391,33 @@ function loadEnsaioLinks(){loadEnsaioData();}
 
 function getActiveLinks(){return profileData.active===0?ensaioData.g1:ensaioData.g2;}
 function setActiveLinks(links){if(profileData.active===0)ensaioData.g1=links;else ensaioData.g2=links;}
+
+function switchEnsaioTab(tab){
+ensaioTab=tab;
+document.getElementById('ensaio-tab-now').classList.toggle('active',tab==='now');
+document.getElementById('ensaio-tab-next').classList.toggle('active',tab==='next');
+renderEnsaioList();
+}
+
+function moveEnsaioItem(idx){
+var links=getActiveLinks();
+var filtered=links.filter(function(l){return l.list===ensaioTab;});
+var item=filtered[idx];
+if(!item)return;
+item.list=(item.list==='now'?'next':'now');
+saveEnsaioData();
+renderEnsaioList();
+}
+
+function updateEnsaioCounts(){
+var links=getActiveLinks();
+var nowCount=links.filter(function(l){return l.list==='now';}).length;
+var nextCount=links.filter(function(l){return l.list==='next';}).length;
+var cn=document.getElementById('ensaio-count-now');
+var cx=document.getElementById('ensaio-count-next');
+if(cn)cn.textContent=nowCount;
+if(cx)cx.textContent=nextCount;
+}
 
 function extractYoutubeId(url){
 if(!url)return null;
@@ -1239,7 +1444,7 @@ var id=extractYoutubeId(url);
 if(!id){alert('Link inválido. Cole um link do YouTube.');return;}
 var links=getActiveLinks();
 for(var i=0;i<links.length;i++){if(links[i].id===id)return;}
-links.push({id:id,name:url,date:Date.now()});
+links.push({id:id,name:url,date:Date.now(),list:ensaioTab});
 setActiveLinks(links);
 saveEnsaioData();
 input.value='';
@@ -1249,7 +1454,11 @@ renderEnsaioList();
 function removeEnsaioLink(idx){
 if(!confirm('Remover este link?'))return;
 var links=getActiveLinks();
-links.splice(idx,1);
+var filtered=links.filter(function(l){return l.list===ensaioTab;});
+var item=filtered[idx];
+if(!item)return;
+var realIdx=links.indexOf(item);
+if(realIdx>=0)links.splice(realIdx,1);
 setActiveLinks(links);
 saveEnsaioData();
 renderEnsaioList();
@@ -1283,18 +1492,27 @@ overlay.style.display='none';
 function renderEnsaioList(){
 loadEnsaioData();
 var links=getActiveLinks();
+var filtered=links.filter(function(l){return l.list===ensaioTab;});
 var container=document.getElementById('ensaio-list');
 var empty=document.getElementById('ensaio-empty');
 updateProfileUI();
-if(!links.length){container.innerHTML='';empty.style.display='flex';return;}
+updateEnsaioCounts();
+if(!filtered.length){
+container.innerHTML='';
+empty.style.display='flex';
+empty.innerHTML='<div class="ensaio-empty-icon">'+(ensaioTab==='now'?'🎵':'📋')+'</div><div class="ensaio-empty-text">'+(ensaioTab==='now'?'Nenhuma música sendo ensaiada<br>Cole um link do YouTube e toque <b>+ Salvar</b>':'Nenhuma música na fila<br>Adicione músicas para ensaiar futuramente')+'</div>';
+return;
+}
 empty.style.display='none';
 var h='';
-links.forEach(function(item,idx){
+filtered.forEach(function(item,idx){
 var thumb='https://img.youtube.com/vi/'+item.id+'/mqdefault.jpg';
+var moveLabel=ensaioTab==='now'?'📋 Fila':'🎵 Ensaiar';
 h+='<div class="ensaio-item">';
 h+='<img class="ensaio-thumb" src="'+thumb+'" alt="">';
 h+='<div class="ensaio-info"><div class="ensaio-name">'+(item.name||'Video')+'</div></div>';
 h+='<div class="ensaio-actions">';
+h+='<button class="ensaio-move-btn" data-ens-action="move" data-ens-idx="'+idx+'">'+moveLabel+'</button>';
 h+='<button class="ensaio-play" data-ens-action="play" data-ens-id="'+item.id+'" data-ens-name="'+(item.name||'').replace(/"/g,'&quot;')+'">▶</button>';
 h+='<button class="ensaio-del" data-ens-action="del" data-ens-idx="'+idx+'">🗑️</button>';
 h+='</div></div>';
@@ -1315,6 +1533,9 @@ if(vid)openEnsaioPlayer(vid,name);
 }else if(action==='del'){
 var idx=parseInt(el.getAttribute('data-ens-idx'));
 if(!isNaN(idx))removeEnsaioLink(idx);
+}else if(action==='move'){
+var idx2=parseInt(el.getAttribute('data-ens-idx'));
+if(!isNaN(idx2))moveEnsaioItem(idx2);
 }
 return;
 }
