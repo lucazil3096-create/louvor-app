@@ -332,6 +332,7 @@ body.light .pad-detail{background:var(--card-bg);border-color:var(--card-border)
 body.light .pads-header{background:var(--surface)}
 
 .screen{height:calc(100vh - 52px);height:calc(100dvh - 52px)}
+#screen-view,#screen-edit{height:100vh;height:100dvh}
 
 /* Profile Selection Screen */
 .profile-screen{position:fixed;top:0;left:0;right:0;bottom:0;background:var(--bg);z-index:500;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:20px;padding:30px}
@@ -692,7 +693,8 @@ el=el.parentNode;
 }
 document.getElementById('list-content').addEventListener('click',handleListAction);
 function esc(s){var d=document.createElement('div');d.textContent=s;return d.innerHTML;}
-function openView(id){var l=lyrics.find(function(x){return x.id===id;});if(!l)return;currentId=id;fontSize=14;
+function openView(id,keepSettings){var l=lyrics.find(function(x){return x.id===id;});if(!l)return;currentId=id;
+if(!keepSettings)fontSize=14;
 document.getElementById('view-title').textContent=l.title;
 var t=document.getElementById('view-tom');if(l.tom){t.textContent='Tom: '+l.tom;t.style.display='';}else t.style.display='none';
 var bp=document.getElementById('view-bpm');if(l.bpm){bp.textContent='♩ '+l.bpm;bp.style.display='';bp.setAttribute('data-bpm',l.bpm);}else bp.style.display='none';
@@ -724,7 +726,9 @@ if(!currentId)return;
 var ti=todayList.indexOf(currentId);
 var ni=ti+dir;
 if(ni<0||ni>=todayList.length)return;
-openView(todayList[ni]);
+var nextSong=lyrics.find(function(x){return x.id===todayList[ni];});
+if(nextSong&&nextSong.bpm){metroBPM=nextSong.bpm;saveMetroSettings();if(metroRunning){stopMetro();startMetro();}}
+openView(todayList[ni],true);
 }
 function moveTodayItem(id,dir){
 var i=todayList.indexOf(id);
