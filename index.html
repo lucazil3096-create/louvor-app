@@ -1148,11 +1148,10 @@ function openEnsaioPlayer(id,name){
 var overlay=document.getElementById('ensaio-overlay');
 var video=document.getElementById('ensaio-video');
 var title=document.getElementById('ensaio-now-title');
-video.innerHTML='<iframe src="https://www.youtube.com/embed/'+id+'?autoplay=1&rel=0&modestbranding=1&playsinline=1" allow="autoplay; encrypted-media; picture-in-picture" allowfullscreen></iframe>';
+video.innerHTML='<iframe src="https://www.youtube-nocookie.com/embed/'+id+'?autoplay=1&rel=0&modestbranding=1&playsinline=1&enablejsapi=1&origin='+encodeURIComponent(window.location.origin)+'" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen frameborder="0"></iframe>';
 title.textContent=name||'';
 overlay.style.display='flex';
 overlay.classList.add('active');
-// Store current video id for "open in YouTube" button
 overlay.setAttribute('data-current-id',id);
 }
 
