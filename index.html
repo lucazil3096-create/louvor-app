@@ -54,7 +54,12 @@ body.light .btn-theme{border-color:var(--card-border);color:var(--gold)}
 .presentation .pres-lyrics{white-space:pre-wrap;word-wrap:break-word;text-align:center;max-width:90%;max-height:90vh;overflow-y:auto;font-family:var(--fb)}
 .presentation .pres-title{position:absolute;top:12px;left:0;right:0;text-align:center;font-family:var(--fd);font-size:18px;color:var(--gold-dim);opacity:.6;letter-spacing:1.5px;text-transform:uppercase}
 .presentation .pres-tom{position:absolute;top:12px;right:16px;font-size:13px;font-weight:700;color:var(--gold-dim);opacity:.6}
-.presentation .pres-hint{position:absolute;bottom:12px;font-size:11px;color:var(--text-dim);opacity:.4}
+.presentation .pres-hint{position:absolute;bottom:8px;font-size:10px;color:var(--text-dim);opacity:.3;left:0;right:0;text-align:center}
+.pres-nav{position:absolute;bottom:30px;left:0;right:0;display:flex;align-items:center;justify-content:space-between;padding:0 20px;z-index:1000}
+.pres-nav-btn{padding:10px 20px;border-radius:12px;border:1px solid rgba(255,255,255,.15);background:rgba(255,255,255,.08);color:var(--text);font-size:14px;font-weight:600;cursor:pointer;font-family:var(--fb);backdrop-filter:blur(10px);transition:all .15s}
+.pres-nav-btn:active{background:rgba(255,255,255,.2);transform:scale(.95)}
+.pres-nav-btn:disabled{opacity:.15;pointer-events:none}
+.pres-nav-info{font-size:12px;color:var(--text-dim);opacity:.5}
 .presentation .pres-split{display:flex;gap:20px;max-width:95%;max-height:90vh}
 .presentation .pres-split-col{flex:1;white-space:pre-wrap;word-wrap:break-word;font-family:var(--fb);font-weight:700;letter-spacing:.3px;color:#fff}
 .presentation .pres-split-div{width:2px;background:rgba(178,34,34,.12);align-self:stretch}
@@ -408,11 +413,16 @@ body.light .pads-header{background:var(--surface)}
 </div></div>
 
 <!-- Presentation overlay -->
-<div class="presentation" id="presentation" style="display:none" onclick="exitPresentation()">
+<div class="presentation" id="presentation" style="display:none" onclick="presClick(event)">
 <div class="pres-title" id="pres-title"></div>
 <div class="pres-tom" id="pres-tom"></div>
 <div class="pres-lyrics" id="pres-lyrics"></div>
-<div class="pres-hint">Toque para sair</div>
+<div class="pres-nav" id="pres-nav" style="display:none">
+<button class="pres-nav-btn" id="pres-prev" onclick="presNavGo(-1)">← Anterior</button>
+<span class="pres-nav-info" id="pres-nav-info"></span>
+<button class="pres-nav-btn" id="pres-next" onclick="presNavGo(1)">Próxima →</button>
+</div>
+<div class="pres-hint">Toque no centro para sair</div>
 </div>
 
 <div id="screen-edit" class="screen">
@@ -1063,7 +1073,7 @@ var lines=l.lyrics.split('\n');
 while(lines.length&&!lines[lines.length-1].trim())lines.pop();
 var stanzas=getStanzas(lines);
 var totalLines=stanzaLineCount(stanzas);
-var availH=el.clientHeight-80;
+var availH=el.clientHeight-(todayList.indexOf(currentId)>=0?130:80);
 var availW=el.clientWidth-60;
 
 var maxChars=0;
@@ -1107,8 +1117,32 @@ wrap.appendChild(col);
 lyr.appendChild(wrap);
 });});
 
-try{document.documentElement.requestFullscreen();}catch(e){}}
+try{document.documentElement.requestFullscreen();}catch(e){}
+// Presentation today nav
+var pnav=document.getElementById('pres-nav');
+var pti=todayList.indexOf(currentId);
+if(pti>=0){
+pnav.style.display='flex';
+document.getElementById('pres-nav-info').textContent=(pti+1)+'/'+todayList.length;
+document.getElementById('pres-prev').disabled=(pti===0);
+document.getElementById('pres-next').disabled=(pti>=todayList.length-1);
+}else{pnav.style.display='none';}
+}
 function exitPresentation(){document.getElementById('presentation').style.display='none';try{if(document.fullscreenElement)document.exitFullscreen();}catch(e){}}
+function presClick(e){
+if(e.target.closest('.pres-nav-btn'))return;
+exitPresentation();
+}
+function presNavGo(dir){
+if(!currentId)return;
+var ti=todayList.indexOf(currentId);
+var ni=ti+dir;
+if(ni<0||ni>=todayList.length)return;
+var nextSong=lyrics.find(function(x){return x.id===todayList[ni];});
+if(nextSong&&nextSong.bpm){metroBPM=nextSong.bpm;saveMetroSettings();if(metroRunning){stopMetro();startMetro();}}
+openView(todayList[ni],true);
+enterPresentation();
+}
 document.addEventListener('fullscreenchange',function(){if(!document.fullscreenElement)document.getElementById('presentation').style.display='none';});
 
 // ===== NAVIGATION =====
