@@ -721,9 +721,14 @@ allLines=l.lyrics.split('\n');
 document.getElementById('lyrics-single').textContent=l.lyrics;
 var stanzas=getStanzas(l.lyrics.split('\n'));
 var splitCols=distributeStanzas(stanzas,2);
+if(splitCols.length<2){
+var forced=forceSplitCols(allLines,2);
+document.getElementById('split-col1').textContent=forced[0]||'';
+document.getElementById('split-col2').textContent=forced[1]||'';
+}else{
 document.getElementById('split-col1').textContent=splitCols[0]?colToText(splitCols[0]):'';
 document.getElementById('split-col2').textContent=splitCols[1]?colToText(splitCols[1]):'';
-applyFontAll();showScreen('view');setMode(viewMode);document.getElementById('lyrics-scroll').scrollTop=0;}
+}applyFontAll();showScreen('view');setMode(viewMode);document.getElementById('lyrics-scroll').scrollTop=0;}
 function openEditCurrent(){if(currentId)openEdit(currentId);}
 function setBpmFromView(){
 var bp=document.getElementById('view-bpm');
@@ -875,6 +880,19 @@ col.push(stanzas[i]);colLines+=addLen;
 }
 if(col.length)columns.push(col);
 // If we got fewer columns, that's fine
+return columns;
+}
+
+// Force split lines into N columns by line count (ignores stanza boundaries)
+function forceSplitCols(lines,cols){
+var total=lines.length;
+var perCol=Math.ceil(total/cols);
+var columns=[];
+for(var c=0;c<cols;c++){
+var start=c*perCol;
+var end=Math.min(start+perCol,total);
+if(start<total)columns.push(lines.slice(start,end).join('\n'));
+}
 return columns;
 }
 
@@ -1126,8 +1144,37 @@ bestSize=Math.max(bestSize,8);
 }
 
 var finalCols=distributeStanzas(stanzas,bestCols);
+// Fallback: if we wanted N cols but got fewer, force-split by lines
+var usedForceSplit=false;
+var forcedTexts=[];
+if(finalCols.length<bestCols&&bestCols>1){
+forcedTexts=forceSplitCols(lines,bestCols);
+usedForceSplit=true;
+// Recalc font size for forced split
+var maxLF=0;
+for(var fi=0;fi<forcedTexts.length;fi++){
+var lc=forcedTexts[fi].split('\n').length;
+if(lc>maxLF)maxLF=lc;
+}
+var colWf=(availW-(bestCols-1)*12-bestCols*20)/bestCols;
+var fontWf=maxChars>0?Math.floor(colWf/(maxChars*0.55)):80;
+var fontHf=Math.floor(availH/(maxLF*1.45));
+bestSize=Math.min(fontWf,fontHf,60);
+bestSize=Math.max(bestSize,8);
+}
 var wrap=document.createElement('div');
 wrap.style.cssText='display:flex;gap:0;width:'+(availW)+'px;align-items:flex-start;justify-content:center';
+if(usedForceSplit){
+for(var c=0;c<forcedTexts.length;c++){
+if(c>0){var dv=document.createElement('div');dv.className='pres-split-div';wrap.appendChild(dv);}
+var col=document.createElement('div');
+col.className='pres-split-col';
+col.style.fontSize=bestSize+'px';
+col.style.lineHeight=(bestSize*1.45)+'px';
+col.textContent=forcedTexts[c];
+wrap.appendChild(col);
+}
+}else{
 for(var c=0;c<finalCols.length;c++){
 if(c>0){var dv=document.createElement('div');dv.className='pres-split-div';wrap.appendChild(dv);}
 var col=document.createElement('div');
@@ -1136,6 +1183,7 @@ col.style.fontSize=bestSize+'px';
 col.style.lineHeight=(bestSize*1.45)+'px';
 col.textContent=colToText(finalCols[c]);
 wrap.appendChild(col);
+}
 }
 lyr.appendChild(wrap);
 });});
