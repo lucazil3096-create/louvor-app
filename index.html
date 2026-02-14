@@ -51,7 +51,7 @@ body.light .btn-theme{border-color:var(--card-border);color:var(--gold)}
 
 /* Presentation */
 .presentation{position:fixed!important;top:0;left:0;right:0;bottom:0;z-index:999;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:30px;cursor:pointer}
-.presentation .pres-lyrics{white-space:pre-wrap;word-wrap:break-word;text-align:center;max-width:90%;max-height:90vh;overflow-y:auto;font-family:var(--fb)}
+.presentation .pres-lyrics{white-space:pre-wrap;word-wrap:break-word;text-align:center;flex:1;display:flex;align-items:center;justify-content:center;overflow:hidden;font-family:var(--fb);width:100%;padding:0 30px}
 .presentation .pres-title{position:absolute;top:12px;left:0;right:0;text-align:center;font-family:var(--fd);font-size:18px;color:var(--gold-dim);opacity:.6;letter-spacing:1.5px;text-transform:uppercase}
 .presentation .pres-tom{position:absolute;top:12px;right:16px;font-size:13px;font-weight:700;color:var(--gold-dim);opacity:.6}
 .presentation .pres-hint{position:absolute;bottom:8px;font-size:10px;color:var(--text-dim);opacity:.3;left:0;right:0;text-align:center}
@@ -1086,9 +1086,9 @@ else if(availW>=400)maxCols=2;
 
 var bestCols=1,bestSize=12;
 for(var cols=1;cols<=maxCols;cols++){
-var colW=(availW-(cols-1)*12-cols*16)/cols;
+var colW=(availW-(cols-1)*12-cols*20)/cols;
 if(colW<60)continue;
-var fontW=maxChars>0?Math.floor(colW/(maxChars*0.48)):80;
+var fontW=maxChars>0?Math.floor(colW/(maxChars*0.55)):80;
 var testCols=distributeStanzas(stanzas,cols);
 var maxLinesInCol=0;
 for(var j=0;j<testCols.length;j++){
@@ -1104,7 +1104,7 @@ bestSize=Math.max(bestSize,8);
 
 var finalCols=distributeStanzas(stanzas,bestCols);
 var wrap=document.createElement('div');
-wrap.style.cssText='display:flex;gap:0;max-width:95%;max-height:90vh;align-items:flex-start';
+wrap.style.cssText='display:flex;gap:0;width:'+(availW)+'px;align-items:flex-start;justify-content:center';
 for(var c=0;c<finalCols.length;c++){
 if(c>0){var dv=document.createElement('div');dv.className='pres-split-div';wrap.appendChild(dv);}
 var col=document.createElement('div');
@@ -1117,7 +1117,7 @@ wrap.appendChild(col);
 lyr.appendChild(wrap);
 });});
 
-try{document.documentElement.requestFullscreen();}catch(e){}
+try{if(!document.fullscreenElement)document.documentElement.requestFullscreen();}catch(e){}
 // Presentation today nav
 var pnav=document.getElementById('pres-nav');
 var pti=todayList.indexOf(currentId);
@@ -1138,9 +1138,22 @@ if(!currentId)return;
 var ti=todayList.indexOf(currentId);
 var ni=ti+dir;
 if(ni<0||ni>=todayList.length)return;
-var nextSong=lyrics.find(function(x){return x.id===todayList[ni];});
-if(nextSong&&nextSong.bpm){metroBPM=nextSong.bpm;saveMetroSettings();if(metroRunning){stopMetro();startMetro();}}
-openView(todayList[ni],true);
+var nid=todayList[ni];
+currentId=nid;
+var nextSong=lyrics.find(function(x){return x.id===nid;});
+if(!nextSong)return;
+if(nextSong.bpm){metroBPM=nextSong.bpm;saveMetroSettings();if(metroRunning){stopMetro();startMetro();}}
+// Update the underlying view too
+document.getElementById('view-title').textContent=nextSong.title;
+var t=document.getElementById('view-tom');if(nextSong.tom){t.textContent='Tom: '+nextSong.tom;t.style.display='';}else t.style.display='none';
+var bp=document.getElementById('view-bpm');if(nextSong.bpm){bp.textContent='♩ '+nextSong.bpm;bp.style.display='';bp.setAttribute('data-bpm',nextSong.bpm);}else bp.style.display='none';
+var tnav=document.getElementById('today-nav');
+tnav.style.display='flex';
+document.getElementById('today-nav-info').textContent=(ni+1)+' de '+todayList.length;
+document.getElementById('today-nav-prev').disabled=(ni===0);
+document.getElementById('today-nav-next').disabled=(ni>=todayList.length-1);
+document.getElementById('lyrics-single').textContent=nextSong.lyrics;
+// Re-enter presentation with auto-fit
 enterPresentation();
 }
 document.addEventListener('fullscreenchange',function(){if(!document.fullscreenElement)document.getElementById('presentation').style.display='none';});
