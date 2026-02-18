@@ -2411,6 +2411,18 @@ mtPlayTrack(t);
 }
 }
 
+// Toggle between local/online mode
+function mtToggleMode(id){
+var t=mtTracks.find(function(x){return x.id===id;});
+if(!t)return;
+var wasPlaying=mtState[id]&&mtState[id].playing;
+if(wasPlaying)mtStopTrack(id);
+t.playMode=(t.playMode==='online'||(!t.playMode&&!mtLocalCheck[id]))?'local':'online';
+saveMTLocal();
+renderMTracks();
+if(wasPlaying)setTimeout(function(){mtPlayTrack(t);},200);
+}
+
 // Force play from local
 function mtPlayLocal(id){
 var t=mtTracks.find(function(x){return x.id===id;});
@@ -2422,7 +2434,7 @@ mtGetBlob(id,function(blob){
 if(blob){
 mtPlayFromBuffer(t,blob);
 }else{
-alert('Arquivo local não encontrado. Use "Baixar" ou "Tocar Online".');
+alert('Arquivo local não encontrado. Use 📥 para baixar.');
 delete mtState[id];renderMTracks();
 }
 });
@@ -2433,13 +2445,9 @@ function mtPlayOnline(id){
 var t=mtTracks.find(function(x){return x.id===id;});
 if(!t)return;
 if(mtState[id]&&mtState[id].playing){
-mtStopTrack(id);
-return;
+mtStopTrack(id);return;
 }
-if(!t.url){
-alert('URL não disponível. Faça upload novamente no PC.');
-return;
-}
+if(!t.url){alert('URL não disponível.');return;}
 mtState[id]={loading:true};
 renderMTracks();
 mtPlayFromStream(t);
@@ -2449,21 +2457,28 @@ function mtPlayTrack(track){
 if(track.uploading)return;
 var id=track.id;
 if(mtState[id]&&mtState[id].playing)return;
-
+var mode=track.playMode||(mtLocalCheck[id]?'local':'online');
 mtState[id]={loading:true};
 renderMTracks();
-
-// Try local blob first (uses BufferSource = proper pitch shift)
+if(mode==='local'){
 mtGetBlob(id,function(blob){
 if(blob){
 mtPlayFromBuffer(track,blob);
 }else if(track.url){
 mtPlayFromStream(track);
 }else{
-alert('Sem arquivo. Faça upload novamente.');
+alert('Sem arquivo disponível.');
 delete mtState[id];renderMTracks();
 }
 });
+}else if(track.url){
+mtPlayFromStream(track);
+}else{
+mtGetBlob(id,function(blob){
+if(blob){mtPlayFromBuffer(track,blob);}
+else{alert('Sem arquivo disponível.');delete mtState[id];renderMTracks();}
+});
+}
 }
 
 // LOCAL: BufferSource — pitch via detune (sem mudar velocidade)
@@ -2765,82 +2780,61 @@ var isMuted=t.mute||(hasSolo&&!t.solo);
 var st=mtState[t.id]||{};
 var hasLocal=mtLocalCheck[t.id]||false;
 var hasUrl=!!t.url;
-var isTrackPlaying=st.playing||false;
-var isTrackLoading=st.loading||false;
+var isPlaying=st.playing||false;
+var isLoading=st.loading||false;
+var mode=t.playMode||(hasLocal?'local':'online');
 
-h+='<div class="mt-track'+(isMuted?' muted':'')+(t.solo?' solo-active':'')+'" style="flex-direction:column;gap:10px;padding:14px">';
+h+='<div class="mt-track'+(isMuted?' muted':'')+(t.solo?' solo-active':'')+'" style="flex-direction:column;gap:8px;padding:12px">';
 
-// ROW 1: Name + Delete
-h+='<div style="display:flex;align-items:center;gap:10px;width:100%">';
-h+='<div style="flex:1;min-width:0">';
-h+='<div class="mt-track-name" onclick="mtRenameTrack(\''+t.id+'\')" style="font-size:15px;font-weight:700;max-width:none">'+esc(t.name)+'</div>';
-h+='</div>';
-h+='<button class="mt-del-btn" onclick="mtDeleteTrack(\''+t.id+'\')" style="font-size:16px;padding:6px 8px;opacity:.5">🗑</button>';
+// ROW 1: Play + Name + Mode + Download + Delete
+h+='<div style="display:flex;align-items:center;gap:8px;width:100%">';
+h+='<button class="mt-btn '+(isPlaying?'mt-btn-stop':'mt-btn-play')+'" onclick="mtToggleTrack(\''+t.id+'\')" style="padding:8px 14px;font-size:13px;border-radius:8px">'+(isLoading?'⏳':(isPlaying?'⏹':'▶'))+'</button>';
+h+='<div style="flex:1;min-width:0;overflow:hidden"><div style="font-size:13px;font-weight:700;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis" onclick="mtRenameTrack(\''+t.id+'\')">'+esc(t.name)+'</div></div>';
+
+// Mode toggle
+if(hasLocal&&hasUrl){
+h+='<button onclick="mtToggleMode(\''+t.id+'\')" style="font-size:10px;padding:4px 8px;border-radius:6px;border:1px solid var(--card-border);background:'+(mode==='local'?'var(--accent-glow)':'rgba(76,175,80,.15)')+';color:'+(mode==='local'?'var(--accent)':'#4caf50')+';cursor:pointer;white-space:nowrap">'+(mode==='local'?'💾 Local':'☁️ Online')+'</button>';
+}else if(hasLocal){
+h+='<span style="font-size:10px;color:var(--text-dim)">💾 Local</span>';
+}else if(hasUrl){
+h+='<span style="font-size:10px;color:#4caf50">☁️ Online</span>';
+}
+
+// Download
+if(hasUrl&&!hasLocal){
+h+='<button class="mt-btn mt-btn-accent" onclick="mtDownloadTrack(\''+t.id+'\')" id="mt-dl-'+t.id+'" style="font-size:10px;padding:5px 10px;border-radius:6px">📥</button>';
+}
+
+h+='<button onclick="mtDeleteTrack(\''+t.id+'\')" style="font-size:14px;padding:4px;background:none;border:none;cursor:pointer;opacity:.4">🗑</button>';
 h+='</div>';
 
 // Upload progress
 if(t.uploading){
-h+='<div style="width:100%"><div class="mt-upload-progress"><div class="mt-upload-bar" style="width:'+(t.progress||0)+'%"></div></div><span style="font-size:11px;color:var(--text-dim)">Enviando... '+(t.progress||0)+'%</span></div>';
+h+='<div style="width:100%"><div class="mt-upload-progress"><div class="mt-upload-bar" style="width:'+(t.progress||0)+'%"></div></div><span style="font-size:10px;color:var(--text-dim)">Enviando '+(t.progress||0)+'%</span></div>';
 }else{
 
-// ROW 2: Action buttons
-h+='<div style="display:flex;gap:8px;width:100%;flex-wrap:wrap">';
+// ROW 2: Vol + Tom + L↔R + M S Loop
+h+='<div style="display:flex;align-items:center;gap:6px;width:100%;flex-wrap:wrap">';
 
-if(hasLocal){
-h+='<button class="mt-btn '+(isTrackPlaying&&st.mode==='buffer'?'mt-btn-stop':'mt-btn-play')+'" onclick="mtPlayLocal(\''+t.id+'\')" style="flex:1;padding:12px;font-size:13px;border-radius:10px;min-width:0">'+(isTrackLoading?'⏳...':'💾 Tocar Local')+'</button>';
-}
-
-if(hasUrl){
-h+='<button class="mt-btn '+(isTrackPlaying&&st.mode==='stream'?'mt-btn-stop':'mt-btn-play')+'" onclick="mtPlayOnline(\''+t.id+'\')" style="flex:1;padding:12px;font-size:13px;border-radius:10px;min-width:0">'+(isTrackPlaying&&st.mode==='stream'?'⏹ Parar':'☁️ Tocar Online')+'</button>';
-}
-
-if(hasUrl&&!hasLocal){
-h+='<button class="mt-btn mt-btn-accent" onclick="mtDownloadTrack(\''+t.id+'\')" id="mt-dl-'+t.id+'" style="flex:1;padding:12px;font-size:13px;border-radius:10px;min-width:0">📥 Baixar</button>';
-}
-
-if(isTrackPlaying){
-h+='<button class="mt-btn mt-btn-stop" onclick="mtStopTrack(\''+t.id+'\')" style="padding:12px 16px;font-size:13px;border-radius:10px">⏹</button>';
-}
-
-if(!hasUrl&&!hasLocal){
-h+='<span style="font-size:12px;color:var(--gold)">⏳ Aguardando sincronização...</span>';
-}
-
-h+='</div>';
-
-// ROW 3: Volume
-h+='<div style="display:flex;align-items:center;gap:8px;width:100%">';
-h+='<span style="font-size:10px;color:var(--text-dim);font-weight:600;width:28px">VOL</span>';
-h+='<input type="range" class="mt-slider" style="flex:1;width:auto" min="0" max="100" value="'+t.vol+'" oninput="mtSetVol(\''+t.id+'\',this.value)" onchange="mtSaveVol(\''+t.id+'\')">';
-h+='<span style="font-size:12px;color:var(--gold);min-width:36px;text-align:right;font-family:var(--fd)">'+t.vol+'%</span>';
-h+='</div>';
-
-// ROW 4: Tom + L↔R + M + S + Loop
-h+='<div style="display:flex;align-items:center;gap:8px;width:100%;flex-wrap:wrap">';
+// Volume
+h+='<span style="font-size:9px;color:var(--text-dim);font-weight:600">VOL</span>';
+h+='<input type="range" class="mt-slider" style="flex:1;min-width:80px;width:auto" min="0" max="100" value="'+t.vol+'" oninput="mtSetVol(\''+t.id+'\',this.value)" onchange="mtSaveVol(\''+t.id+'\')">';
+h+='<span style="font-size:11px;color:var(--gold);min-width:30px;text-align:right;font-family:var(--fd)">'+t.vol+'%</span>';
 
 // Pitch
 var pp=t.pitch||0;
-h+='<span style="font-size:10px;color:var(--text-dim);font-weight:600">TOM</span>';
+h+='<span style="font-size:9px;color:var(--text-dim);font-weight:600;margin-left:4px">TOM</span>';
 h+='<button class="mt-pitch-btn" onclick="mtTrackPitch(\''+t.id+'\',-1)">−</button>';
-h+='<span style="font-size:14px;color:var(--text);min-width:28px;text-align:center;font-family:var(--fd);font-weight:700">'+(pp>0?'+':'')+pp+'</span>';
+h+='<span style="font-size:12px;color:var(--text);min-width:22px;text-align:center;font-family:var(--fd);font-weight:700">'+(pp>0?'+':'')+pp+'</span>';
 h+='<button class="mt-pitch-btn" onclick="mtTrackPitch(\''+t.id+'\',1)">+</button>';
 
-// Spacer
-h+='<div style="flex:1"></div>';
+// L↔R + M + S + Loop
+h+='<button class="mt-solo-btn'+(t.swapLR?' on':'')+'" onclick="mtSwapLR(\''+t.id+'\')" style="font-size:9px;width:36px;height:28px;padding:0">'+(t.swapLR?'R↔L':'L—R')+'</button>';
+h+='<button class="mt-mute-btn'+(t.mute?' on':'')+'" onclick="mtSetMute(\''+t.id+'\')" style="width:28px;height:28px;font-size:11px">M</button>';
+h+='<button class="mt-solo-btn'+(t.solo?' on':'')+'" onclick="mtSetSolo(\''+t.id+'\')" style="width:28px;height:28px;font-size:11px">S</button>';
+h+='<button class="mt-solo-btn'+(t.loop?' on':'')+'" onclick="mtSetLoop(\''+t.id+'\')" style="width:28px;height:28px;font-size:11px">🔁</button>';
 
-// L↔R swap
-h+='<button class="mt-solo-btn'+(t.swapLR?' on':'')+'" onclick="mtSwapLR(\''+t.id+'\')" style="font-size:10px;width:44px;height:34px;padding:0">'+(t.swapLR?'R↔L':'L—R')+'</button>';
-
-// Mute
-h+='<button class="mt-mute-btn'+(t.mute?' on':'')+'" onclick="mtSetMute(\''+t.id+'\')" style="width:34px;height:34px;font-size:13px">M</button>';
-
-// Solo
-h+='<button class="mt-solo-btn'+(t.solo?' on':'')+'" onclick="mtSetSolo(\''+t.id+'\')" style="width:34px;height:34px;font-size:13px">S</button>';
-
-// Loop
-h+='<button class="mt-solo-btn'+(t.loop?' on':'')+'" onclick="mtSetLoop(\''+t.id+'\')" style="width:34px;height:34px;font-size:13px">🔁</button>';
-
-h+='</div>'; // end row 4
+h+='</div>'; // end row 2
 }
 
 h+='</div>'; // end track
