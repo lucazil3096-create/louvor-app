@@ -1,4 +1,4 @@
-var CACHE_NAME = 'aospesdacruz-v1';
+var CACHE_NAME = 'aospesdacruz-v2';
 var urlsToCache = [
   './',
   './index.html',
@@ -29,14 +29,16 @@ self.addEventListener('activate', function(event) {
 });
 
 self.addEventListener('fetch', function(event) {
-  // Always go network-first for Firebase/API calls
-  if (event.request.url.indexOf('firestore') !== -1 ||
-      event.request.url.indexOf('googleapis.com/google') !== -1) {
+  var url = event.request.url;
+  // Skip ALL Firebase/Google API calls (Storage, Firestore, etc)
+  if (url.indexOf('firebasestorage') !== -1 ||
+      url.indexOf('firestore') !== -1 ||
+      url.indexOf('googleapis.com') !== -1 ||
+      url.indexOf('gstatic.com') !== -1) {
     return;
   }
   event.respondWith(
     fetch(event.request).then(function(response) {
-      // Update cache with fresh version
       if (response.status === 200) {
         var clone = response.clone();
         caches.open(CACHE_NAME).then(function(cache) {
@@ -45,7 +47,6 @@ self.addEventListener('fetch', function(event) {
       }
       return response;
     }).catch(function() {
-      // Offline - serve from cache
       return caches.match(event.request);
     })
   );
