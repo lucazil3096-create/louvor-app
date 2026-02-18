@@ -432,8 +432,10 @@ function _fbLoadScript(u,cb){var s=document.createElement('script');s.src=u;s.on
 var _fbReady=false;
 _fbLoadScript('https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js',function(){
 _fbLoadScript('https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js',function(){
+_fbLoadScript('https://www.gstatic.com/firebasejs/10.8.0/firebase-storage-compat.js',function(){
 _fbReady=true;
 if(typeof _fbOnReady==='function')_fbOnReady();
+});
 });
 });
 </script>
@@ -616,7 +618,7 @@ startFirebaseListener();
 }
 
 // Called by head script when SDK loads
-function _fbOnReady(){connectFirebase();loadMTracks();}
+function _fbOnReady(){connectFirebase();initStorage();loadMTracks();}
 if(typeof _fbReady!=='undefined'&&_fbReady){_fbOnReady();}
 
 function startFirebaseListener(){
@@ -2226,6 +2228,13 @@ var mtStartTime=0;
 var mtPauseOffset=0;
 var MTSK='church-multitrack-v1';
 var mtDB=null;
+var fbStorage=null;
+
+function initStorage(){
+if(typeof firebase!=='undefined'&&firebase.storage){
+try{fbStorage=firebase.storage();console.log('Storage ready');}catch(e){console.log('Storage error:',e);}
+}
+}
 
 // ===== IndexedDB for local audio blobs =====
 function openMTDB(cb){
@@ -2304,21 +2313,40 @@ for(var i=0;i<inp.files.length;i++){
 (function(f){
 var trackId='mt_'+Date.now()+'_'+Math.random().toString(36).substr(2,4);
 var name=f.name.replace(/\.[^.]+$/,'');
-var track={id:trackId,name:name,fileName:f.name,vol:80,swapLR:false,invert:false,pitch:0,mute:false,solo:false,loop:false,uploading:true,progress:0};
+var track={id:trackId,name:name,fileName:f.name,url:'',vol:80,swapLR:false,invert:false,pitch:0,mute:false,solo:false,loop:false,uploading:true,progress:0};
 mtTracks.push(track);
 renderMTracks();
-// Save audio blob to IndexedDB (local on tablet)
+// 1) Save locally for instant playback
 mtSaveBlob(trackId,f,function(ok){
-var t=mtTracks.find(function(x){return x.id===trackId;});
-if(t){
-t.uploading=false;
-delete t.progress;
-if(!ok)t.error=true;
-saveMTFirebase();
-renderMTracks();
-console.log(ok?'Track salva: '+name:'Erro ao salvar: '+name);
-}
+mtLocalCheck[trackId]=ok;
+if(ok)console.log('Local OK: '+name);
 });
+// 2) Upload to Firebase Storage for other tablets
+if(fbStorage){
+var ref=fbStorage.ref('multitracks/'+trackId+'_'+f.name);
+var task=ref.put(f);
+task.on('state_changed',
+function(snap){
+var p=Math.round((snap.bytesTransferred/snap.totalBytes)*100);
+var t=mtTracks.find(function(x){return x.id===trackId;});
+if(t){t.progress=p;renderMTracks();}
+},
+function(err){
+console.log('Upload error:',err);
+var t=mtTracks.find(function(x){return x.id===trackId;});
+if(t){t.uploading=false;t.error=true;saveMTFirebase();renderMTracks();}
+},
+function(){
+task.snapshot.ref.getDownloadURL().then(function(url){
+var t=mtTracks.find(function(x){return x.id===trackId;});
+if(t){t.url=url;t.uploading=false;delete t.progress;delete t.error;saveMTFirebase();renderMTracks();}
+});
+}
+);
+}else{
+track.uploading=false;
+saveMTFirebase();renderMTracks();
+}
 })(inp.files[i]);
 }
 };
@@ -2329,6 +2357,10 @@ function mtDeleteTrack(id){
 if(!confirm('Deletar esta track?'))return;
 mtStopTrack(id);
 mtDeleteBlob(id);
+var t=mtTracks.find(function(x){return x.id===id;});
+if(t&&t.url&&fbStorage){
+try{fbStorage.refFromURL(t.url).delete().catch(function(){});}catch(e){}
+}
 mtTracks=mtTracks.filter(function(x){return x.id!==id;});
 saveMTFirebase();renderMTracks();
 }
@@ -2343,20 +2375,42 @@ if(n&&n.trim()){t.name=n.trim();saveMTFirebase();renderMTracks();}
 // ===== MULTITRACK AUDIO ENGINE =====
 function mtGetCtx(){return getCtx();} // reuse existing audioCtx
 
-function mtLoadBuffer(trackId,cb){
+function mtLoadBuffer(trackId,url,cb){
 var ctx=mtGetCtx();
+// Try local first
 mtGetBlob(trackId,function(blob){
-if(!blob){cb(new Error('Arquivo não encontrado. Faça upload neste tablet.'),null);return;}
+if(blob){
 var reader=new FileReader();
 reader.onload=function(){
 ctx.decodeAudioData(reader.result,function(decoded){
 cb(null,decoded);
-},function(e){
-cb(e||new Error('Erro ao decodificar áudio'),null);
-});
+},function(e){cb(e||new Error('Decode error'),null);});
 };
-reader.onerror=function(){cb(new Error('Erro ao ler arquivo'),null);};
+reader.onerror=function(){cb(new Error('Read error'),null);};
 reader.readAsArrayBuffer(blob);
+}else if(url){
+// Download from Firebase Storage URL
+console.log('Downloading from Firebase...');
+var xhr=new XMLHttpRequest();
+xhr.open('GET',url,true);
+xhr.responseType='arraybuffer';
+xhr.onload=function(){
+if(xhr.status===200){
+// Save locally for next time
+var saveBlob=new Blob([xhr.response]);
+mtSaveBlob(trackId,saveBlob,function(ok){
+if(ok){mtLocalCheck[trackId]=true;console.log('Cached locally');}
+});
+ctx.decodeAudioData(xhr.response,function(decoded){
+cb(null,decoded);
+},function(e){cb(e,null);});
+}else{cb(new Error('HTTP '+xhr.status),null);}
+};
+xhr.onerror=function(){cb(new Error('Erro de rede'),null);};
+xhr.send();
+}else{
+cb(new Error('Sem arquivo. Faça upload novamente.'),null);
+}
 });
 }
 
@@ -2381,7 +2435,7 @@ mtStartSource(track,mtState[id].buffer);
 }else{
 mtState[id]={loading:true};
 renderMTracks();
-mtLoadBuffer(track.id,function(err,buffer){
+mtLoadBuffer(track.id,track.url||'',function(err,buffer){
 if(err){console.log('Load error:',err.message);
 if(mtState[id])delete mtState[id];
 alert(err.message);
@@ -2559,6 +2613,21 @@ mtUpdateAllAudio();
 function mtSaveVol(id){saveMTFirebase();}
 
 // ===== RENDER MIXER =====
+var mtLocalCheck={}; // cache: {trackId: true/false}
+
+function mtCheckLocal(cb){
+// Check which tracks have local blobs
+var pending=mtTracks.length;
+if(!pending){if(cb)cb();return;}
+mtTracks.forEach(function(t){
+mtGetBlob(t.id,function(blob){
+mtLocalCheck[t.id]=!!blob;
+pending--;
+if(pending<=0&&cb)cb();
+});
+});
+}
+
 function renderMTracks(){
 var el=document.getElementById('mt-tracks-list');
 if(!el)return;
@@ -2572,27 +2641,30 @@ if(!mtTracks.length){
 el.innerHTML='<div class="mt-empty"><div class="mt-empty-icon">🎚️</div><div class="mt-empty-text">Nenhuma track carregada<br>Toque <b>📁 Upload Track</b> para adicionar</div></div>';
 return;
 }
+// Check local availability then render
+mtCheckLocal(function(){
 var hasSolo=mtTracks.some(function(t){return t.solo;});
 var h='';
 mtTracks.forEach(function(t){
 var isMuted=t.mute||(hasSolo&&!t.solo);
 var st=mtState[t.id]||{};
+var hasLocal=mtLocalCheck[t.id]||false;
 h+='<div class="mt-track'+(isMuted?' muted':'')+(t.solo?' solo-active':'')+'">';
-// Name
+// Play button + Name
 var isTrackPlaying=st.playing||false;
 var isTrackLoading=st.loading||false;
 h+='<button class="mt-btn '+(isTrackPlaying?'mt-btn-stop':'mt-btn-play')+'" onclick="mtToggleTrack(\''+t.id+'\')" style="padding:6px 12px;font-size:11px;min-width:44px">'+(isTrackLoading?'⏳':(isTrackPlaying?'⏹':'▶'))+'</button>';
-h+='<div class="mt-track-name" onclick="mtRenameTrack(\''+t.id+'\')" title="'+esc(t.fileName)+'">'+esc(t.name)+'</div>';
+h+='<div class="mt-track-name" onclick="mtRenameTrack(\''+t.id+'\')" title="'+esc(t.fileName)+'">'+ esc(t.name)+(hasLocal?'':'<span style="font-size:8px;color:var(--gold);margin-left:4px">☁️</span>')+'</div>';
 // Upload progress
 if(t.uploading){
 h+='<div style="flex:1"><div class="mt-upload-progress"><div class="mt-upload-bar" style="width:'+(t.progress||0)+'%"></div></div><span style="font-size:9px;color:var(--text-dim)">'+(t.progress||0)+'%</span></div>';
 }else{
 // Vol
 h+='<div class="mt-track-ctrl"><label>Vol</label><input type="range" class="mt-slider" min="0" max="100" value="'+t.vol+'" oninput="mtSetVol(\''+t.id+'\',this.value)" onchange="mtSaveVol(\''+t.id+'\')"><span class="mt-slider-val">'+t.vol+'%</span></div>';
-// Pan
+// Swap L↔R
 h+='<div class="mt-toggle'+(t.swapLR?' on':'')+'" onclick="mtSwapLR(\''+t.id+'\')" title="Inverter L↔R"></div>';
 h+='<span style="font-size:9px;color:var(--text-dim);min-width:24px">'+(t.swapLR?'R↔L':'L—R')+'</span>';
-// Invert
+// Invert phase
 h+='<div class="mt-toggle'+(t.invert?' on':'')+'" onclick="mtSetInvert(\''+t.id+'\')" title="Inverter fase"></div>';
 h+='<span style="font-size:9px;color:var(--text-dim);min-width:16px">Ø</span>';
 // Pitch per track
@@ -2610,8 +2682,10 @@ h+='<button class="mt-del-btn" onclick="mtDeleteTrack(\''+t.id+'\')">🗑</butto
 h+='</div>';
 });
 el.innerHTML=h;
+});
 }
 
+// Re-upload file for a track that exists in Firebase but not locally
 loadEnsaioData();
 initProfileScreen();
 
