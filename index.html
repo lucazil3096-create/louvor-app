@@ -2270,26 +2270,28 @@ tx.objectStore('tracks').delete(trackId);
 
 function loadMTracks(){
 try{var d=localStorage.getItem(MTSK);if(d)mtTracks=JSON.parse(d);}catch(e){mtTracks=[];}
+console.log('MT local tracks: '+mtTracks.length);
 // Load from Firebase (source of truth)
 if(fbDoc){
 fbDoc.get().then(function(doc){
 if(doc.exists&&doc.data().multiTracks){
 try{
 var remote=JSON.parse(doc.data().multiTracks);
+console.log('MT remote tracks: '+(remote?remote.length:0));
 if(remote&&remote.length){
-// Merge: use remote tracks, keep local-only tracks that are still uploading
 var remoteIds={};
 remote.forEach(function(r){remoteIds[r.id]=true;});
 var localOnly=mtTracks.filter(function(t){return t.uploading&&!remoteIds[t.id];});
 mtTracks=remote.concat(localOnly);
 saveMTLocal();
-console.log('MT loaded from Firebase: '+remote.length+' tracks');
 }
 }catch(e){console.log('MT parse error:',e);}
+}else{
+console.log('MT no remote data found');
 }
 renderMTracks();
 }).catch(function(e){console.log('MT load error:',e);renderMTracks();});
-}else{renderMTracks();}
+}else{console.log('MT no fbDoc');renderMTracks();}
 }
 
 function saveMTLocal(){
@@ -2298,13 +2300,14 @@ try{localStorage.setItem(MTSK,JSON.stringify(mtTracks));}catch(e){}
 
 function saveMTFirebase(){
 saveMTLocal();
-if(!fbDoc||!fbSynced)return;
+if(!fbDoc||!fbSynced){console.log('MT save skip: fbDoc='+!!fbDoc+' fbSynced='+fbSynced);return;}
 // Clean temp fields before saving to Firebase
 var clean=mtTracks.filter(function(t){return !t.uploading&&t.url;}).map(function(t){
 return {id:t.id,name:t.name,fileName:t.fileName,url:t.url,vol:t.vol,swapLR:t.swapLR,invert:t.invert,pitch:t.pitch,mute:t.mute,solo:t.solo,loop:t.loop};
 });
+console.log('MT saving to Firebase: '+clean.length+' tracks (total: '+mtTracks.length+', with url: '+mtTracks.filter(function(t){return !!t.url;}).length+')');
 fbDoc.update({multiTracks:JSON.stringify(clean)}).then(function(){
-console.log('MT saved to Firebase: '+clean.length+' tracks');
+console.log('MT saved OK!');
 }).catch(function(e){console.log('MT save error:',e);});
 }
 
@@ -2335,6 +2338,7 @@ if(ok)console.log('Local OK: '+name);
 });
 // 2) Upload to Firebase Storage for other tablets
 if(fbStorage){
+console.log('Uploading to Firebase Storage...');
 var ref=fbStorage.ref('multitracks/'+trackId+'_'+f.name);
 var task=ref.put(f);
 task.on('state_changed',
@@ -2342,21 +2346,31 @@ function(snap){
 var p=Math.round((snap.bytesTransferred/snap.totalBytes)*100);
 var t=mtTracks.find(function(x){return x.id===trackId;});
 if(t){t.progress=p;renderMTracks();}
+console.log('Upload progress: '+p+'%');
 },
 function(err){
-console.log('Upload error:',err);
+console.log('Upload FAILED:',err);
 var t=mtTracks.find(function(x){return x.id===trackId;});
-if(t){t.uploading=false;t.error=true;saveMTFirebase();renderMTracks();}
+if(t){t.uploading=false;t.error=true;t.cloudStatus='erro';saveMTFirebase();renderMTracks();}
+alert('Erro no upload para nuvem: '+err.message);
 },
 function(){
+console.log('Upload complete, getting URL...');
 task.snapshot.ref.getDownloadURL().then(function(url){
+console.log('GOT URL: '+url.substring(0,80)+'...');
 var t=mtTracks.find(function(x){return x.id===trackId;});
-if(t){t.url=url;t.uploading=false;delete t.progress;delete t.error;saveMTFirebase();renderMTracks();}
+if(t){t.url=url;t.uploading=false;t.cloudStatus='ok';delete t.progress;delete t.error;saveMTFirebase();renderMTracks();}
+}).catch(function(e){
+console.log('URL ERROR:',e);
+var t=mtTracks.find(function(x){return x.id===trackId;});
+if(t){t.uploading=false;t.error=true;t.cloudStatus='erro';}
+renderMTracks();
 });
 }
 );
 }else{
-track.uploading=false;
+console.log('NO STORAGE! fbStorage is null');
+track.uploading=false;track.cloudStatus='sem-storage';
 saveMTFirebase();renderMTracks();
 }
 })(inp.files[i]);
@@ -2395,6 +2409,40 @@ mtStopTrack(id);
 }else{
 mtPlayTrack(t);
 }
+}
+
+// Force play from local
+function mtPlayLocal(id){
+var t=mtTracks.find(function(x){return x.id===id;});
+if(!t)return;
+if(mtState[id]&&mtState[id].playing)mtStopTrack(id);
+mtState[id]={loading:true};
+renderMTracks();
+mtGetBlob(id,function(blob){
+if(blob){
+mtPlayFromBuffer(t,blob);
+}else{
+alert('Arquivo local não encontrado. Use "Baixar" ou "Tocar Online".');
+delete mtState[id];renderMTracks();
+}
+});
+}
+
+// Force play from stream
+function mtPlayOnline(id){
+var t=mtTracks.find(function(x){return x.id===id;});
+if(!t)return;
+if(mtState[id]&&mtState[id].playing){
+mtStopTrack(id);
+return;
+}
+if(!t.url){
+alert('URL não disponível. Faça upload novamente no PC.');
+return;
+}
+mtState[id]={loading:true};
+renderMTracks();
+mtPlayFromStream(t);
 }
 
 function mtPlayTrack(track){
@@ -2716,61 +2764,83 @@ mtTracks.forEach(function(t){
 var isMuted=t.mute||(hasSolo&&!t.solo);
 var st=mtState[t.id]||{};
 var hasLocal=mtLocalCheck[t.id]||false;
+var hasUrl=!!t.url;
 var isTrackPlaying=st.playing||false;
 var isTrackLoading=st.loading||false;
 
-h+='<div class="mt-track'+(isMuted?' muted':'')+(t.solo?' solo-active':'')+'" style="flex-wrap:wrap">';
+h+='<div class="mt-track'+(isMuted?' muted':'')+(t.solo?' solo-active':'')+'" style="flex-direction:column;gap:10px;padding:14px">';
 
-// ROW 1: Play + Name + Status + Delete
-h+='<div style="display:flex;align-items:center;gap:8px;width:100%;min-height:40px">';
-h+='<button class="mt-btn '+(isTrackPlaying?'mt-btn-stop':'mt-btn-play')+'" onclick="mtToggleTrack(\''+t.id+'\')" style="padding:10px 16px;font-size:14px;min-width:52px;border-radius:10px">'+(isTrackLoading?'⏳':(isTrackPlaying?'⏹':'▶'))+'</button>';
+// ROW 1: Name + Delete
+h+='<div style="display:flex;align-items:center;gap:10px;width:100%">';
 h+='<div style="flex:1;min-width:0">';
-h+='<div class="mt-track-name" onclick="mtRenameTrack(\''+t.id+'\')" title="'+esc(t.fileName)+'" style="font-size:14px;max-width:none">'+esc(t.name)+'</div>';
-h+='<div style="font-size:10px;color:var(--text-dim);margin-top:2px">'+(hasLocal?'💾 Local':'☁️ Nuvem')+(isTrackPlaying?' — ▶ Tocando':'')+'</div>';
+h+='<div class="mt-track-name" onclick="mtRenameTrack(\''+t.id+'\')" style="font-size:15px;font-weight:700;max-width:none">'+esc(t.name)+'</div>';
 h+='</div>';
-if(!hasLocal&&t.url&&!t.uploading){
-h+='<button class="mt-btn mt-btn-accent" onclick="mtDownloadTrack(\''+t.id+'\')" id="mt-dl-'+t.id+'" style="padding:10px 16px;font-size:12px;white-space:nowrap;border-radius:10px">📥 Baixar</button>';
-}
-h+='<button class="mt-del-btn" onclick="mtDeleteTrack(\''+t.id+'\')" style="font-size:18px;padding:8px">🗑</button>';
+h+='<button class="mt-del-btn" onclick="mtDeleteTrack(\''+t.id+'\')" style="font-size:16px;padding:6px 8px;opacity:.5">🗑</button>';
 h+='</div>';
 
 // Upload progress
 if(t.uploading){
-h+='<div style="width:100%;margin-top:6px"><div class="mt-upload-progress"><div class="mt-upload-bar" style="width:'+(t.progress||0)+'%"></div></div><span style="font-size:10px;color:var(--text-dim)">'+(t.progress||0)+'%</span></div>';
+h+='<div style="width:100%"><div class="mt-upload-progress"><div class="mt-upload-bar" style="width:'+(t.progress||0)+'%"></div></div><span style="font-size:11px;color:var(--text-dim)">Enviando... '+(t.progress||0)+'%</span></div>';
 }else{
-// ROW 2: Controls
-h+='<div style="display:flex;align-items:center;gap:8px;width:100%;margin-top:6px;flex-wrap:wrap">';
 
-// Volume
-h+='<div class="mt-track-ctrl" style="flex:1;min-width:120px"><label>Vol</label><input type="range" class="mt-slider" style="flex:1;width:auto" min="0" max="100" value="'+t.vol+'" oninput="mtSetVol(\''+t.id+'\',this.value)" onchange="mtSaveVol(\''+t.id+'\')"><span class="mt-slider-val">'+t.vol+'%</span></div>';
+// ROW 2: Action buttons
+h+='<div style="display:flex;gap:8px;width:100%;flex-wrap:wrap">';
+
+if(hasLocal){
+h+='<button class="mt-btn '+(isTrackPlaying&&st.mode==='buffer'?'mt-btn-stop':'mt-btn-play')+'" onclick="mtPlayLocal(\''+t.id+'\')" style="flex:1;padding:12px;font-size:13px;border-radius:10px;min-width:0">'+(isTrackLoading?'⏳...':'💾 Tocar Local')+'</button>';
+}
+
+if(hasUrl){
+h+='<button class="mt-btn '+(isTrackPlaying&&st.mode==='stream'?'mt-btn-stop':'mt-btn-play')+'" onclick="mtPlayOnline(\''+t.id+'\')" style="flex:1;padding:12px;font-size:13px;border-radius:10px;min-width:0">'+(isTrackPlaying&&st.mode==='stream'?'⏹ Parar':'☁️ Tocar Online')+'</button>';
+}
+
+if(hasUrl&&!hasLocal){
+h+='<button class="mt-btn mt-btn-accent" onclick="mtDownloadTrack(\''+t.id+'\')" id="mt-dl-'+t.id+'" style="flex:1;padding:12px;font-size:13px;border-radius:10px;min-width:0">📥 Baixar</button>';
+}
+
+if(isTrackPlaying){
+h+='<button class="mt-btn mt-btn-stop" onclick="mtStopTrack(\''+t.id+'\')" style="padding:12px 16px;font-size:13px;border-radius:10px">⏹</button>';
+}
+
+if(!hasUrl&&!hasLocal){
+h+='<span style="font-size:12px;color:var(--gold)">⏳ Aguardando sincronização...</span>';
+}
+
+h+='</div>';
+
+// ROW 3: Volume
+h+='<div style="display:flex;align-items:center;gap:8px;width:100%">';
+h+='<span style="font-size:10px;color:var(--text-dim);font-weight:600;width:28px">VOL</span>';
+h+='<input type="range" class="mt-slider" style="flex:1;width:auto" min="0" max="100" value="'+t.vol+'" oninput="mtSetVol(\''+t.id+'\',this.value)" onchange="mtSaveVol(\''+t.id+'\')">';
+h+='<span style="font-size:12px;color:var(--gold);min-width:36px;text-align:right;font-family:var(--fd)">'+t.vol+'%</span>';
+h+='</div>';
+
+// ROW 4: Tom + L↔R + M + S + Loop
+h+='<div style="display:flex;align-items:center;gap:8px;width:100%;flex-wrap:wrap">';
 
 // Pitch
 var pp=t.pitch||0;
-h+='<div class="mt-track-ctrl" style="gap:4px"><label>Tom</label>';
-h+='<button class="mt-pitch-btn" onclick="mtTrackPitch(\''+t.id+'\',-1)" style="width:32px;height:32px;font-size:16px">−</button>';
-h+='<span style="font-size:13px;color:var(--text);min-width:28px;text-align:center;font-family:var(--fd);font-weight:700">'+(pp>0?'+':'')+pp+'</span>';
-h+='<button class="mt-pitch-btn" onclick="mtTrackPitch(\''+t.id+'\',1)" style="width:32px;height:32px;font-size:16px">+</button></div>';
+h+='<span style="font-size:10px;color:var(--text-dim);font-weight:600">TOM</span>';
+h+='<button class="mt-pitch-btn" onclick="mtTrackPitch(\''+t.id+'\',-1)">−</button>';
+h+='<span style="font-size:14px;color:var(--text);min-width:28px;text-align:center;font-family:var(--fd);font-weight:700">'+(pp>0?'+':'')+pp+'</span>';
+h+='<button class="mt-pitch-btn" onclick="mtTrackPitch(\''+t.id+'\',1)">+</button>';
 
-if(hasLocal){
-// Swap L↔R
-h+='<div style="display:flex;align-items:center;gap:4px">';
-h+='<div class="mt-toggle'+(t.swapLR?' on':'')+'" onclick="mtSwapLR(\''+t.id+'\')" title="Inverter L↔R" style="width:38px;height:24px"></div>';
-h+='<span style="font-size:10px;color:var(--text-dim)">'+(t.swapLR?'R↔L':'L—R')+'</span></div>';
+// Spacer
+h+='<div style="flex:1"></div>';
 
-// Invert phase
-h+='<div style="display:flex;align-items:center;gap:4px">';
-h+='<div class="mt-toggle'+(t.invert?' on':'')+'" onclick="mtSetInvert(\''+t.id+'\')" title="Inverter fase" style="width:38px;height:24px"></div>';
-h+='<span style="font-size:10px;color:var(--text-dim)">Ø</span></div>';
+// L↔R swap
+h+='<button class="mt-solo-btn'+(t.swapLR?' on':'')+'" onclick="mtSwapLR(\''+t.id+'\')" style="font-size:10px;width:44px;height:34px;padding:0">'+(t.swapLR?'R↔L':'L—R')+'</button>';
+
+// Mute
+h+='<button class="mt-mute-btn'+(t.mute?' on':'')+'" onclick="mtSetMute(\''+t.id+'\')" style="width:34px;height:34px;font-size:13px">M</button>';
 
 // Solo
-h+='<button class="mt-solo-btn'+(t.solo?' on':'')+'" onclick="mtSetSolo(\''+t.id+'\')" style="width:34px;height:34px;font-size:12px">S</button>';
-}
+h+='<button class="mt-solo-btn'+(t.solo?' on':'')+'" onclick="mtSetSolo(\''+t.id+'\')" style="width:34px;height:34px;font-size:13px">S</button>';
 
-// Mute + Loop (always)
-h+='<button class="mt-mute-btn'+(t.mute?' on':'')+'" onclick="mtSetMute(\''+t.id+'\')" style="width:34px;height:34px;font-size:12px">M</button>';
-h+='<button class="mt-solo-btn'+(t.loop?' on':'')+'" onclick="mtSetLoop(\''+t.id+'\')" style="width:34px;height:34px;font-size:12px" title="Loop">🔁</button>';
+// Loop
+h+='<button class="mt-solo-btn'+(t.loop?' on':'')+'" onclick="mtSetLoop(\''+t.id+'\')" style="width:34px;height:34px;font-size:13px">🔁</button>';
 
-h+='</div>'; // end row 2
+h+='</div>'; // end row 4
 }
 
 h+='</div>'; // end track
