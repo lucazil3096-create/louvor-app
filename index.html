@@ -2272,17 +2272,25 @@ tx.objectStore('tracks').delete(trackId);
 
 function loadMTracks(){
 try{var d=localStorage.getItem(MTSK);if(d)mtTracks=JSON.parse(d);}catch(e){mtTracks=[];}
-// Also load from Firebase
+// Load from Firebase (source of truth)
 if(fbDoc){
 fbDoc.get().then(function(doc){
 if(doc.exists&&doc.data().multiTracks){
 try{
 var remote=JSON.parse(doc.data().multiTracks);
-if(remote.length>mtTracks.length){mtTracks=remote;saveMTLocal();}
-}catch(e){}
+if(remote&&remote.length){
+// Merge: use remote tracks, keep local-only tracks that are still uploading
+var remoteIds={};
+remote.forEach(function(r){remoteIds[r.id]=true;});
+var localOnly=mtTracks.filter(function(t){return t.uploading&&!remoteIds[t.id];});
+mtTracks=remote.concat(localOnly);
+saveMTLocal();
+console.log('MT loaded from Firebase: '+remote.length+' tracks');
+}
+}catch(e){console.log('MT parse error:',e);}
 }
 renderMTracks();
-}).catch(function(){renderMTracks();});
+}).catch(function(e){console.log('MT load error:',e);renderMTracks();});
 }else{renderMTracks();}
 }
 
@@ -2293,7 +2301,13 @@ try{localStorage.setItem(MTSK,JSON.stringify(mtTracks));}catch(e){}
 function saveMTFirebase(){
 saveMTLocal();
 if(!fbDoc||!fbSynced)return;
-fbDoc.update({multiTracks:JSON.stringify(mtTracks)}).catch(function(e){console.log('MT save error:',e);});
+// Clean temp fields before saving to Firebase
+var clean=mtTracks.filter(function(t){return !t.uploading&&t.url;}).map(function(t){
+return {id:t.id,name:t.name,fileName:t.fileName,url:t.url,vol:t.vol,swapLR:t.swapLR,invert:t.invert,pitch:t.pitch,mute:t.mute,solo:t.solo,loop:t.loop};
+});
+fbDoc.update({multiTracks:JSON.stringify(clean)}).then(function(){
+console.log('MT saved to Firebase: '+clean.length+' tracks');
+}).catch(function(e){console.log('MT save error:',e);});
 }
 
 function setPadsMode(mode){
