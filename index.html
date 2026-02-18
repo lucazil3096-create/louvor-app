@@ -2271,14 +2271,14 @@ if(mode==='mixer')renderMTracks();
 
 function mtUploadTrack(){
 var inp=document.createElement('input');
-inp.type='file';inp.accept='audio/*';inp.multiple=true;
+inp.type='file';inp.accept='.wav,.mp3,.flac,.ogg,.aac,audio/*';inp.multiple=true;
 inp.onchange=function(){
 if(!inp.files.length)return;
 for(var i=0;i<inp.files.length;i++){
 (function(f){
 var trackId='mt_'+Date.now()+'_'+Math.random().toString(36).substr(2,4);
 var name=f.name.replace(/\.[^.]+$/,'');
-var track={id:trackId,name:name,fileName:f.name,url:'',vol:80,swapLR:false,invert:false,pitch:0,mute:false,solo:false,uploading:true,progress:0};
+var track={id:trackId,name:name,fileName:f.name,url:'',vol:80,swapLR:false,invert:false,pitch:0,mute:false,solo:false,loop:false,uploading:true,progress:0};
 mtTracks.push(track);
 renderMTracks();
 // Upload to Firebase Storage
@@ -2339,9 +2339,30 @@ function mtGetCtx(){return getCtx();} // reuse existing audioCtx
 
 function mtLoadBuffer(url,cb){
 var ctx=mtGetCtx();
-fetch(url).then(function(r){return r.arrayBuffer();}).then(function(buf){
-return ctx.decodeAudioData(buf);
-}).then(function(decoded){cb(null,decoded);}).catch(function(e){cb(e,null);});
+var xhr=new XMLHttpRequest();
+xhr.open('GET',url,true);
+xhr.responseType='arraybuffer';
+xhr.onload=function(){
+if(xhr.status===200||xhr.status===0){
+ctx.decodeAudioData(xhr.response,function(decoded){
+cb(null,decoded);
+},function(e){
+cb(e||new Error('Decode failed'),null);
+});
+}else{cb(new Error('HTTP '+xhr.status),null);}
+};
+xhr.onerror=function(){cb(new Error('Network error'),null);};
+xhr.send();
+}
+
+function mtToggleTrack(id){
+var t=mtTracks.find(function(x){return x.id===id;});
+if(!t)return;
+if(mtState[id]&&mtState[id].playing){
+mtStopTrack(id);
+}else{
+mtPlayTrack(t);
+}
 }
 
 function mtPlayTrack(track){
@@ -2372,7 +2393,7 @@ source.buffer=buffer;
 // Pitch: track pitch + master pitch
 var totalPitch=(track.pitch||0)+mtGlobalPitch;
 source.detune.value=totalPitch*100;
-source.loop=true;
+source.loop=!!track.loop;
 // Gain (vol + invert phase)
 var gainNode=ctx.createGain();
 var vol=(track.mute?0:track.vol)/100;
@@ -2393,7 +2414,7 @@ outputNode=gainNode;
 }
 // Connect
 source.connect(gainNode);outputNode.connect(ctx.destination);
-source.start(0,mtPauseOffset);
+source.start(0);
 mtState[id]=mtState[id]||{};
 mtState[id].source=source;
 mtState[id].gain=gainNode;
@@ -2402,7 +2423,8 @@ mtState[id].buffer=buffer;
 mtState[id].playing=true;
 mtState[id].loading=false;
 source.onended=function(){
-if(mtState[id])mtState[id].playing=false;
+if(mtState[id]){mtState[id].playing=false;mtState[id].source=null;}
+renderMTracks();
 };
 renderMTracks();
 }
@@ -2505,6 +2527,14 @@ function mtSetMute(id){
 var t=mtTracks.find(function(x){return x.id===id;});if(!t)return;
 t.mute=!t.mute;mtUpdateTrackAudio(id);saveMTFirebase();renderMTracks();
 }
+function mtSetLoop(id){
+var t=mtTracks.find(function(x){return x.id===id;});if(!t)return;
+t.loop=!t.loop;
+if(mtState[id]&&mtState[id].source){
+mtState[id].source.loop=t.loop;
+}
+saveMTFirebase();renderMTracks();
+}
 function mtSetSolo(id){
 var t=mtTracks.find(function(x){return x.id===id;});if(!t)return;
 t.solo=!t.solo;mtUpdateAllAudio();saveMTFirebase();renderMTracks();
@@ -2542,6 +2572,9 @@ var isMuted=t.mute||(hasSolo&&!t.solo);
 var st=mtState[t.id]||{};
 h+='<div class="mt-track'+(isMuted?' muted':'')+(t.solo?' solo-active':'')+'">';
 // Name
+var isTrackPlaying=st.playing||false;
+var isTrackLoading=st.loading||false;
+h+='<button class="mt-btn '+(isTrackPlaying?'mt-btn-stop':'mt-btn-play')+'" onclick="mtToggleTrack(\''+t.id+'\')" style="padding:6px 12px;font-size:11px;min-width:44px">'+(isTrackLoading?'⏳':(isTrackPlaying?'⏹':'▶'))+'</button>';
 h+='<div class="mt-track-name" onclick="mtRenameTrack(\''+t.id+'\')" title="'+esc(t.fileName)+'">'+esc(t.name)+'</div>';
 // Upload progress
 if(t.uploading){
@@ -2560,9 +2593,10 @@ var pp=t.pitch||0;
 h+='<div class="mt-track-ctrl" style="gap:2px"><button class="mt-pitch-btn" onclick="mtTrackPitch(\''+t.id+'\',-1)" style="width:22px;height:22px;font-size:13px">−</button>';
 h+='<span style="font-size:11px;color:var(--text);min-width:24px;text-align:center;font-family:var(--fd)">'+(pp>0?'+':'')+pp+'</span>';
 h+='<button class="mt-pitch-btn" onclick="mtTrackPitch(\''+t.id+'\',1)" style="width:22px;height:22px;font-size:13px">+</button></div>';
-// Mute / Solo
+// Mute / Solo / Loop
 h+='<button class="mt-mute-btn'+(t.mute?' on':'')+'" onclick="mtSetMute(\''+t.id+'\')">M</button>';
 h+='<button class="mt-solo-btn'+(t.solo?' on':'')+'" onclick="mtSetSolo(\''+t.id+'\')">S</button>';
+h+='<button class="mt-solo-btn'+(t.loop?' on':'')+'" onclick="mtSetLoop(\''+t.id+'\')" style="font-size:9px" title="Loop">🔁</button>';
 }
 // Delete
 h+='<button class="mt-del-btn" onclick="mtDeleteTrack(\''+t.id+'\')">🗑</button>';
