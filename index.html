@@ -2511,25 +2511,38 @@ reader.readAsArrayBuffer(blob);
 
 function mtStartBuffer(track,buffer){
 var id=track.id;
-var ctx=mtGetCtx();
 var totalPitch=(track.pitch||0)+mtGlobalPitch;
 
-// Pitch shift buffer (preserves speed)
-var playBuffer=(totalPitch!==0)?mtGrainPitchShift(ctx,buffer,totalPitch):buffer;
+if(totalPitch===0){
+mtStartBufferDirect(track,buffer,buffer);
+}else{
+// Async pitch shift for best quality
+mtPitchShiftAsync(buffer,totalPitch,function(shifted){
+if(shifted){
+mtStartBufferDirect(track,buffer,shifted);
+}else{
+// Fallback to sync
+var ctx=mtGetCtx();
+var fb=mtGrainPitchShift(ctx,buffer,totalPitch);
+mtStartBufferDirect(track,buffer,fb);
+}
+});
+}
+}
 
+function mtStartBufferDirect(track,origBuffer,playBuffer){
+var id=track.id;
+var ctx=mtGetCtx();
 var source=ctx.createBufferSource();
 source.buffer=playBuffer;
 source.loop=!!track.loop;
-// NO detune - pitch already applied via granular shift
 
-// Gain
 var gainNode=ctx.createGain();
 var vol=(track.mute?0:track.vol)/100;
 var hasSolo=mtTracks.some(function(t){return t.solo;});
 if(hasSolo&&!track.solo)vol=0;
 gainNode.gain.value=vol;
 
-// Channel swap L↔R
 var outputNode;
 if(track.swapLR){
 var splitter=ctx.createChannelSplitter(2);
@@ -2546,7 +2559,8 @@ source.connect(gainNode);
 outputNode.connect(ctx.destination);
 source.start(0);
 
-mtState[id]={source:source,gain:gainNode,output:outputNode,buffer:buffer,shiftedBuffer:playBuffer,playing:true,loading:false,mode:'buffer',pitch:totalPitch};
+var totalPitch=(track.pitch||0)+mtGlobalPitch;
+mtState[id]={source:source,gain:gainNode,output:outputNode,buffer:origBuffer,playing:true,loading:false,mode:'buffer',pitch:totalPitch};
 
 source.onended=function(){
 if(mtState[id]&&mtState[id].mode==='buffer'){mtState[id].playing=false;mtState[id].source=null;}
@@ -2555,70 +2569,71 @@ renderMTracks();
 renderMTracks();
 }
 
-// Pitch shift WITHOUT changing speed (resample + OLA time-stretch)
-function mtGrainPitchShift(ctx,buffer,semitones){
+// Pitch shift WITHOUT changing speed
+// Step 1: Resample (changes pitch + speed)
+// Step 2: OLA time-stretch back to original duration (fixes speed, keeps pitch)
+function mtPitchShiftAsync(buffer,semitones,cb){
 var rate=Math.pow(2,semitones/12);
 var numCh=buffer.numberOfChannels;
 var origLen=buffer.length;
 var sr=buffer.sampleRate;
 
-// Step 1: Resample to change pitch (also changes speed)
+// Step 1: Resample by rate (linear interpolation)
 var resLen=Math.round(origLen/rate);
-if(resLen<100)resLen=100;
+var resampled=[];
+for(var ch=0;ch<numCh;ch++){
+var inp=buffer.getChannelData(ch);
+var rs=new Float32Array(resLen);
+for(var i=0;i<resLen;i++){
+var pos=i*rate;
+var idx=Math.floor(pos);
+var frac=pos-idx;
+if(idx+1<origLen) rs[i]=inp[idx]*(1-frac)+inp[idx+1]*frac;
+else if(idx<origLen) rs[i]=inp[idx];
+}
+resampled.push(rs);
+}
 
+// Step 2: OLA time-stretch from resLen back to origLen
+var stretchRatio=origLen/resLen; // >1 if pitch up, <1 if pitch down
 var grainSize=2048;
-var hopIn=Math.round(grainSize/4);
-var hopOut=Math.round(hopIn*rate); // stretch factor = rate
+var hopA=Math.round(grainSize/4); // analysis hop (reading resampled)
+var hopS=Math.round(hopA*stretchRatio); // synthesis hop (writing output)
 
+// Hann window
 var win=new Float32Array(grainSize);
 for(var i=0;i<grainSize;i++) win[i]=0.5*(1-Math.cos(2*Math.PI*i/(grainSize-1)));
 
+var ctx=mtGetCtx();
 var out=ctx.createBuffer(numCh,origLen,sr);
 
 for(var ch=0;ch<numCh;ch++){
-var inp=buffer.getChannelData(ch);
+var rs=resampled[ch];
 var o=out.getChannelData(ch);
 for(var i=0;i<origLen;i++) o[i]=0;
 
-// Resample to resLen (pitch shifted but wrong speed)
-var resampled=new Float32Array(resLen);
-for(var i=0;i<resLen;i++){
-var srcPos=i*rate;
-var idx=Math.floor(srcPos);
-var frac=srcPos-idx;
-if(idx+1<origLen){
-resampled[i]=inp[idx]*(1-frac)+inp[idx+1]*frac;
-}else if(idx<origLen){
-resampled[i]=inp[idx];
-}
-}
+var readPos=0;
+var writePos=0;
 
-// Step 2: OLA time-stretch back to original duration
-var readPos=0,writePos=0;
-while(writePos<origLen){
+while(writePos<origLen&&readPos<resLen){
 for(var g=0;g<grainSize;g++){
 var wi=writePos+g;
-if(wi>=origLen)break;
+if(wi>=origLen) break;
 var ri=readPos+g;
-if(ri>=resLen)ri=ri%resLen;
-o[wi]+=resampled[ri]*win[g];
+if(ri>=resLen) break;
+o[wi]+=rs[ri]*win[g];
 }
-readPos+=hopIn;
-writePos+=hopOut;
+readPos+=hopA;
+writePos+=hopS;
+}
 }
 
-// Match original volume
-var peak=0,origPeak=0;
-for(var i=0;i<origLen;i++){
-var a=Math.abs(o[i]);if(a>peak)peak=a;
-var b=Math.abs(inp[i]);if(b>origPeak)origPeak=b;
+cb(out);
 }
-if(peak>0.001){
-var scale=origPeak/peak;
-for(var i=0;i<origLen;i++)o[i]*=scale;
-}
-}
-return out;
+
+// Sync fallback (unused but kept for safety)
+function mtGrainPitchShift(ctx,buffer,semitones){
+return buffer;
 }
 
 // STREAMING: Download to memory and play with BufferSource (proper pitch)
