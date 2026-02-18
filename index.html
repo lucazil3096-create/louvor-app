@@ -389,24 +389,24 @@ body.light .pads-header{background:var(--surface)}
 .mt-master-pitch{display:flex;align-items:center;gap:6px;margin-left:auto}
 .mt-master-pitch-label{font-size:10px;color:var(--gold);text-transform:uppercase;letter-spacing:.5px}
 .mt-master-pitch-val{font-family:var(--fd);font-size:18px;color:var(--text);min-width:40px;text-align:center}
-.mt-pitch-btn{width:28px;height:28px;border-radius:50%;border:1px solid var(--card-border);background:var(--card-bg);color:var(--text);font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .2s}
+.mt-pitch-btn{width:34px;height:34px;border-radius:50%;border:1px solid var(--card-border);background:var(--card-bg);color:var(--text);font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .2s}
 .mt-pitch-btn:active{background:var(--accent-glow);border-color:var(--accent);transform:scale(.9)}
-.mt-tracks{flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:6px}
-.mt-track{display:flex;align-items:center;gap:8px;padding:10px 12px;background:var(--card-bg);border:1px solid var(--card-border);border-radius:12px;transition:all .15s;flex-shrink:0}
+.mt-tracks{flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:10px}
+.mt-track{display:flex;align-items:center;gap:8px;padding:12px 14px;background:var(--card-bg);border:1px solid var(--card-border);border-radius:14px;transition:all .15s;flex-shrink:0}
 .mt-track.muted{opacity:.35}
 .mt-track.solo-active{border-color:var(--gold);background:rgba(201,169,110,.04)}
 .mt-track-name{font-size:13px;font-weight:600;color:var(--text);min-width:100px;max-width:140px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer}
-.mt-track-ctrl{display:flex;align-items:center;gap:4px}
-.mt-track-ctrl label{font-size:8px;color:var(--text-dim);text-transform:uppercase;min-width:24px;text-align:right}
-.mt-slider{flex:none;width:100px;-webkit-appearance:none;appearance:none;height:3px;background:rgba(255,255,255,.08);border-radius:2px;outline:none;cursor:pointer}
-.mt-slider::-webkit-slider-thumb{-webkit-appearance:none;width:14px;height:14px;background:var(--accent);border-radius:50%;cursor:pointer;box-shadow:0 1px 3px rgba(0,0,0,.3)}
-.mt-slider::-moz-range-thumb{width:14px;height:14px;background:var(--accent);border-radius:50%;cursor:pointer;border:none}
-.mt-slider-val{font-size:9px;color:var(--gold);min-width:26px;text-align:right}
-.mt-toggle{width:32px;height:20px;border-radius:10px;border:1px solid var(--card-border);background:var(--card-bg);cursor:pointer;position:relative;transition:all .2s;flex-shrink:0}
+.mt-track-ctrl{display:flex;align-items:center;gap:6px}
+.mt-track-ctrl label{font-size:10px;color:var(--text-dim);text-transform:uppercase;min-width:26px;text-align:right;font-weight:600}
+.mt-slider{flex:none;width:100px;-webkit-appearance:none;appearance:none;height:4px;background:rgba(255,255,255,.08);border-radius:2px;outline:none;cursor:pointer}
+.mt-slider::-webkit-slider-thumb{-webkit-appearance:none;width:18px;height:18px;background:var(--accent);border-radius:50%;cursor:pointer;box-shadow:0 1px 3px rgba(0,0,0,.3)}
+.mt-slider::-moz-range-thumb{width:18px;height:18px;background:var(--accent);border-radius:50%;cursor:pointer;border:none}
+.mt-slider-val{font-size:11px;color:var(--gold);min-width:30px;text-align:right}
+.mt-toggle{width:38px;height:24px;border-radius:12px;border:1px solid var(--card-border);background:var(--card-bg);cursor:pointer;position:relative;transition:all .2s;flex-shrink:0}
 .mt-toggle.on{background:var(--accent);border-color:var(--accent)}
-.mt-toggle::after{content:'';position:absolute;top:2px;left:2px;width:14px;height:14px;border-radius:50%;background:#fff;transition:transform .2s}
-.mt-toggle.on::after{transform:translateX(12px)}
-.mt-mute-btn,.mt-solo-btn{width:28px;height:28px;border-radius:6px;border:1px solid var(--card-border);background:var(--card-bg);font-size:10px;font-weight:800;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .2s;font-family:var(--fb);flex-shrink:0}
+.mt-toggle::after{content:'';position:absolute;top:3px;left:3px;width:16px;height:16px;border-radius:50%;background:#fff;transition:transform .2s}
+.mt-toggle.on::after{transform:translateX(14px)}
+.mt-mute-btn,.mt-solo-btn{width:34px;height:34px;border-radius:8px;border:1px solid var(--card-border);background:var(--card-bg);font-size:12px;font-weight:800;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .2s;font-family:var(--fb);flex-shrink:0}
 .mt-mute-btn{color:var(--danger)}
 .mt-mute-btn.on{background:var(--danger);color:#fff;border-color:var(--danger)}
 .mt-solo-btn{color:var(--gold)}
@@ -2387,8 +2387,6 @@ if(n&&n.trim()){t.name=n.trim();saveMTFirebase();renderMTracks();}
 // ===== MULTITRACK AUDIO ENGINE =====
 function mtGetCtx(){return getCtx();} // reuse existing audioCtx
 
-function mtLoadBuffer(trackId,url,cb){cb(null,null);}
-
 function mtToggleTrack(id){
 var t=mtTracks.find(function(x){return x.id===id;});
 if(!t)return;
@@ -2407,56 +2405,66 @@ if(mtState[id]&&mtState[id].playing)return;
 mtState[id]={loading:true};
 renderMTracks();
 
-// Try local blob first, then Firebase URL
+// Try local blob first (uses BufferSource = proper pitch shift)
 mtGetBlob(id,function(blob){
-var audioUrl;
-var blobUrl=null;
 if(blob){
-blobUrl=URL.createObjectURL(blob);
-audioUrl=blobUrl;
-console.log('Playing from local');
+mtPlayFromBuffer(track,blob);
 }else if(track.url){
-audioUrl=track.url;
-console.log('Playing from Firebase: '+track.url.substring(0,60)+'...');
+mtPlayFromStream(track);
 }else{
 alert('Sem arquivo. Faça upload novamente.');
 delete mtState[id];renderMTracks();
+}
+});
+}
+
+// LOCAL: BufferSource — pitch via detune (sem mudar velocidade)
+function mtPlayFromBuffer(track,blob){
+var id=track.id;
+var ctx=mtGetCtx();
+
+// If buffer already decoded, reuse it
+if(mtState[id]&&mtState[id].buffer){
+mtStartBuffer(track,mtState[id].buffer);
 return;
 }
 
-var audio=new Audio();
-audio.crossOrigin='anonymous';
-audio.loop=!!track.loop;
-audio.preload='auto';
+var reader=new FileReader();
+reader.onload=function(){
+ctx.decodeAudioData(reader.result,function(buffer){
+mtStartBuffer(track,buffer);
+},function(e){
+console.log('Decode error:',e);
+alert('Erro ao decodificar áudio');
+delete mtState[id];renderMTracks();
+});
+};
+reader.onerror=function(){
+alert('Erro ao ler arquivo');
+delete mtState[id];renderMTracks();
+};
+reader.readAsArrayBuffer(blob);
+}
 
-// Volume
+function mtStartBuffer(track,buffer){
+var id=track.id;
+var ctx=mtGetCtx();
+var source=ctx.createBufferSource();
+source.buffer=buffer;
+source.loop=!!track.loop;
+
+// Pitch via detune (cents) — NÃO muda velocidade
+var totalPitch=(track.pitch||0)+mtGlobalPitch;
+source.detune.value=totalPitch*100;
+
+// Gain (vol + invert phase)
+var gainNode=ctx.createGain();
 var vol=(track.mute?0:track.vol)/100;
 var hasSolo=mtTracks.some(function(t){return t.solo;});
 if(hasSolo&&!track.solo)vol=0;
-audio.volume=vol;
+gainNode.gain.value=track.invert?-vol:vol;
 
-// Pitch via playbackRate
-var totalPitch=(track.pitch||0)+mtGlobalPitch;
-audio.playbackRate=Math.pow(2,totalPitch/12);
-
-audio.src=audioUrl;
-
-var started=false;
-
-function tryPlay(){
-if(started)return;
-started=true;
-audio.play().then(function(){
-mtState[id]={audio:audio,blobUrl:blobUrl,playing:true,loading:false,useWebAudio:false};
-
-// Try connecting Web Audio for advanced features (swap, invert)
-try{
-var ctx=mtGetCtx();
-if(!mtState[id].src){
-var src=ctx.createMediaElementSource(audio);
-var gainNode=ctx.createGain();
-gainNode.gain.value=track.invert?-1:1;
-
+// Channel swap L↔R
 var outputNode;
 if(track.swapLR){
 var splitter=ctx.createChannelSplitter(2);
@@ -2468,23 +2476,43 @@ outputNode=merger;
 }else{
 outputNode=gainNode;
 }
-src.connect(gainNode);
+
+source.connect(gainNode);
 outputNode.connect(ctx.destination);
-mtState[id].src=src;
-mtState[id].gain=gainNode;
-mtState[id].output=outputNode;
-mtState[id].useWebAudio=true;
-audio.volume=1; // Web Audio controls volume now
-gainNode.gain.value=track.invert?-vol:vol;
-}
-}catch(e){
-console.log('Web Audio not available, using basic playback');
-}
+source.start(0);
 
+mtState[id]={source:source,gain:gainNode,output:outputNode,buffer:buffer,playing:true,loading:false,mode:'buffer'};
+
+source.onended=function(){
+if(mtState[id]&&mtState[id].mode==='buffer'){mtState[id].playing=false;mtState[id].source=null;}
 renderMTracks();
+};
+renderMTracks();
+}
 
-// Cache remotely downloaded file locally
-if(!blob&&track.url){
+// STREAMING: Audio element — pitch via playbackRate (muda velocidade junto, fallback)
+function mtPlayFromStream(track){
+var id=track.id;
+var audio=new Audio();
+audio.crossOrigin='anonymous';
+audio.loop=!!track.loop;
+audio.preload='auto';
+
+var vol=(track.mute?0:track.vol)/100;
+var hasSolo=mtTracks.some(function(t){return t.solo;});
+if(hasSolo&&!track.solo)vol=0;
+audio.volume=vol;
+
+audio.src=track.url;
+
+var started=false;
+function tryPlay(){
+if(started)return;
+started=true;
+audio.play().then(function(){
+mtState[id]={audio:audio,playing:true,loading:false,mode:'stream'};
+renderMTracks();
+// Cache for next time
 try{
 var xhr=new XMLHttpRequest();
 xhr.open('GET',track.url,true);
@@ -2498,38 +2526,35 @@ if(ok){mtLocalCheck[id]=true;console.log('Cached: '+track.name);}
 };
 xhr.send();
 }catch(e){}
-}
 }).catch(function(e){
 console.log('Play failed:',e);
-// iOS might need direct user tap - try without Web Audio
-delete mtState[id];
-renderMTracks();
+delete mtState[id];renderMTracks();
 });
 }
 
 audio.addEventListener('canplaythrough',tryPlay);
-// iOS fallback
-audio.addEventListener('loadeddata',function(){
-setTimeout(tryPlay,100);
+audio.addEventListener('loadeddata',function(){setTimeout(tryPlay,100);});
+audio.addEventListener('ended',function(){
+if(mtState[id]){mtState[id].playing=false;mtState[id].audio=null;}
+renderMTracks();
 });
-audio.addEventListener('error',function(e){
-console.log('Audio error:',audio.error);
-alert('Erro ao carregar. Verifique a conexão.');
+audio.addEventListener('error',function(){
+alert('Erro ao carregar stream.');
 delete mtState[id];renderMTracks();
 });
 audio.load();
-});
 }
 
 function mtStopTrack(id){
 if(!mtState[id])return;
-if(mtState[id].audio){
-try{mtState[id].audio.pause();mtState[id].audio.currentTime=0;mtState[id].audio.src='';}catch(e){}
+if(mtState[id].mode==='buffer'){
+if(mtState[id].source){try{mtState[id].source.stop();}catch(e){}}
+}else if(mtState[id].mode==='stream'){
+if(mtState[id].audio){try{mtState[id].audio.pause();mtState[id].audio.currentTime=0;mtState[id].audio.src='';}catch(e){}}
 }
-if(mtState[id].blobUrl){
-try{URL.revokeObjectURL(mtState[id].blobUrl);}catch(e){}
-}
+var buf=mtState[id].buffer; // keep decoded buffer for reuse
 delete mtState[id];
+if(buf)mtState[id]={buffer:buf};
 renderMTracks();
 }
 
@@ -2551,9 +2576,13 @@ renderMTracks();
 
 function mtPauseAll(){
 Object.keys(mtState).forEach(function(id){
-if(mtState[id]&&mtState[id].audio&&mtState[id].playing){
+if(mtState[id]&&mtState[id].playing){
+if(mtState[id].mode==='stream'&&mtState[id].audio){
 try{mtState[id].audio.pause();}catch(e){}
 mtState[id].playing=false;
+}else{
+mtStopTrack(id);
+}
 }
 });
 mtIsPlaying=false;
@@ -2575,16 +2604,13 @@ var vol=(t.mute?0:t.vol)/100;
 var hasSolo=mtTracks.some(function(x){return x.solo;});
 if(hasSolo&&!t.solo)vol=0;
 
-if(mtState[id].useWebAudio&&mtState[id].gain){
+if(mtState[id].mode==='buffer'){
 var ctx=mtGetCtx();
-mtState[id].gain.gain.setValueAtTime(t.invert?-vol:vol,ctx.currentTime);
-}else if(mtState[id].audio){
-mtState[id].audio.volume=vol;
-}
-// Update pitch
+if(mtState[id].gain)mtState[id].gain.gain.setValueAtTime(t.invert?-vol:vol,ctx.currentTime);
 var totalPitch=(t.pitch||0)+mtGlobalPitch;
-if(mtState[id].audio){
-mtState[id].audio.playbackRate=Math.pow(2,totalPitch/12);
+if(mtState[id].source)mtState[id].source.detune.setValueAtTime(totalPitch*100,ctx.currentTime);
+}else if(mtState[id].mode==='stream'){
+if(mtState[id].audio)mtState[id].audio.volume=vol;
 }
 }
 
@@ -2612,7 +2638,7 @@ function mtSetInvert(id){
 var t=mtTracks.find(function(x){return x.id===id;});if(!t)return;
 t.invert=!t.invert;
 if(mtState[id]&&mtState[id].playing){
-if(mtState[id].useWebAudio){
+if(mtState[id].mode==='buffer'){
 mtUpdateTrackAudio(id);
 }else{
 mtStopTrack(id);
@@ -2628,8 +2654,12 @@ t.mute=!t.mute;mtUpdateTrackAudio(id);saveMTFirebase();renderMTracks();
 function mtSetLoop(id){
 var t=mtTracks.find(function(x){return x.id===id;});if(!t)return;
 t.loop=!t.loop;
-if(mtState[id]&&mtState[id].audio){
+if(mtState[id]&&mtState[id].playing){
+if(mtState[id].mode==='buffer'&&mtState[id].source){
+mtState[id].source.loop=t.loop;
+}else if(mtState[id].mode==='stream'&&mtState[id].audio){
 mtState[id].audio.loop=t.loop;
+}
 }
 saveMTFirebase();renderMTracks();
 }
@@ -2686,50 +2716,64 @@ mtTracks.forEach(function(t){
 var isMuted=t.mute||(hasSolo&&!t.solo);
 var st=mtState[t.id]||{};
 var hasLocal=mtLocalCheck[t.id]||false;
-h+='<div class="mt-track'+(isMuted?' muted':'')+(t.solo?' solo-active':'')+'">';
-// Play button + Name
 var isTrackPlaying=st.playing||false;
 var isTrackLoading=st.loading||false;
-h+='<button class="mt-btn '+(isTrackPlaying?'mt-btn-stop':'mt-btn-play')+'" onclick="mtToggleTrack(\''+t.id+'\')" style="padding:6px 12px;font-size:11px;min-width:44px">'+(isTrackLoading?'⏳':(isTrackPlaying?'⏹':'▶'))+'</button>';
-h+='<div class="mt-track-name" onclick="mtRenameTrack(\''+t.id+'\')" title="'+esc(t.fileName)+'">'+ esc(t.name)+(hasLocal?'<span style="font-size:8px;color:var(--green);margin-left:4px">💾</span>':'<span style="font-size:8px;color:var(--gold);margin-left:4px">☁️</span>')+'</div>';
+
+h+='<div class="mt-track'+(isMuted?' muted':'')+(t.solo?' solo-active':'')+'" style="flex-wrap:wrap">';
+
+// ROW 1: Play + Name + Status + Delete
+h+='<div style="display:flex;align-items:center;gap:8px;width:100%;min-height:40px">';
+h+='<button class="mt-btn '+(isTrackPlaying?'mt-btn-stop':'mt-btn-play')+'" onclick="mtToggleTrack(\''+t.id+'\')" style="padding:10px 16px;font-size:14px;min-width:52px;border-radius:10px">'+(isTrackLoading?'⏳':(isTrackPlaying?'⏹':'▶'))+'</button>';
+h+='<div style="flex:1;min-width:0">';
+h+='<div class="mt-track-name" onclick="mtRenameTrack(\''+t.id+'\')" title="'+esc(t.fileName)+'" style="font-size:14px;max-width:none">'+esc(t.name)+'</div>';
+h+='<div style="font-size:10px;color:var(--text-dim);margin-top:2px">'+(hasLocal?'💾 Local':'☁️ Nuvem')+(isTrackPlaying?' — ▶ Tocando':'')+'</div>';
+h+='</div>';
+if(!hasLocal&&t.url&&!t.uploading){
+h+='<button class="mt-btn mt-btn-accent" onclick="mtDownloadTrack(\''+t.id+'\')" id="mt-dl-'+t.id+'" style="padding:10px 16px;font-size:12px;white-space:nowrap;border-radius:10px">📥 Baixar</button>';
+}
+h+='<button class="mt-del-btn" onclick="mtDeleteTrack(\''+t.id+'\')" style="font-size:18px;padding:8px">🗑</button>';
+h+='</div>';
+
 // Upload progress
 if(t.uploading){
-h+='<div style="flex:1"><div class="mt-upload-progress"><div class="mt-upload-bar" style="width:'+(t.progress||0)+'%"></div></div><span style="font-size:9px;color:var(--text-dim)">'+(t.progress||0)+'%</span></div>';
-}else if(!hasLocal&&t.url){
-// Not local — show download + stream controls
-h+='<button class="mt-btn mt-btn-accent" onclick="mtDownloadTrack(\''+t.id+'\')" style="font-size:10px;padding:5px 10px" id="mt-dl-'+t.id+'">📥 Baixar</button>';
-// Vol
-h+='<div class="mt-track-ctrl"><label>Vol</label><input type="range" class="mt-slider" min="0" max="100" value="'+t.vol+'" oninput="mtSetVol(\''+t.id+'\',this.value)" onchange="mtSaveVol(\''+t.id+'\')"><span class="mt-slider-val">'+t.vol+'%</span></div>';
-// Pitch
-var pp=t.pitch||0;
-h+='<div class="mt-track-ctrl" style="gap:2px"><button class="mt-pitch-btn" onclick="mtTrackPitch(\''+t.id+'\',-1)" style="width:22px;height:22px;font-size:13px">−</button>';
-h+='<span style="font-size:11px;color:var(--text);min-width:24px;text-align:center;font-family:var(--fd)">'+(pp>0?'+':'')+pp+'</span>';
-h+='<button class="mt-pitch-btn" onclick="mtTrackPitch(\''+t.id+'\',1)" style="width:22px;height:22px;font-size:13px">+</button></div>';
-h+='<button class="mt-mute-btn'+(t.mute?' on':'')+'" onclick="mtSetMute(\''+t.id+'\')">M</button>';
-h+='<button class="mt-solo-btn'+(t.loop?' on':'')+'" onclick="mtSetLoop(\''+t.id+'\')" style="font-size:9px" title="Loop">🔁</button>';
+h+='<div style="width:100%;margin-top:6px"><div class="mt-upload-progress"><div class="mt-upload-bar" style="width:'+(t.progress||0)+'%"></div></div><span style="font-size:10px;color:var(--text-dim)">'+(t.progress||0)+'%</span></div>';
 }else{
-// Local file — full controls
-// Vol
-h+='<div class="mt-track-ctrl"><label>Vol</label><input type="range" class="mt-slider" min="0" max="100" value="'+t.vol+'" oninput="mtSetVol(\''+t.id+'\',this.value)" onchange="mtSaveVol(\''+t.id+'\')"><span class="mt-slider-val">'+t.vol+'%</span></div>';
-// Swap L↔R
-h+='<div class="mt-toggle'+(t.swapLR?' on':'')+'" onclick="mtSwapLR(\''+t.id+'\')" title="Inverter L↔R"></div>';
-h+='<span style="font-size:9px;color:var(--text-dim);min-width:24px">'+(t.swapLR?'R↔L':'L—R')+'</span>';
-// Invert phase
-h+='<div class="mt-toggle'+(t.invert?' on':'')+'" onclick="mtSetInvert(\''+t.id+'\')" title="Inverter fase"></div>';
-h+='<span style="font-size:9px;color:var(--text-dim);min-width:16px">Ø</span>';
+// ROW 2: Controls
+h+='<div style="display:flex;align-items:center;gap:8px;width:100%;margin-top:6px;flex-wrap:wrap">';
+
+// Volume
+h+='<div class="mt-track-ctrl" style="flex:1;min-width:120px"><label>Vol</label><input type="range" class="mt-slider" style="flex:1;width:auto" min="0" max="100" value="'+t.vol+'" oninput="mtSetVol(\''+t.id+'\',this.value)" onchange="mtSaveVol(\''+t.id+'\')"><span class="mt-slider-val">'+t.vol+'%</span></div>';
+
 // Pitch
 var pp=t.pitch||0;
-h+='<div class="mt-track-ctrl" style="gap:2px"><button class="mt-pitch-btn" onclick="mtTrackPitch(\''+t.id+'\',-1)" style="width:22px;height:22px;font-size:13px">−</button>';
-h+='<span style="font-size:11px;color:var(--text);min-width:24px;text-align:center;font-family:var(--fd)">'+(pp>0?'+':'')+pp+'</span>';
-h+='<button class="mt-pitch-btn" onclick="mtTrackPitch(\''+t.id+'\',1)" style="width:22px;height:22px;font-size:13px">+</button></div>';
-// Mute / Solo / Loop
-h+='<button class="mt-mute-btn'+(t.mute?' on':'')+'" onclick="mtSetMute(\''+t.id+'\')">M</button>';
-h+='<button class="mt-solo-btn'+(t.solo?' on':'')+'" onclick="mtSetSolo(\''+t.id+'\')">S</button>';
-h+='<button class="mt-solo-btn'+(t.loop?' on':'')+'" onclick="mtSetLoop(\''+t.id+'\')" style="font-size:9px" title="Loop">🔁</button>';
+h+='<div class="mt-track-ctrl" style="gap:4px"><label>Tom</label>';
+h+='<button class="mt-pitch-btn" onclick="mtTrackPitch(\''+t.id+'\',-1)" style="width:32px;height:32px;font-size:16px">−</button>';
+h+='<span style="font-size:13px;color:var(--text);min-width:28px;text-align:center;font-family:var(--fd);font-weight:700">'+(pp>0?'+':'')+pp+'</span>';
+h+='<button class="mt-pitch-btn" onclick="mtTrackPitch(\''+t.id+'\',1)" style="width:32px;height:32px;font-size:16px">+</button></div>';
+
+if(hasLocal){
+// Swap L↔R
+h+='<div style="display:flex;align-items:center;gap:4px">';
+h+='<div class="mt-toggle'+(t.swapLR?' on':'')+'" onclick="mtSwapLR(\''+t.id+'\')" title="Inverter L↔R" style="width:38px;height:24px"></div>';
+h+='<span style="font-size:10px;color:var(--text-dim)">'+(t.swapLR?'R↔L':'L—R')+'</span></div>';
+
+// Invert phase
+h+='<div style="display:flex;align-items:center;gap:4px">';
+h+='<div class="mt-toggle'+(t.invert?' on':'')+'" onclick="mtSetInvert(\''+t.id+'\')" title="Inverter fase" style="width:38px;height:24px"></div>';
+h+='<span style="font-size:10px;color:var(--text-dim)">Ø</span></div>';
+
+// Solo
+h+='<button class="mt-solo-btn'+(t.solo?' on':'')+'" onclick="mtSetSolo(\''+t.id+'\')" style="width:34px;height:34px;font-size:12px">S</button>';
 }
-// Delete
-h+='<button class="mt-del-btn" onclick="mtDeleteTrack(\''+t.id+'\')">🗑</button>';
-h+='</div>';
+
+// Mute + Loop (always)
+h+='<button class="mt-mute-btn'+(t.mute?' on':'')+'" onclick="mtSetMute(\''+t.id+'\')" style="width:34px;height:34px;font-size:12px">M</button>';
+h+='<button class="mt-solo-btn'+(t.loop?' on':'')+'" onclick="mtSetLoop(\''+t.id+'\')" style="width:34px;height:34px;font-size:12px" title="Loop">🔁</button>';
+
+h+='</div>'; // end row 2
+}
+
+h+='</div>'; // end track
 });
 el.innerHTML=h;
 });
