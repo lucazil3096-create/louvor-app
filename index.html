@@ -2555,54 +2555,67 @@ renderMTracks();
 renderMTracks();
 }
 
-// Granular pitch shift — changes pitch WITHOUT changing speed
+// Pitch shift WITHOUT changing speed (resample + OLA time-stretch)
 function mtGrainPitchShift(ctx,buffer,semitones){
 var rate=Math.pow(2,semitones/12);
 var numCh=buffer.numberOfChannels;
-var len=buffer.length;
+var origLen=buffer.length;
 var sr=buffer.sampleRate;
-var out=ctx.createBuffer(numCh,len,sr);
 
-var grainSize=Math.round(sr*0.08); // 80ms grains
-var hopOut=Math.round(grainSize*0.25); // 25% hop = 75% overlap
-var hopIn=Math.round(hopOut*rate); // input hop scaled by rate
+// Step 1: Resample to change pitch (also changes speed)
+var resLen=Math.round(origLen/rate);
+if(resLen<100)resLen=100;
+
+var grainSize=2048;
+var hopIn=Math.round(grainSize/4);
+var hopOut=Math.round(hopIn*rate); // stretch factor = rate
+
+var win=new Float32Array(grainSize);
+for(var i=0;i<grainSize;i++) win[i]=0.5*(1-Math.cos(2*Math.PI*i/(grainSize-1)));
+
+var out=ctx.createBuffer(numCh,origLen,sr);
 
 for(var ch=0;ch<numCh;ch++){
 var inp=buffer.getChannelData(ch);
 var o=out.getChannelData(ch);
-// Clear
-for(var i=0;i<len;i++)o[i]=0;
+for(var i=0;i<origLen;i++) o[i]=0;
 
-var readPos=0;
-var writePos=0;
+// Resample to resLen (pitch shifted but wrong speed)
+var resampled=new Float32Array(resLen);
+for(var i=0;i<resLen;i++){
+var srcPos=i*rate;
+var idx=Math.floor(srcPos);
+var frac=srcPos-idx;
+if(idx+1<origLen){
+resampled[i]=inp[idx]*(1-frac)+inp[idx+1]*frac;
+}else if(idx<origLen){
+resampled[i]=inp[idx];
+}
+}
 
-while(writePos<len){
+// Step 2: OLA time-stretch back to original duration
+var readPos=0,writePos=0;
+while(writePos<origLen){
 for(var g=0;g<grainSize;g++){
 var wi=writePos+g;
-if(wi>=len)break;
-// Hann window
-var w=0.5*(1-Math.cos(2*Math.PI*g/grainSize));
-// Read position within grain: resample at rate
-var ri=readPos+g*rate;
-var idx=Math.floor(ri);
-var frac=ri-idx;
-// Wrap for loop
-var idx0=idx%len;if(idx0<0)idx0+=len;
-var idx1=(idx+1)%len;if(idx1<0)idx1+=len;
-if(idx0<len&&idx1<len){
-var s=inp[idx0]*(1-frac)+inp[idx1]*frac;
-o[wi]+=s*w;
-}
+if(wi>=origLen)break;
+var ri=readPos+g;
+if(ri>=resLen)ri=ri%resLen;
+o[wi]+=resampled[ri]*win[g];
 }
 readPos+=hopIn;
 writePos+=hopOut;
 }
 
-// Normalize to prevent clipping from overlap-add
-var maxVal=0;
-for(var i=0;i<len;i++){var av=Math.abs(o[i]);if(av>maxVal)maxVal=av;}
-if(maxVal>1){
-for(var i=0;i<len;i++)o[i]/=maxVal;
+// Match original volume
+var peak=0,origPeak=0;
+for(var i=0;i<origLen;i++){
+var a=Math.abs(o[i]);if(a>peak)peak=a;
+var b=Math.abs(inp[i]);if(b>origPeak)origPeak=b;
+}
+if(peak>0.001){
+var scale=origPeak/peak;
+for(var i=0;i<origLen;i++)o[i]*=scale;
 }
 }
 return out;
