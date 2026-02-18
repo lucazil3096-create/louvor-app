@@ -2553,58 +2553,65 @@ renderMTracks();
 renderMTracks();
 }
 
-// STREAMING: Audio element — pitch via playbackRate (muda velocidade junto, fallback)
+// STREAMING: Download to memory and play with BufferSource (proper pitch)
 function mtPlayFromStream(track){
+var id=track.id;
+var ctx=mtGetCtx();
+console.log('Streaming from Firebase...');
+
+var xhr=new XMLHttpRequest();
+xhr.open('GET',track.url,true);
+xhr.responseType='arraybuffer';
+xhr.onload=function(){
+if(xhr.status===200){
+ctx.decodeAudioData(xhr.response,function(buffer){
+mtStartBuffer(track,buffer);
+},function(e){
+console.log('Decode error:',e);
+// Fallback: Audio element
+mtPlayFromAudioEl(track);
+});
+}else{
+console.log('Stream HTTP error:',xhr.status);
+alert('Erro ao carregar: HTTP '+xhr.status);
+delete mtState[id];renderMTracks();
+}
+};
+xhr.onerror=function(){
+console.log('Stream network error');
+alert('Erro de rede.');
+delete mtState[id];renderMTracks();
+};
+xhr.send();
+}
+
+// Fallback for devices that can't decode via Web Audio
+function mtPlayFromAudioEl(track){
 var id=track.id;
 var audio=new Audio();
 audio.crossOrigin='anonymous';
 audio.loop=!!track.loop;
 audio.preload='auto';
-
 var vol=(track.mute?0:track.vol)/100;
 var hasSolo=mtTracks.some(function(t){return t.solo;});
 if(hasSolo&&!track.solo)vol=0;
 audio.volume=vol;
-
 audio.src=track.url;
-
 var started=false;
 function tryPlay(){
-if(started)return;
-started=true;
+if(started)return;started=true;
 audio.play().then(function(){
 mtState[id]={audio:audio,playing:true,loading:false,mode:'stream'};
 renderMTracks();
-// Cache for next time
-try{
-var xhr=new XMLHttpRequest();
-xhr.open('GET',track.url,true);
-xhr.responseType='blob';
-xhr.onload=function(){
-if(xhr.status===200){
-mtSaveBlob(id,xhr.response,function(ok){
-if(ok){mtLocalCheck[id]=true;console.log('Cached: '+track.name);}
-});
-}
-};
-xhr.send();
-}catch(e){}
 }).catch(function(e){
-console.log('Play failed:',e);
+console.log('Fallback play failed:',e);
 delete mtState[id];renderMTracks();
 });
 }
-
 audio.addEventListener('canplaythrough',tryPlay);
 audio.addEventListener('loadeddata',function(){setTimeout(tryPlay,100);});
-audio.addEventListener('ended',function(){
-if(mtState[id]){mtState[id].playing=false;mtState[id].audio=null;}
-renderMTracks();
-});
-audio.addEventListener('error',function(){
-alert('Erro ao carregar stream.');
-delete mtState[id];renderMTracks();
-});
+audio.addEventListener('ended',function(){if(mtState[id]){mtState[id].playing=false;}renderMTracks();});
+audio.addEventListener('error',function(){alert('Erro ao carregar.');delete mtState[id];renderMTracks();});
 audio.load();
 }
 
