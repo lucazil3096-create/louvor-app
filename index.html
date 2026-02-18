@@ -499,6 +499,9 @@ body.light .pads-header{background:var(--surface)}
 // Polyfill for older Safari
 if(!Element.prototype.closest){Element.prototype.closest=function(s){var el=this;do{if(el.matches(s))return el;el=el.parentElement||el.parentNode;}while(el!==null&&el.nodeType===1);return null;};}
 // Firebase config
+var db=null,fbDoc=null,saveTimer=null,fbReady=false,fbSynced=false,ignoreSnapshot=false;
+try{
+if(typeof firebase!=='undefined'){
 firebase.initializeApp({
 apiKey:"AIzaSyAFmRh89lSPlI9h589w2z7_M0etFYhbQyM",
 authDomain:"louvor-app-a7264.firebaseapp.com",
@@ -507,12 +510,10 @@ storageBucket:"louvor-app-a7264.firebasestorage.app",
 messagingSenderId:"599364196472",
 appId:"1:599364196472:web:3fecfe67cfa7f38c81758d"
 });
-var db=firebase.firestore();
-var fbDoc=db.collection('app').doc('data');
-var saveTimer=null;
-var fbReady=false;
-var myLastSaveId='';
-var ignoreSnapshot=false;
+db=firebase.firestore();
+fbDoc=db.collection('app').doc('data');
+}else{console.log('Firebase SDK not loaded - working offline');fbSynced=true;}
+}catch(e){console.log('Firebase init error:',e);fbSynced=true;}
 
 var SK='church-lyrics-v5';var TK='church-today-v1';
 var lyrics=[],currentId=null,editId=null,viewMode='single',fontSize=14,scrollSpeed=20,isScrolling=false,animId=null;
@@ -527,12 +528,14 @@ var td=localStorage.getItem(TK);if(td)todayList=JSON.parse(td);else todayList=[]
 renderList();try{updateTodayCount();}catch(e){}
 
 // 2. Start real-time listener - ALL tablets stay in sync
+if(!fbDoc){fbSynced=true;return;}
 fbDoc.onSnapshot(function(doc){
 fbReady=true;
 // Skip if this snapshot was triggered by our own save
 if(ignoreSnapshot){ignoreSnapshot=false;return;}
 if(!doc.exists){
 // No data in Firebase yet - push local data if we have any
+fbSynced=true;
 if(lyrics.length>0)fbSaveNow();
 return;
 }
@@ -544,16 +547,20 @@ var remoteLyrics=JSON.parse(data.lyrics);
 var localStr=JSON.stringify(lyrics);
 var remoteStr=JSON.stringify(remoteLyrics);
 if(localStr!==remoteStr){
-// SAFETY: if remote is empty but local has data, push local to Firebase instead
-if(remoteLyrics.length===0&&lyrics.length>0){
-console.log('Firebase has EMPTY data but local has '+lyrics.length+' songs - pushing local to Firebase');
-fbSaveNow();
-return;
-}
-// Firebase has different data - accept it (Firebase = source of truth)
+// SAFETY: always keep the BIGGER dataset
+if(remoteLyrics.length>=lyrics.length){
+// Firebase has same or more data - accept it
 lyrics=remoteLyrics;
 try{localStorage.setItem(SK,JSON.stringify(lyrics));}catch(e){}
 renderList();
+console.log('Loaded '+lyrics.length+' songs from Firebase');
+}else{
+// Local has MORE data than Firebase - push local
+console.log('Local has MORE songs ('+lyrics.length+') than Firebase ('+remoteLyrics.length+') - pushing local');
+fbSynced=true;
+fbSaveNow();
+return;
+}
 }
 }catch(e){console.log('Parse error:',e);}
 }
@@ -582,11 +589,23 @@ try{localStorage.setItem('church-profiles-v1',data.profileData);
 if(typeof loadProfiles==='function'){loadProfiles();updateProfileUI();}
 }catch(e){}
 }
-},function(e){console.log('Firebase listener error:',e);});
+// NOW allow saves
+fbSynced=true;
+},function(e){console.log('Firebase listener error:',e);fbSynced=true;});
+
+// Fallback: if Firebase doesn't respond in 5s, allow saves anyway
+setTimeout(function(){if(!fbSynced){fbSynced=true;console.log('Firebase timeout - allowing saves');}},5000);
 }
 
 function fbSaveNow(){
-// SAFETY: never overwrite Firebase with empty data
+// SAFETY 0: no Firebase connection
+if(!fbDoc){return;}
+// SAFETY 1: never save before first sync
+if(!fbSynced){
+console.log('Firebase save BLOCKED - waiting for first sync');
+return;
+}
+// SAFETY 2: never overwrite Firebase with empty data
 if(lyrics.length===0){
 console.log('Firebase save BLOCKED - lyrics array is empty, refusing to overwrite');
 return;
@@ -594,7 +613,7 @@ return;
 var data={
 lyrics:JSON.stringify(lyrics),
 todayList:JSON.stringify(todayList),
-updatedAt:firebase.firestore.FieldValue.serverTimestamp()
+updatedAt:typeof firebase!=='undefined'?firebase.firestore.FieldValue.serverTimestamp():new Date().toISOString()
 };
 try{var ed=localStorage.getItem('church-ensaio-v2');if(ed)data.ensaioData=ed;}catch(e){}
 try{var pd=localStorage.getItem('church-profiles-v1');if(pd)data.profileData=pd;}catch(e){}
