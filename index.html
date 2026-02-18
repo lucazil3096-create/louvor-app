@@ -372,6 +372,58 @@ body.light .pads-header{background:var(--surface)}
 .profile-badge{font-size:11px;font-weight:600;color:var(--accent2);background:var(--accent-glow);padding:4px 12px;border-radius:8px;cursor:pointer;font-family:var(--fb);border:1px solid rgba(178,34,34,.2);transition:all .2s;letter-spacing:.3px}
 .profile-badge:active{background:rgba(178,34,34,.2)}
 
+/* ===== MULTITRACK MIXER ===== */
+.pads-mode-tabs{display:flex;gap:0;margin:0}
+.pads-mode-tab{padding:6px 16px;font-size:11px;font-weight:700;cursor:pointer;font-family:var(--fb);color:var(--text-dim);background:var(--card-bg);border:1px solid var(--card-border);transition:all .2s;letter-spacing:.3px}
+.pads-mode-tab:first-child{border-radius:8px 0 0 8px}
+.pads-mode-tab:last-child{border-radius:0 8px 8px 0}
+.pads-mode-tab.active{background:var(--accent-glow);border-color:var(--accent);color:var(--accent2)}
+.mt-body{flex:1;display:flex;flex-direction:column;padding:10px;overflow:hidden;min-height:0}
+.mt-toolbar{display:flex;align-items:center;gap:8px;margin-bottom:10px;flex-shrink:0;flex-wrap:wrap}
+.mt-btn{padding:8px 16px;border-radius:10px;border:1px solid var(--card-border);background:var(--card-bg);color:var(--text-dim);font-size:11px;font-weight:600;cursor:pointer;font-family:var(--fb);transition:all .2s}
+.mt-btn:active{transform:scale(.95)}
+.mt-btn-accent{background:var(--accent-glow);border-color:var(--accent);color:var(--accent2)}
+.mt-btn-play{padding:10px 24px;border:2px solid var(--green);background:rgba(78,201,144,.08);color:var(--green);font-size:13px;font-weight:700;border-radius:12px}
+.mt-btn-play.playing{background:var(--green);color:#000}
+.mt-btn-stop{padding:10px 24px;border:2px solid var(--danger);background:rgba(212,86,75,.08);color:var(--danger);font-size:13px;font-weight:700;border-radius:12px}
+.mt-master-pitch{display:flex;align-items:center;gap:6px;margin-left:auto}
+.mt-master-pitch-label{font-size:10px;color:var(--gold);text-transform:uppercase;letter-spacing:.5px}
+.mt-master-pitch-val{font-family:var(--fd);font-size:18px;color:var(--text);min-width:40px;text-align:center}
+.mt-pitch-btn{width:28px;height:28px;border-radius:50%;border:1px solid var(--card-border);background:var(--card-bg);color:var(--text);font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .2s}
+.mt-pitch-btn:active{background:var(--accent-glow);border-color:var(--accent);transform:scale(.9)}
+.mt-tracks{flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:6px}
+.mt-track{display:flex;align-items:center;gap:8px;padding:10px 12px;background:var(--card-bg);border:1px solid var(--card-border);border-radius:12px;transition:all .15s;flex-shrink:0}
+.mt-track.muted{opacity:.35}
+.mt-track.solo-active{border-color:var(--gold);background:rgba(201,169,110,.04)}
+.mt-track-name{font-size:13px;font-weight:600;color:var(--text);min-width:100px;max-width:140px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer}
+.mt-track-ctrl{display:flex;align-items:center;gap:4px}
+.mt-track-ctrl label{font-size:8px;color:var(--text-dim);text-transform:uppercase;min-width:24px;text-align:right}
+.mt-slider{flex:none;width:100px;-webkit-appearance:none;appearance:none;height:3px;background:rgba(255,255,255,.08);border-radius:2px;outline:none;cursor:pointer}
+.mt-slider::-webkit-slider-thumb{-webkit-appearance:none;width:14px;height:14px;background:var(--accent);border-radius:50%;cursor:pointer;box-shadow:0 1px 3px rgba(0,0,0,.3)}
+.mt-slider::-moz-range-thumb{width:14px;height:14px;background:var(--accent);border-radius:50%;cursor:pointer;border:none}
+.mt-slider-val{font-size:9px;color:var(--gold);min-width:26px;text-align:right}
+.mt-toggle{width:32px;height:20px;border-radius:10px;border:1px solid var(--card-border);background:var(--card-bg);cursor:pointer;position:relative;transition:all .2s;flex-shrink:0}
+.mt-toggle.on{background:var(--accent);border-color:var(--accent)}
+.mt-toggle::after{content:'';position:absolute;top:2px;left:2px;width:14px;height:14px;border-radius:50%;background:#fff;transition:transform .2s}
+.mt-toggle.on::after{transform:translateX(12px)}
+.mt-mute-btn,.mt-solo-btn{width:28px;height:28px;border-radius:6px;border:1px solid var(--card-border);background:var(--card-bg);font-size:10px;font-weight:800;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .2s;font-family:var(--fb);flex-shrink:0}
+.mt-mute-btn{color:var(--danger)}
+.mt-mute-btn.on{background:var(--danger);color:#fff;border-color:var(--danger)}
+.mt-solo-btn{color:var(--gold)}
+.mt-solo-btn.on{background:var(--gold);color:#000;border-color:var(--gold)}
+.mt-del-btn{background:none;border:none;color:var(--text-dim);font-size:14px;cursor:pointer;opacity:.3;padding:4px;transition:opacity .2s}
+.mt-del-btn:active{opacity:1;color:var(--danger)}
+.mt-empty{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;opacity:.25;text-align:center;gap:8px}
+.mt-empty-icon{font-size:48px}
+.mt-empty-text{font-size:13px;line-height:1.6}
+.mt-upload-progress{height:3px;background:rgba(255,255,255,.06);border-radius:2px;overflow:hidden;margin-top:4px}
+.mt-upload-bar{height:100%;background:var(--accent);transition:width .3s;border-radius:2px;width:0}
+@media(max-width:600px){
+.mt-track{flex-wrap:wrap;gap:6px}
+.mt-track-name{min-width:80px;max-width:120px}
+.mt-slider{width:70px}
+}
+
 ::-webkit-scrollbar{width:2px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:rgba(178,34,34,.2);border-radius:2px}
 </style>
 <script>
@@ -380,8 +432,10 @@ function _fbLoadScript(u,cb){var s=document.createElement('script');s.src=u;s.on
 var _fbReady=false;
 _fbLoadScript('https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js',function(){
 _fbLoadScript('https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js',function(){
+_fbLoadScript('https://www.gstatic.com/firebasejs/10.8.0/firebase-storage-compat.js',function(){
 _fbReady=true;
 if(typeof _fbOnReady==='function')_fbOnReady();
+});
 });
 });
 </script>
@@ -470,13 +524,30 @@ if(typeof _fbOnReady==='function')_fbOnReady();
 <!-- PADS SCREEN -->
 <div id="screen-pads" class="pads-screen">
 <div class="pads-header">
-<div class="pads-title">🎹 Pads</div>
-<button class="pad-stop-all" onclick="stopAllPads()">⏹ Parar Todos</button>
+<div class="pads-mode-tabs">
+<div class="pads-mode-tab active" id="pads-tab-pads" onclick="setPadsMode('pads')">🎹 Pads</div>
+<div class="pads-mode-tab" id="pads-tab-mixer" onclick="setPadsMode('mixer')">🎚️ Mixer</div>
 </div>
-<div class="pads-body">
+<button class="pad-stop-all" onclick="stopAllPads();mtStopAll()">⏹ Parar Todos</button>
+</div>
+<div class="pads-body" id="pads-mode-pads">
 <div class="pads-col pads-col-left" id="pads-grid-area"></div>
 <div class="pads-col pads-col-center" id="metro-area"></div>
 <div class="pads-col pads-col-right" id="today-area"></div>
+</div>
+<div class="mt-body" id="pads-mode-mixer" style="display:none">
+<div class="mt-toolbar">
+<button class="mt-btn mt-btn-play" id="mt-play-btn" onclick="mtTogglePlay()">▶ Play</button>
+<button class="mt-btn mt-btn-stop" onclick="mtStopAll()">⏹ Stop</button>
+<button class="mt-btn mt-btn-accent" onclick="mtUploadTrack()">📁 Upload Track</button>
+<div class="mt-master-pitch">
+<span class="mt-master-pitch-label">Tom</span>
+<button class="mt-pitch-btn" onclick="mtMasterPitch(-1)">−</button>
+<span class="mt-master-pitch-val" id="mt-master-pitch-val">0</span>
+<button class="mt-pitch-btn" onclick="mtMasterPitch(1)">+</button>
+</div>
+</div>
+<div class="mt-tracks" id="mt-tracks-list"></div>
 </div>
 </div>
 
@@ -528,6 +599,7 @@ var db=null,fbDoc=null,saveTimer=null,fbReady=false,fbSynced=false,ignoreSnapsho
 var MAX_BACKUPS=20; // Keep last 20 versions
 
 function connectFirebase(){
+if(db)return; // already connected
 if(typeof firebase==='undefined'){fbSynced=true;console.log('Firebase offline');return;}
 try{
 firebase.initializeApp({
@@ -545,9 +617,9 @@ startFirebaseListener();
 }catch(e){console.log('Firebase error:',e);fbSynced=true;}
 }
 
-// Called by head script when SDK loads, or call now if already loaded
-function _fbOnReady(){connectFirebase();}
-if(typeof _fbReady!=='undefined'&&_fbReady){connectFirebase();}
+// Called by head script when SDK loads
+function _fbOnReady(){connectFirebase();initStorage();loadMTracks();}
+if(typeof _fbReady!=='undefined'&&_fbReady){_fbOnReady();}
 
 function startFirebaseListener(){
 if(!fbDoc)return;
@@ -2146,6 +2218,358 @@ el=el.parentNode;
 document.getElementById('ensaio-url').addEventListener('keydown',function(e){
 if(e.key==='Enter'){e.preventDefault();addEnsaioLink();}
 });
+
+// ===== MULTITRACK MIXER =====
+var mtTracks=[]; // [{id,name,fileName,url,vol,pan,invert,pitch,mute,solo}]
+var mtState={}; // {trackId: {source,gain,pan,buffer,playing}}
+var mtIsPlaying=false;
+var mtGlobalPitch=0; // semitones
+var mtStartTime=0;
+var mtPauseOffset=0;
+var fbStorage=null;
+var MTSK='church-multitrack-v1';
+
+function initStorage(){
+if(typeof firebase!=='undefined'&&firebase.storage){
+try{fbStorage=firebase.storage();console.log('Storage ready');}catch(e){console.log('Storage error:',e);}
+}
+}
+
+function loadMTracks(){
+try{var d=localStorage.getItem(MTSK);if(d)mtTracks=JSON.parse(d);}catch(e){mtTracks=[];}
+// Also load from Firebase
+if(fbDoc){
+fbDoc.get().then(function(doc){
+if(doc.exists&&doc.data().multiTracks){
+try{
+var remote=JSON.parse(doc.data().multiTracks);
+if(remote.length>mtTracks.length){mtTracks=remote;saveMTLocal();}
+}catch(e){}
+}
+renderMTracks();
+}).catch(function(){renderMTracks();});
+}else{renderMTracks();}
+}
+
+function saveMTLocal(){
+try{localStorage.setItem(MTSK,JSON.stringify(mtTracks));}catch(e){}
+}
+
+function saveMTFirebase(){
+saveMTLocal();
+if(!fbDoc||!fbSynced)return;
+fbDoc.update({multiTracks:JSON.stringify(mtTracks)}).catch(function(e){console.log('MT save error:',e);});
+}
+
+function setPadsMode(mode){
+document.getElementById('pads-mode-pads').style.display=mode==='pads'?'flex':'none';
+document.getElementById('pads-mode-mixer').style.display=mode==='mixer'?'flex':'none';
+document.getElementById('pads-tab-pads').className='pads-mode-tab'+(mode==='pads'?' active':'');
+document.getElementById('pads-tab-mixer').className='pads-mode-tab'+(mode==='mixer'?' active':'');
+if(mode==='mixer')renderMTracks();
+}
+
+function mtUploadTrack(){
+var inp=document.createElement('input');
+inp.type='file';inp.accept='audio/*';inp.multiple=true;
+inp.onchange=function(){
+if(!inp.files.length)return;
+for(var i=0;i<inp.files.length;i++){
+(function(f){
+var trackId='mt_'+Date.now()+'_'+Math.random().toString(36).substr(2,4);
+var name=f.name.replace(/\.[^.]+$/,'');
+var track={id:trackId,name:name,fileName:f.name,url:'',vol:80,swapLR:false,invert:false,pitch:0,mute:false,solo:false,uploading:true,progress:0};
+mtTracks.push(track);
+renderMTracks();
+// Upload to Firebase Storage
+if(fbStorage){
+var ref=fbStorage.ref('multitracks/'+trackId+'_'+f.name);
+var task=ref.put(f);
+task.on('state_changed',
+function(snap){
+var p=Math.round((snap.bytesTransferred/snap.totalBytes)*100);
+var t=mtTracks.find(function(x){return x.id===trackId;});
+if(t){t.progress=p;renderMTracks();}
+},
+function(err){
+console.log('Upload error:',err);
+var t=mtTracks.find(function(x){return x.id===trackId;});
+if(t){t.uploading=false;t.error=true;renderMTracks();}
+},
+function(){
+task.snapshot.ref.getDownloadURL().then(function(url){
+var t=mtTracks.find(function(x){return x.id===trackId;});
+if(t){t.url=url;t.uploading=false;delete t.progress;delete t.error;saveMTFirebase();renderMTracks();}
+});
+}
+);
+}else{
+// No storage - use local blob URL
+var blobUrl=URL.createObjectURL(f);
+track.url=blobUrl;track.uploading=false;track.local=true;
+saveMTLocal();renderMTracks();
+}
+})(inp.files[i]);
+}
+};
+inp.click();
+}
+
+function mtDeleteTrack(id){
+if(!confirm('Deletar esta track?'))return;
+mtStopTrack(id);
+// Delete from storage
+var t=mtTracks.find(function(x){return x.id===id;});
+if(t&&t.url&&fbStorage&&!t.local){
+try{fbStorage.refFromURL(t.url).delete().catch(function(){});}catch(e){}
+}
+mtTracks=mtTracks.filter(function(x){return x.id!==id;});
+saveMTFirebase();renderMTracks();
+}
+
+function mtRenameTrack(id){
+var t=mtTracks.find(function(x){return x.id===id;});
+if(!t)return;
+var n=prompt('Nome da track:',t.name);
+if(n&&n.trim()){t.name=n.trim();saveMTFirebase();renderMTracks();}
+}
+
+// ===== MULTITRACK AUDIO ENGINE =====
+function mtGetCtx(){return getCtx();} // reuse existing audioCtx
+
+function mtLoadBuffer(url,cb){
+var ctx=mtGetCtx();
+fetch(url).then(function(r){return r.arrayBuffer();}).then(function(buf){
+return ctx.decodeAudioData(buf);
+}).then(function(decoded){cb(null,decoded);}).catch(function(e){cb(e,null);});
+}
+
+function mtPlayTrack(track){
+if(!track.url||track.uploading)return;
+var id=track.id;
+if(mtState[id]&&mtState[id].playing)return;
+
+var ctx=mtGetCtx();
+// Check if buffer already loaded
+if(mtState[id]&&mtState[id].buffer){
+mtStartSource(track,mtState[id].buffer);
+}else{
+mtState[id]={loading:true};
+renderMTracks();
+mtLoadBuffer(track.url,function(err,buffer){
+if(err){console.log('Decode error:',err);delete mtState[id];renderMTracks();return;}
+mtState[id]={buffer:buffer};
+mtStartSource(track,buffer);
+});
+}
+}
+
+function mtStartSource(track,buffer){
+var ctx=mtGetCtx();
+var id=track.id;
+var source=ctx.createBufferSource();
+source.buffer=buffer;
+// Pitch: track pitch + master pitch
+var totalPitch=(track.pitch||0)+mtGlobalPitch;
+source.detune.value=totalPitch*100;
+source.loop=true;
+// Gain (vol + invert phase)
+var gainNode=ctx.createGain();
+var vol=(track.mute?0:track.vol)/100;
+var hasSolo=mtTracks.some(function(t){return t.solo;});
+if(hasSolo&&!track.solo)vol=0;
+gainNode.gain.value=track.invert?-vol:vol;
+// Channel swap L↔R
+var outputNode;
+if(track.swapLR){
+var splitter=ctx.createChannelSplitter(2);
+var merger=ctx.createChannelMerger(2);
+splitter.connect(merger,0,1); // L→R
+splitter.connect(merger,1,0); // R→L
+gainNode.connect(splitter);
+outputNode=merger;
+}else{
+outputNode=gainNode;
+}
+// Connect
+source.connect(gainNode);outputNode.connect(ctx.destination);
+source.start(0,mtPauseOffset);
+mtState[id]=mtState[id]||{};
+mtState[id].source=source;
+mtState[id].gain=gainNode;
+mtState[id].output=outputNode;
+mtState[id].buffer=buffer;
+mtState[id].playing=true;
+mtState[id].loading=false;
+source.onended=function(){
+if(mtState[id])mtState[id].playing=false;
+};
+renderMTracks();
+}
+
+function mtStopTrack(id){
+if(!mtState[id])return;
+if(mtState[id].source&&mtState[id].playing){
+try{mtState[id].source.stop();}catch(e){}
+}
+mtState[id].playing=false;
+mtState[id].source=null;
+renderMTracks();
+}
+
+function mtTogglePlay(){
+if(mtIsPlaying){
+mtPauseAll();
+}else{
+mtPlayAll();
+}
+}
+
+function mtPlayAll(){
+mtPauseOffset=0;
+mtStartTime=mtGetCtx().currentTime;
+mtTracks.forEach(function(t){
+if(!t.uploading&&t.url)mtPlayTrack(t);
+});
+mtIsPlaying=true;
+renderMTracks();
+}
+
+function mtPauseAll(){
+var ctx=mtGetCtx();
+if(mtIsPlaying){
+mtPauseOffset+=(ctx.currentTime-mtStartTime);
+}
+Object.keys(mtState).forEach(function(id){
+if(mtState[id]&&mtState[id].source&&mtState[id].playing){
+try{mtState[id].source.stop();}catch(e){}
+mtState[id].playing=false;
+mtState[id].source=null;
+}
+});
+mtIsPlaying=false;
+renderMTracks();
+}
+
+function mtStopAll(){
+Object.keys(mtState).forEach(function(id){
+if(mtState[id]&&mtState[id].source&&mtState[id].playing){
+try{mtState[id].source.stop();}catch(e){}
+mtState[id].playing=false;
+mtState[id].source=null;
+}
+});
+mtPauseOffset=0;mtIsPlaying=false;
+renderMTracks();
+}
+
+function mtUpdateTrackAudio(id){
+var t=mtTracks.find(function(x){return x.id===id;});
+if(!t||!mtState[id]||!mtState[id].playing)return;
+var ctx=mtGetCtx();
+// Update gain
+var vol=(t.mute?0:t.vol)/100;
+var hasSolo=mtTracks.some(function(x){return x.solo;});
+if(hasSolo&&!t.solo)vol=0;
+mtState[id].gain.gain.setValueAtTime(t.invert?-vol:vol,ctx.currentTime);
+// Update pitch
+var totalPitch=(t.pitch||0)+mtGlobalPitch;
+if(mtState[id].source)mtState[id].source.detune.setValueAtTime(totalPitch*100,ctx.currentTime);
+}
+
+// Swap L↔R requires restart (channel routing change)
+function mtSwapLR(id){
+var t=mtTracks.find(function(x){return x.id===id;});if(!t)return;
+t.swapLR=!t.swapLR;
+var wasPlaying=mtState[id]&&mtState[id].playing;
+if(wasPlaying){
+mtStopTrack(id);
+setTimeout(function(){mtPlayTrack(t);},100);
+}
+saveMTFirebase();renderMTracks();
+}
+
+function mtUpdateAllAudio(){
+mtTracks.forEach(function(t){mtUpdateTrackAudio(t.id);});
+}
+
+function mtSetVol(id,v){
+var t=mtTracks.find(function(x){return x.id===id;});if(!t)return;
+t.vol=parseInt(v);mtUpdateTrackAudio(id);saveMTLocal();
+}
+function mtSetInvert(id){
+var t=mtTracks.find(function(x){return x.id===id;});if(!t)return;
+t.invert=!t.invert;mtUpdateTrackAudio(id);saveMTFirebase();renderMTracks();
+}
+function mtSetMute(id){
+var t=mtTracks.find(function(x){return x.id===id;});if(!t)return;
+t.mute=!t.mute;mtUpdateTrackAudio(id);saveMTFirebase();renderMTracks();
+}
+function mtSetSolo(id){
+var t=mtTracks.find(function(x){return x.id===id;});if(!t)return;
+t.solo=!t.solo;mtUpdateAllAudio();saveMTFirebase();renderMTracks();
+}
+function mtTrackPitch(id,d){
+var t=mtTracks.find(function(x){return x.id===id;});if(!t)return;
+t.pitch=Math.max(-12,Math.min(12,(t.pitch||0)+d));
+mtUpdateTrackAudio(id);saveMTFirebase();renderMTracks();
+}
+function mtMasterPitch(d){
+mtGlobalPitch=Math.max(-12,Math.min(12,mtGlobalPitch+d));
+document.getElementById('mt-master-pitch-val').textContent=(mtGlobalPitch>0?'+':'')+mtGlobalPitch;
+mtUpdateAllAudio();
+}
+function mtSaveVol(id){saveMTFirebase();}
+
+// ===== RENDER MIXER =====
+function renderMTracks(){
+var el=document.getElementById('mt-tracks-list');
+if(!el)return;
+// Update play button
+var pb=document.getElementById('mt-play-btn');
+if(pb){
+pb.className='mt-btn '+(mtIsPlaying?'mt-btn-stop':'mt-btn-play');
+pb.innerHTML=mtIsPlaying?'⏸ Pause':'▶ Play';
+}
+if(!mtTracks.length){
+el.innerHTML='<div class="mt-empty"><div class="mt-empty-icon">🎚️</div><div class="mt-empty-text">Nenhuma track carregada<br>Toque <b>📁 Upload Track</b> para adicionar</div></div>';
+return;
+}
+var hasSolo=mtTracks.some(function(t){return t.solo;});
+var h='';
+mtTracks.forEach(function(t){
+var isMuted=t.mute||(hasSolo&&!t.solo);
+var st=mtState[t.id]||{};
+h+='<div class="mt-track'+(isMuted?' muted':'')+(t.solo?' solo-active':'')+'">';
+// Name
+h+='<div class="mt-track-name" onclick="mtRenameTrack(\''+t.id+'\')" title="'+esc(t.fileName)+'">'+esc(t.name)+'</div>';
+// Upload progress
+if(t.uploading){
+h+='<div style="flex:1"><div class="mt-upload-progress"><div class="mt-upload-bar" style="width:'+(t.progress||0)+'%"></div></div><span style="font-size:9px;color:var(--text-dim)">'+(t.progress||0)+'%</span></div>';
+}else{
+// Vol
+h+='<div class="mt-track-ctrl"><label>Vol</label><input type="range" class="mt-slider" min="0" max="100" value="'+t.vol+'" oninput="mtSetVol(\''+t.id+'\',this.value)" onchange="mtSaveVol(\''+t.id+'\')"><span class="mt-slider-val">'+t.vol+'%</span></div>';
+// Pan
+h+='<div class="mt-toggle'+(t.swapLR?' on':'')+'" onclick="mtSwapLR(\''+t.id+'\')" title="Inverter L↔R"></div>';
+h+='<span style="font-size:9px;color:var(--text-dim);min-width:24px">'+(t.swapLR?'R↔L':'L—R')+'</span>';
+// Invert
+h+='<div class="mt-toggle'+(t.invert?' on':'')+'" onclick="mtSetInvert(\''+t.id+'\')" title="Inverter fase"></div>';
+h+='<span style="font-size:9px;color:var(--text-dim);min-width:16px">Ø</span>';
+// Pitch per track
+var pp=t.pitch||0;
+h+='<div class="mt-track-ctrl" style="gap:2px"><button class="mt-pitch-btn" onclick="mtTrackPitch(\''+t.id+'\',-1)" style="width:22px;height:22px;font-size:13px">−</button>';
+h+='<span style="font-size:11px;color:var(--text);min-width:24px;text-align:center;font-family:var(--fd)">'+(pp>0?'+':'')+pp+'</span>';
+h+='<button class="mt-pitch-btn" onclick="mtTrackPitch(\''+t.id+'\',1)" style="width:22px;height:22px;font-size:13px">+</button></div>';
+// Mute / Solo
+h+='<button class="mt-mute-btn'+(t.mute?' on':'')+'" onclick="mtSetMute(\''+t.id+'\')">M</button>';
+h+='<button class="mt-solo-btn'+(t.solo?' on':'')+'" onclick="mtSetSolo(\''+t.id+'\')">S</button>';
+}
+// Delete
+h+='<button class="mt-del-btn" onclick="mtDeleteTrack(\''+t.id+'\')">🗑</button>';
+h+='</div>';
+});
+el.innerHTML=h;
+}
 
 loadEnsaioData();
 initProfileScreen();
