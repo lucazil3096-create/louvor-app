@@ -2512,20 +2512,22 @@ reader.readAsArrayBuffer(blob);
 function mtStartBuffer(track,buffer){
 var id=track.id;
 var ctx=mtGetCtx();
-var source=ctx.createBufferSource();
-source.buffer=buffer;
-source.loop=!!track.loop;
-
-// Pitch via detune (cents) — NÃO muda velocidade
 var totalPitch=(track.pitch||0)+mtGlobalPitch;
-source.detune.value=totalPitch*100;
 
-// Gain (vol + invert phase)
+// Pitch shift buffer (preserves speed)
+var playBuffer=(totalPitch!==0)?mtGrainPitchShift(ctx,buffer,totalPitch):buffer;
+
+var source=ctx.createBufferSource();
+source.buffer=playBuffer;
+source.loop=!!track.loop;
+// NO detune - pitch already applied via granular shift
+
+// Gain
 var gainNode=ctx.createGain();
 var vol=(track.mute?0:track.vol)/100;
 var hasSolo=mtTracks.some(function(t){return t.solo;});
 if(hasSolo&&!track.solo)vol=0;
-gainNode.gain.value=track.invert?-vol:vol;
+gainNode.gain.value=vol;
 
 // Channel swap L↔R
 var outputNode;
@@ -2544,13 +2546,66 @@ source.connect(gainNode);
 outputNode.connect(ctx.destination);
 source.start(0);
 
-mtState[id]={source:source,gain:gainNode,output:outputNode,buffer:buffer,playing:true,loading:false,mode:'buffer'};
+mtState[id]={source:source,gain:gainNode,output:outputNode,buffer:buffer,shiftedBuffer:playBuffer,playing:true,loading:false,mode:'buffer',pitch:totalPitch};
 
 source.onended=function(){
 if(mtState[id]&&mtState[id].mode==='buffer'){mtState[id].playing=false;mtState[id].source=null;}
 renderMTracks();
 };
 renderMTracks();
+}
+
+// Granular pitch shift — changes pitch WITHOUT changing speed
+function mtGrainPitchShift(ctx,buffer,semitones){
+var rate=Math.pow(2,semitones/12);
+var numCh=buffer.numberOfChannels;
+var len=buffer.length;
+var sr=buffer.sampleRate;
+var out=ctx.createBuffer(numCh,len,sr);
+
+var grainSize=Math.round(sr*0.08); // 80ms grains
+var hopOut=Math.round(grainSize*0.25); // 25% hop = 75% overlap
+var hopIn=Math.round(hopOut*rate); // input hop scaled by rate
+
+for(var ch=0;ch<numCh;ch++){
+var inp=buffer.getChannelData(ch);
+var o=out.getChannelData(ch);
+// Clear
+for(var i=0;i<len;i++)o[i]=0;
+
+var readPos=0;
+var writePos=0;
+
+while(writePos<len){
+for(var g=0;g<grainSize;g++){
+var wi=writePos+g;
+if(wi>=len)break;
+// Hann window
+var w=0.5*(1-Math.cos(2*Math.PI*g/grainSize));
+// Read position within grain: resample at rate
+var ri=readPos+g*rate;
+var idx=Math.floor(ri);
+var frac=ri-idx;
+// Wrap for loop
+var idx0=idx%len;if(idx0<0)idx0+=len;
+var idx1=(idx+1)%len;if(idx1<0)idx1+=len;
+if(idx0<len&&idx1<len){
+var s=inp[idx0]*(1-frac)+inp[idx1]*frac;
+o[wi]+=s*w;
+}
+}
+readPos+=hopIn;
+writePos+=hopOut;
+}
+
+// Normalize to prevent clipping from overlap-add
+var maxVal=0;
+for(var i=0;i<len;i++){var av=Math.abs(o[i]);if(av>maxVal)maxVal=av;}
+if(maxVal>1){
+for(var i=0;i<len;i++)o[i]/=maxVal;
+}
+}
+return out;
 }
 
 // STREAMING: Download to memory and play with BufferSource (proper pitch)
@@ -2676,9 +2731,15 @@ if(hasSolo&&!t.solo)vol=0;
 
 if(mtState[id].mode==='buffer'){
 var ctx=mtGetCtx();
-if(mtState[id].gain)mtState[id].gain.gain.setValueAtTime(t.invert?-vol:vol,ctx.currentTime);
-var totalPitch=(t.pitch||0)+mtGlobalPitch;
-if(mtState[id].source)mtState[id].source.detune.setValueAtTime(totalPitch*100,ctx.currentTime);
+if(mtState[id].gain)mtState[id].gain.gain.setValueAtTime(vol,ctx.currentTime);
+// If pitch changed, need to restart with re-processed buffer
+var newPitch=(t.pitch||0)+mtGlobalPitch;
+if(mtState[id].pitch!==undefined&&mtState[id].pitch!==newPitch){
+var buf=mtState[id].buffer;
+mtStopTrack(id);
+mtState[id]={buffer:buf};
+setTimeout(function(){mtStartBuffer(t,buf);},100);
+}
 }else if(mtState[id].mode==='stream'){
 if(mtState[id].audio)mtState[id].audio.volume=vol;
 }
