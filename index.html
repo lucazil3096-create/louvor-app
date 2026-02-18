@@ -432,10 +432,8 @@ function _fbLoadScript(u,cb){var s=document.createElement('script');s.src=u;s.on
 var _fbReady=false;
 _fbLoadScript('https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js',function(){
 _fbLoadScript('https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js',function(){
-_fbLoadScript('https://www.gstatic.com/firebasejs/10.8.0/firebase-storage-compat.js',function(){
 _fbReady=true;
 if(typeof _fbOnReady==='function')_fbOnReady();
-});
 });
 });
 </script>
@@ -618,7 +616,7 @@ startFirebaseListener();
 }
 
 // Called by head script when SDK loads
-function _fbOnReady(){connectFirebase();initStorage();loadMTracks();}
+function _fbOnReady(){connectFirebase();loadMTracks();}
 if(typeof _fbReady!=='undefined'&&_fbReady){_fbOnReady();}
 
 function startFirebaseListener(){
@@ -2220,19 +2218,47 @@ if(e.key==='Enter'){e.preventDefault();addEnsaioLink();}
 });
 
 // ===== MULTITRACK MIXER =====
-var mtTracks=[]; // [{id,name,fileName,url,vol,pan,invert,pitch,mute,solo}]
-var mtState={}; // {trackId: {source,gain,pan,buffer,playing}}
+var mtTracks=[]; // [{id,name,fileName,url,vol,swapLR,invert,pitch,mute,solo,loop}]
+var mtState={}; // {trackId: {source,gain,buffer,playing}}
 var mtIsPlaying=false;
 var mtGlobalPitch=0; // semitones
 var mtStartTime=0;
 var mtPauseOffset=0;
-var fbStorage=null;
 var MTSK='church-multitrack-v1';
+var mtDB=null;
 
-function initStorage(){
-if(typeof firebase!=='undefined'&&firebase.storage){
-try{fbStorage=firebase.storage();console.log('Storage ready');}catch(e){console.log('Storage error:',e);}
+// ===== IndexedDB for local audio blobs =====
+function openMTDB(cb){
+if(mtDB){cb(mtDB);return;}
+var req=indexedDB.open('louvor-multitracks',1);
+req.onupgradeneeded=function(e){e.target.result.createObjectStore('tracks');};
+req.onsuccess=function(e){mtDB=e.target.result;cb(mtDB);};
+req.onerror=function(){cb(null);};
 }
+function mtSaveBlob(trackId,blob,cb){
+openMTDB(function(db){
+if(!db){if(cb)cb(false);return;}
+var tx=db.transaction('tracks','readwrite');
+tx.objectStore('tracks').put(blob,trackId);
+tx.oncomplete=function(){if(cb)cb(true);};
+tx.onerror=function(){if(cb)cb(false);};
+});
+}
+function mtGetBlob(trackId,cb){
+openMTDB(function(db){
+if(!db){cb(null);return;}
+var tx=db.transaction('tracks','readonly');
+var req=tx.objectStore('tracks').get(trackId);
+req.onsuccess=function(){cb(req.result||null);};
+req.onerror=function(){cb(null);};
+});
+}
+function mtDeleteBlob(trackId){
+openMTDB(function(db){
+if(!db)return;
+var tx=db.transaction('tracks','readwrite');
+tx.objectStore('tracks').delete(trackId);
+});
 }
 
 function loadMTracks(){
@@ -2278,37 +2304,21 @@ for(var i=0;i<inp.files.length;i++){
 (function(f){
 var trackId='mt_'+Date.now()+'_'+Math.random().toString(36).substr(2,4);
 var name=f.name.replace(/\.[^.]+$/,'');
-var track={id:trackId,name:name,fileName:f.name,url:'',vol:80,swapLR:false,invert:false,pitch:0,mute:false,solo:false,loop:false,uploading:true,progress:0};
+var track={id:trackId,name:name,fileName:f.name,vol:80,swapLR:false,invert:false,pitch:0,mute:false,solo:false,loop:false,uploading:true,progress:0};
 mtTracks.push(track);
 renderMTracks();
-// Upload to Firebase Storage
-if(fbStorage){
-var ref=fbStorage.ref('multitracks/'+trackId+'_'+f.name);
-var task=ref.put(f);
-task.on('state_changed',
-function(snap){
-var p=Math.round((snap.bytesTransferred/snap.totalBytes)*100);
+// Save audio blob to IndexedDB (local on tablet)
+mtSaveBlob(trackId,f,function(ok){
 var t=mtTracks.find(function(x){return x.id===trackId;});
-if(t){t.progress=p;renderMTracks();}
-},
-function(err){
-console.log('Upload error:',err);
-var t=mtTracks.find(function(x){return x.id===trackId;});
-if(t){t.uploading=false;t.error=true;renderMTracks();}
-},
-function(){
-task.snapshot.ref.getDownloadURL().then(function(url){
-var t=mtTracks.find(function(x){return x.id===trackId;});
-if(t){t.url=url;t.uploading=false;delete t.progress;delete t.error;saveMTFirebase();renderMTracks();}
+if(t){
+t.uploading=false;
+delete t.progress;
+if(!ok)t.error=true;
+saveMTFirebase();
+renderMTracks();
+console.log(ok?'Track salva: '+name:'Erro ao salvar: '+name);
+}
 });
-}
-);
-}else{
-// No storage - use local blob URL
-var blobUrl=URL.createObjectURL(f);
-track.url=blobUrl;track.uploading=false;track.local=true;
-saveMTLocal();renderMTracks();
-}
 })(inp.files[i]);
 }
 };
@@ -2318,11 +2328,7 @@ inp.click();
 function mtDeleteTrack(id){
 if(!confirm('Deletar esta track?'))return;
 mtStopTrack(id);
-// Delete from storage
-var t=mtTracks.find(function(x){return x.id===id;});
-if(t&&t.url&&fbStorage&&!t.local){
-try{fbStorage.refFromURL(t.url).delete().catch(function(){});}catch(e){}
-}
+mtDeleteBlob(id);
 mtTracks=mtTracks.filter(function(x){return x.id!==id;});
 saveMTFirebase();renderMTracks();
 }
@@ -2337,22 +2343,21 @@ if(n&&n.trim()){t.name=n.trim();saveMTFirebase();renderMTracks();}
 // ===== MULTITRACK AUDIO ENGINE =====
 function mtGetCtx(){return getCtx();} // reuse existing audioCtx
 
-function mtLoadBuffer(url,cb){
+function mtLoadBuffer(trackId,cb){
 var ctx=mtGetCtx();
-var xhr=new XMLHttpRequest();
-xhr.open('GET',url,true);
-xhr.responseType='arraybuffer';
-xhr.onload=function(){
-if(xhr.status===200||xhr.status===0){
-ctx.decodeAudioData(xhr.response,function(decoded){
+mtGetBlob(trackId,function(blob){
+if(!blob){cb(new Error('Arquivo não encontrado. Faça upload neste tablet.'),null);return;}
+var reader=new FileReader();
+reader.onload=function(){
+ctx.decodeAudioData(reader.result,function(decoded){
 cb(null,decoded);
 },function(e){
-cb(e||new Error('Decode failed'),null);
+cb(e||new Error('Erro ao decodificar áudio'),null);
 });
-}else{cb(new Error('HTTP '+xhr.status),null);}
 };
-xhr.onerror=function(){cb(new Error('Network error'),null);};
-xhr.send();
+reader.onerror=function(){cb(new Error('Erro ao ler arquivo'),null);};
+reader.readAsArrayBuffer(blob);
+});
 }
 
 function mtToggleTrack(id){
@@ -2366,19 +2371,21 @@ mtPlayTrack(t);
 }
 
 function mtPlayTrack(track){
-if(!track.url||track.uploading)return;
+if(track.uploading)return;
 var id=track.id;
 if(mtState[id]&&mtState[id].playing)return;
 
 var ctx=mtGetCtx();
-// Check if buffer already loaded
 if(mtState[id]&&mtState[id].buffer){
 mtStartSource(track,mtState[id].buffer);
 }else{
 mtState[id]={loading:true};
 renderMTracks();
-mtLoadBuffer(track.url,function(err,buffer){
-if(err){console.log('Decode error:',err);delete mtState[id];renderMTracks();return;}
+mtLoadBuffer(track.id,function(err,buffer){
+if(err){console.log('Load error:',err.message);
+if(mtState[id])delete mtState[id];
+alert(err.message);
+renderMTracks();return;}
 mtState[id]={buffer:buffer};
 mtStartSource(track,buffer);
 });
