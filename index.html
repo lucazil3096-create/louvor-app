@@ -509,6 +509,7 @@ if(typeof _fbOnReady==='function')_fbOnReady();
 if(!Element.prototype.closest){Element.prototype.closest=function(s){var el=this;do{if(el.matches(s))return el;el=el.parentElement||el.parentNode;}while(el!==null&&el.nodeType===1);return null;};}
 // Firebase config
 var db=null,fbDoc=null,saveTimer=null,fbReady=false,fbSynced=false,ignoreSnapshot=false;
+var MAX_BACKUPS=20; // Keep last 20 versions
 
 function connectFirebase(){
 if(typeof firebase==='undefined'){fbSynced=true;console.log('Firebase offline');return;}
@@ -553,9 +554,9 @@ if(remoteLyrics.length>=lyrics.length){
 lyrics=remoteLyrics;
 try{localStorage.setItem(SK,JSON.stringify(lyrics));}catch(e){}
 renderList();
-console.log('Loaded '+lyrics.length+' songs from Firebase');
+console.log('Synced: '+lyrics.length+' songs from Firebase');
 }else{
-console.log('Local has MORE songs ('+lyrics.length+') than Firebase ('+remoteLyrics.length+') - pushing local');
+console.log('Local has MORE ('+lyrics.length+') than Firebase ('+remoteLyrics.length+') - pushing local');
 fbSynced=true;
 fbSaveNow();
 return;
@@ -586,7 +587,134 @@ if(typeof loadProfiles==='function'){loadProfiles();updateProfileUI();}
 fbSynced=true;
 },function(e){console.log('Firebase listener error:',e);fbSynced=true;});
 }
-// Firebase is initialized in head script, listener starts automatically
+
+// ===== AUTOMATIC BACKUP SYSTEM =====
+function fbCreateBackup(songCount){
+if(!db)return;
+try{
+var backupData={
+lyrics:JSON.stringify(lyrics),
+todayList:JSON.stringify(todayList),
+songCount:songCount,
+timestamp:firebase.firestore.FieldValue.serverTimestamp(),
+date:new Date().toISOString()
+};
+try{var ed=localStorage.getItem('church-ensaio-v2');if(ed)backupData.ensaioData=ed;}catch(e){}
+db.collection('app').doc('data').collection('backups').add(backupData).then(function(){
+console.log('Backup created ('+songCount+' songs)');
+// Clean old backups - keep only last MAX_BACKUPS
+db.collection('app').doc('data').collection('backups')
+.orderBy('date','desc').get().then(function(snap){
+var count=0;
+snap.forEach(function(d){
+count++;
+if(count>MAX_BACKUPS)d.ref.delete();
+});
+}).catch(function(){});
+}).catch(function(e){console.log('Backup error:',e);});
+}catch(e){console.log('Backup error:',e);}
+}
+
+function fbSaveNow(){
+if(!fbDoc)return;
+// SAFETY 1: never save before first sync
+if(!fbSynced){
+console.log('BLOCKED save - waiting for first sync');
+return;
+}
+// SAFETY 2: never overwrite with empty
+if(lyrics.length===0){
+console.log('BLOCKED save - empty data');
+return;
+}
+// SAFETY 3: check what's in Firebase before overwriting
+fbDoc.get().then(function(doc){
+if(doc.exists){
+var data=doc.data();
+if(data.lyrics){
+try{
+var existing=JSON.parse(data.lyrics);
+// If Firebase has MORE songs than what we're about to save, CREATE BACKUP first
+if(existing.length>lyrics.length){
+console.log('WARNING: Firebase has '+existing.length+' but saving '+lyrics.length+' - creating backup first');
+fbCreateBackup(existing.length);
+}
+// If Firebase has data and we're saving, always backup
+if(existing.length>0){
+fbCreateBackup(existing.length);
+}
+}catch(e){}
+}
+}
+// Now save
+var saveData={
+lyrics:JSON.stringify(lyrics),
+todayList:JSON.stringify(todayList),
+songCount:lyrics.length,
+updatedAt:firebase.firestore.FieldValue.serverTimestamp()
+};
+try{var ed=localStorage.getItem('church-ensaio-v2');if(ed)saveData.ensaioData=ed;}catch(e){}
+try{var pd=localStorage.getItem('church-profiles-v1');if(pd)saveData.profileData=pd;}catch(e){}
+ignoreSnapshot=true;
+fbDoc.set(saveData).then(function(){
+console.log('Saved OK ('+lyrics.length+' songs)');
+}).catch(function(e){console.log('Save error:',e);ignoreSnapshot=false;});
+}).catch(function(e){
+// Can't check - save anyway with protection
+console.log('Check failed, saving:',e);
+var saveData={
+lyrics:JSON.stringify(lyrics),
+todayList:JSON.stringify(todayList),
+songCount:lyrics.length,
+updatedAt:firebase.firestore.FieldValue.serverTimestamp()
+};
+try{var ed=localStorage.getItem('church-ensaio-v2');if(ed)saveData.ensaioData=ed;}catch(e2){}
+try{var pd=localStorage.getItem('church-profiles-v1');if(pd)saveData.profileData=pd;}catch(e2){}
+ignoreSnapshot=true;
+fbDoc.set(saveData).then(function(){
+console.log('Saved OK ('+lyrics.length+' songs)');
+}).catch(function(e2){console.log('Save error:',e2);ignoreSnapshot=false;});
+});
+}
+
+function fbSave(){
+if(saveTimer)clearTimeout(saveTimer);
+saveTimer=setTimeout(function(){fbSaveNow();},800);
+}
+
+// ===== RESTORE FROM BACKUP =====
+function openBackupRestore(){
+if(!db){alert('Firebase não conectado');return;}
+db.collection('app').doc('data').collection('backups')
+.orderBy('date','desc').limit(MAX_BACKUPS).get().then(function(snap){
+if(snap.empty){alert('Nenhum backup encontrado');return;}
+var items=[];
+snap.forEach(function(d){
+var b=d.data();
+items.push({id:d.id,date:b.date,count:b.songCount||'?',lyrics:b.lyrics,todayList:b.todayList,ensaioData:b.ensaioData});
+});
+var msg='📋 BACKUPS DISPONÍVEIS\n\n';
+items.forEach(function(b,i){
+var d=new Date(b.date);
+var ds=d.getDate()+'/'+(d.getMonth()+1)+'/'+d.getFullYear()+' '+d.getHours()+':'+String(d.getMinutes()).padStart(2,'0');
+msg+=(i+1)+'. '+ds+' — '+b.count+' músicas\n';
+});
+msg+='\nDigite o número para restaurar (ou 0 para cancelar):';
+var choice=prompt(msg);
+if(!choice||choice==='0')return;
+var idx=parseInt(choice)-1;
+if(idx<0||idx>=items.length){alert('Opção inválida');return;}
+var sel=items[idx];
+if(!confirm('Restaurar backup de '+sel.count+' músicas?\n\nIsso vai SUBSTITUIR os dados atuais ('+lyrics.length+' músicas).\n\nTem certeza?'))return;
+try{
+lyrics=JSON.parse(sel.lyrics);
+if(sel.todayList)todayList=JSON.parse(sel.todayList);
+if(sel.ensaioData)try{localStorage.setItem('church-ensaio-v2',sel.ensaioData);}catch(e){}
+save();saveToday();renderList();
+alert('✅ Restaurado! '+lyrics.length+' músicas recuperadas.');
+}catch(e){alert('Erro ao restaurar: '+e.message);}
+}).catch(function(e){alert('Erro ao buscar backups: '+e.message);});
+}
 
 var SK='church-lyrics-v5';var TK='church-today-v1';
 var lyrics=[],currentId=null,editId=null,viewMode='single',fontSize=14,scrollSpeed=20,isScrolling=false,animId=null;
@@ -594,45 +722,10 @@ var currentPage=0,totalPages=0,allLines=[],touchStartX=0,touchDX=0,isSwiping=fal
 var todayList=[],currentTab='all';
 
 function load(){
-// 1. Load local cache first (instant display)
 try{var d=localStorage.getItem(SK);if(d)lyrics=JSON.parse(d);
 var td=localStorage.getItem(TK);if(td)todayList=JSON.parse(td);else todayList=[];
 }catch(e){lyrics=[];todayList=[];}
 renderList();try{updateTodayCount();}catch(e){}
-// Firebase listener started by head script when SDK loads
-}
-
-function fbSaveNow(){
-// SAFETY 0: no Firebase connection
-if(!fbDoc){return;}
-// SAFETY 1: never save before first sync
-if(!fbSynced){
-console.log('Firebase save BLOCKED - waiting for first sync');
-return;
-}
-// SAFETY 2: never overwrite Firebase with empty data
-if(lyrics.length===0){
-console.log('Firebase save BLOCKED - lyrics array is empty, refusing to overwrite');
-return;
-}
-var data={
-lyrics:JSON.stringify(lyrics),
-todayList:JSON.stringify(todayList),
-updatedAt:typeof firebase!=='undefined'?firebase.firestore.FieldValue.serverTimestamp():new Date().toISOString()
-};
-try{var ed=localStorage.getItem('church-ensaio-v2');if(ed)data.ensaioData=ed;}catch(e){}
-try{var pd=localStorage.getItem('church-profiles-v1');if(pd)data.profileData=pd;}catch(e){}
-ignoreSnapshot=true;
-fbDoc.set(data).then(function(){
-console.log('Firebase saved OK ('+lyrics.length+' songs)');
-}).catch(function(e){console.log('Firebase save error:',e);ignoreSnapshot=false;});
-}
-
-function fbSave(){
-if(saveTimer)clearTimeout(saveTimer);
-saveTimer=setTimeout(function(){
-fbSaveNow();
-},300);
 }
 
 function save(){
@@ -1124,7 +1217,7 @@ function toggleTheme(){isLight=!isLight;document.body.classList.toggle('light',i
 function loadTheme(){try{var t=localStorage.getItem('church-theme');if(t==='light'){isLight=true;document.body.classList.add('light');document.getElementById('btn-theme').textContent='🌙';}}catch(e){}}
 
 function backupData(){
-var choice=prompt('💾 BACKUP / RESTAURAR\n\nDigite:\n1 = Exportar backup (salvar arquivo)\n2 = Importar backup (restaurar)\n\nVocê tem '+lyrics.length+' música(s)');
+var choice=prompt('💾 BACKUP / RESTAURAR\n\nDigite:\n1 = Exportar backup (salvar arquivo)\n2 = Importar backup (de arquivo)\n3 = Restaurar backup automático (Firebase)\n\nVocê tem '+lyrics.length+' música(s)');
 if(choice==='1'){
 var data={lyrics:lyrics,todayList:todayList,date:new Date().toISOString()};
 try{var ed=localStorage.getItem('church-ensaio-v2');if(ed)data.ensaio=JSON.parse(ed);}catch(e){}
@@ -1155,6 +1248,8 @@ alert('✅ Restaurado! '+lyrics.length+' músicas.');
 reader.readAsText(f);
 };
 inp.click();
+}else if(choice==='3'){
+openBackupRestore();
 }
 }
 function enterPresentation(){var l=lyrics.find(function(x){return x.id===currentId;});if(!l)return;
