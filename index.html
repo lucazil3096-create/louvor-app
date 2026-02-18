@@ -359,8 +359,17 @@ body.light .pads-header{background:var(--surface)}
 
 ::-webkit-scrollbar{width:2px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:rgba(178,34,34,.2);border-radius:2px}
 </style>
-<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+<script>
+// Load Firebase SDK
+function _fbLoadScript(u,cb){var s=document.createElement('script');s.src=u;s.onload=cb;s.onerror=function(){console.log('Failed:'+u);if(cb)cb();};document.head.appendChild(s);}
+var _fbReady=false;
+_fbLoadScript('https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js',function(){
+_fbLoadScript('https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js',function(){
+_fbReady=true;
+if(typeof _fbOnReady==='function')_fbOnReady();
+});
+});
+</script>
 </head>
 <body>
 <!-- PROFILE SELECTION -->
@@ -500,8 +509,10 @@ body.light .pads-header{background:var(--surface)}
 if(!Element.prototype.closest){Element.prototype.closest=function(s){var el=this;do{if(el.matches(s))return el;el=el.parentElement||el.parentNode;}while(el!==null&&el.nodeType===1);return null;};}
 // Firebase config
 var db=null,fbDoc=null,saveTimer=null,fbReady=false,fbSynced=false,ignoreSnapshot=false;
+
+function connectFirebase(){
+if(typeof firebase==='undefined'){fbSynced=true;console.log('Firebase offline');return;}
 try{
-if(typeof firebase!=='undefined'){
 firebase.initializeApp({
 apiKey:"AIzaSyAFmRh89lSPlI9h589w2z7_M0etFYhbQyM",
 authDomain:"louvor-app-a7264.firebaseapp.com",
@@ -512,8 +523,70 @@ appId:"1:599364196472:web:3fecfe67cfa7f38c81758d"
 });
 db=firebase.firestore();
 fbDoc=db.collection('app').doc('data');
-}else{console.log('Firebase SDK not loaded - working offline');fbSynced=true;}
-}catch(e){console.log('Firebase init error:',e);fbSynced=true;}
+console.log('Firebase connected!');
+startFirebaseListener();
+}catch(e){console.log('Firebase error:',e);fbSynced=true;}
+}
+
+// Called by head script when SDK loads, or call now if already loaded
+function _fbOnReady(){connectFirebase();}
+if(typeof _fbReady!=='undefined'&&_fbReady){connectFirebase();}
+
+function startFirebaseListener(){
+if(!fbDoc)return;
+fbDoc.onSnapshot(function(doc){
+fbReady=true;
+if(ignoreSnapshot){ignoreSnapshot=false;return;}
+if(!doc.exists){
+fbSynced=true;
+if(lyrics.length>0)fbSaveNow();
+return;
+}
+var data=doc.data();
+if(data.lyrics){
+try{
+var remoteLyrics=JSON.parse(data.lyrics);
+var localStr=JSON.stringify(lyrics);
+var remoteStr=JSON.stringify(remoteLyrics);
+if(localStr!==remoteStr){
+if(remoteLyrics.length>=lyrics.length){
+lyrics=remoteLyrics;
+try{localStorage.setItem(SK,JSON.stringify(lyrics));}catch(e){}
+renderList();
+console.log('Loaded '+lyrics.length+' songs from Firebase');
+}else{
+console.log('Local has MORE songs ('+lyrics.length+') than Firebase ('+remoteLyrics.length+') - pushing local');
+fbSynced=true;
+fbSaveNow();
+return;
+}
+}
+}catch(e){console.log('Parse error:',e);}
+}
+if(data.todayList){
+try{
+var remoteTodayList=JSON.parse(data.todayList);
+if(JSON.stringify(todayList)!==JSON.stringify(remoteTodayList)){
+todayList=remoteTodayList;
+try{localStorage.setItem(TK,JSON.stringify(todayList));}catch(e){}
+renderList();try{updateTodayCount();}catch(e){}
+}
+}catch(e){}
+}
+if(data.ensaioData){
+try{localStorage.setItem('church-ensaio-v2',data.ensaioData);
+if(typeof loadEnsaioData==='function'){loadEnsaioData();renderEnsaioList();}
+}catch(e){}
+}
+if(data.profileData){
+try{localStorage.setItem('church-profiles-v1',data.profileData);
+if(typeof loadProfiles==='function'){loadProfiles();updateProfileUI();}
+}catch(e){}
+}
+fbSynced=true;
+},function(e){console.log('Firebase listener error:',e);fbSynced=true;});
+}
+// Firebase is initialized in head script, listener starts automatically
 
 var SK='church-lyrics-v5';var TK='church-today-v1';
 var lyrics=[],currentId=null,editId=null,viewMode='single',fontSize=14,scrollSpeed=20,isScrolling=false,animId=null;
@@ -526,75 +599,7 @@ try{var d=localStorage.getItem(SK);if(d)lyrics=JSON.parse(d);
 var td=localStorage.getItem(TK);if(td)todayList=JSON.parse(td);else todayList=[];
 }catch(e){lyrics=[];todayList=[];}
 renderList();try{updateTodayCount();}catch(e){}
-
-// 2. Start real-time listener - ALL tablets stay in sync
-if(!fbDoc){fbSynced=true;return;}
-fbDoc.onSnapshot(function(doc){
-fbReady=true;
-// Skip if this snapshot was triggered by our own save
-if(ignoreSnapshot){ignoreSnapshot=false;return;}
-if(!doc.exists){
-// No data in Firebase yet - push local data if we have any
-fbSynced=true;
-if(lyrics.length>0)fbSaveNow();
-return;
-}
-var data=doc.data();
-// Update lyrics from Firebase
-if(data.lyrics){
-try{
-var remoteLyrics=JSON.parse(data.lyrics);
-var localStr=JSON.stringify(lyrics);
-var remoteStr=JSON.stringify(remoteLyrics);
-if(localStr!==remoteStr){
-// SAFETY: always keep the BIGGER dataset
-if(remoteLyrics.length>=lyrics.length){
-// Firebase has same or more data - accept it
-lyrics=remoteLyrics;
-try{localStorage.setItem(SK,JSON.stringify(lyrics));}catch(e){}
-renderList();
-console.log('Loaded '+lyrics.length+' songs from Firebase');
-}else{
-// Local has MORE data than Firebase - push local
-console.log('Local has MORE songs ('+lyrics.length+') than Firebase ('+remoteLyrics.length+') - pushing local');
-fbSynced=true;
-fbSaveNow();
-return;
-}
-}
-}catch(e){console.log('Parse error:',e);}
-}
-// Update today list
-if(data.todayList){
-try{
-var remoteTodayList=JSON.parse(data.todayList);
-var localTodayStr=JSON.stringify(todayList);
-var remoteTodayStr=JSON.stringify(remoteTodayList);
-if(localTodayStr!==remoteTodayStr){
-todayList=remoteTodayList;
-try{localStorage.setItem(TK,JSON.stringify(todayList));}catch(e){}
-renderList();try{updateTodayCount();}catch(e){}
-}
-}catch(e){}
-}
-// Update ensaio data
-if(data.ensaioData){
-try{localStorage.setItem('church-ensaio-v2',data.ensaioData);
-if(typeof loadEnsaioData==='function'){loadEnsaioData();renderEnsaioList();}
-}catch(e){}
-}
-// Update profile names
-if(data.profileData){
-try{localStorage.setItem('church-profiles-v1',data.profileData);
-if(typeof loadProfiles==='function'){loadProfiles();updateProfileUI();}
-}catch(e){}
-}
-// NOW allow saves
-fbSynced=true;
-},function(e){console.log('Firebase listener error:',e);fbSynced=true;});
-
-// Fallback: if Firebase doesn't respond in 5s, allow saves anyway
-setTimeout(function(){if(!fbSynced){fbSynced=true;console.log('Firebase timeout - allowing saves');}},5000);
+// Firebase listener started by head script when SDK loads
 }
 
 function fbSaveNow(){
