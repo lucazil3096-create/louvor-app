@@ -2220,12 +2220,10 @@ if(e.key==='Enter'){e.preventDefault();addEnsaioLink();}
 });
 
 // ===== MULTITRACK MIXER =====
-var mtTracks=[]; // [{id,name,fileName,url,vol,swapLR,invert,pitch,mute,solo,loop}]
-var mtState={}; // {trackId: {source,gain,buffer,playing}}
+var mtTracks=[];
+var mtState={};
 var mtIsPlaying=false;
-var mtGlobalPitch=0; // semitones
-var mtStartTime=0;
-var mtPauseOffset=0;
+var mtGlobalPitch=0;
 var MTSK='church-multitrack-v1';
 var mtDB=null;
 var fbStorage=null;
@@ -2389,44 +2387,7 @@ if(n&&n.trim()){t.name=n.trim();saveMTFirebase();renderMTracks();}
 // ===== MULTITRACK AUDIO ENGINE =====
 function mtGetCtx(){return getCtx();} // reuse existing audioCtx
 
-function mtLoadBuffer(trackId,url,cb){
-var ctx=mtGetCtx();
-// Try local first
-mtGetBlob(trackId,function(blob){
-if(blob){
-var reader=new FileReader();
-reader.onload=function(){
-ctx.decodeAudioData(reader.result,function(decoded){
-cb(null,decoded);
-},function(e){cb(e||new Error('Decode error'),null);});
-};
-reader.onerror=function(){cb(new Error('Read error'),null);};
-reader.readAsArrayBuffer(blob);
-}else if(url){
-// Download from Firebase Storage URL
-console.log('Downloading from Firebase...');
-var xhr=new XMLHttpRequest();
-xhr.open('GET',url,true);
-xhr.responseType='arraybuffer';
-xhr.onload=function(){
-if(xhr.status===200){
-// Save locally for next time
-var saveBlob=new Blob([xhr.response]);
-mtSaveBlob(trackId,saveBlob,function(ok){
-if(ok){mtLocalCheck[trackId]=true;console.log('Cached locally');}
-});
-ctx.decodeAudioData(xhr.response,function(decoded){
-cb(null,decoded);
-},function(e){cb(e,null);});
-}else{cb(new Error('HTTP '+xhr.status),null);}
-};
-xhr.onerror=function(){cb(new Error('Erro de rede'),null);};
-xhr.send();
-}else{
-cb(new Error('Sem arquivo. Faça upload novamente.'),null);
-}
-});
-}
+function mtLoadBuffer(trackId,url,cb){cb(null,null);}
 
 function mtToggleTrack(id){
 var t=mtTracks.find(function(x){return x.id===id;});
@@ -2443,74 +2404,132 @@ if(track.uploading)return;
 var id=track.id;
 if(mtState[id]&&mtState[id].playing)return;
 
-var ctx=mtGetCtx();
-if(mtState[id]&&mtState[id].buffer){
-mtStartSource(track,mtState[id].buffer);
-}else{
 mtState[id]={loading:true};
 renderMTracks();
-mtLoadBuffer(track.id,track.url||'',function(err,buffer){
-if(err){console.log('Load error:',err.message);
-if(mtState[id])delete mtState[id];
-alert(err.message);
-renderMTracks();return;}
-mtState[id]={buffer:buffer};
-mtStartSource(track,buffer);
-});
-}
+
+// Try local blob first, then Firebase URL
+mtGetBlob(id,function(blob){
+var audioUrl;
+var blobUrl=null;
+if(blob){
+blobUrl=URL.createObjectURL(blob);
+audioUrl=blobUrl;
+console.log('Playing from local');
+}else if(track.url){
+audioUrl=track.url;
+console.log('Playing from Firebase: '+track.url.substring(0,60)+'...');
+}else{
+alert('Sem arquivo. Faça upload novamente.');
+delete mtState[id];renderMTracks();
+return;
 }
 
-function mtStartSource(track,buffer){
-var ctx=mtGetCtx();
-var id=track.id;
-var source=ctx.createBufferSource();
-source.buffer=buffer;
-// Pitch: track pitch + master pitch
-var totalPitch=(track.pitch||0)+mtGlobalPitch;
-source.detune.value=totalPitch*100;
-source.loop=!!track.loop;
-// Gain (vol + invert phase)
-var gainNode=ctx.createGain();
+var audio=new Audio();
+audio.crossOrigin='anonymous';
+audio.loop=!!track.loop;
+audio.preload='auto';
+
+// Volume
 var vol=(track.mute?0:track.vol)/100;
 var hasSolo=mtTracks.some(function(t){return t.solo;});
 if(hasSolo&&!track.solo)vol=0;
-gainNode.gain.value=track.invert?-vol:vol;
-// Channel swap L↔R
+audio.volume=vol;
+
+// Pitch via playbackRate
+var totalPitch=(track.pitch||0)+mtGlobalPitch;
+audio.playbackRate=Math.pow(2,totalPitch/12);
+
+audio.src=audioUrl;
+
+var started=false;
+
+function tryPlay(){
+if(started)return;
+started=true;
+audio.play().then(function(){
+mtState[id]={audio:audio,blobUrl:blobUrl,playing:true,loading:false,useWebAudio:false};
+
+// Try connecting Web Audio for advanced features (swap, invert)
+try{
+var ctx=mtGetCtx();
+if(!mtState[id].src){
+var src=ctx.createMediaElementSource(audio);
+var gainNode=ctx.createGain();
+gainNode.gain.value=track.invert?-1:1;
+
 var outputNode;
 if(track.swapLR){
 var splitter=ctx.createChannelSplitter(2);
 var merger=ctx.createChannelMerger(2);
-splitter.connect(merger,0,1); // L→R
-splitter.connect(merger,1,0); // R→L
+splitter.connect(merger,0,1);
+splitter.connect(merger,1,0);
 gainNode.connect(splitter);
 outputNode=merger;
 }else{
 outputNode=gainNode;
 }
-// Connect
-source.connect(gainNode);outputNode.connect(ctx.destination);
-source.start(0);
-mtState[id]=mtState[id]||{};
-mtState[id].source=source;
+src.connect(gainNode);
+outputNode.connect(ctx.destination);
+mtState[id].src=src;
 mtState[id].gain=gainNode;
 mtState[id].output=outputNode;
-mtState[id].buffer=buffer;
-mtState[id].playing=true;
-mtState[id].loading=false;
-source.onended=function(){
-if(mtState[id]){mtState[id].playing=false;mtState[id].source=null;}
+mtState[id].useWebAudio=true;
+audio.volume=1; // Web Audio controls volume now
+gainNode.gain.value=track.invert?-vol:vol;
+}
+}catch(e){
+console.log('Web Audio not available, using basic playback');
+}
+
 renderMTracks();
+
+// Cache remotely downloaded file locally
+if(!blob&&track.url){
+try{
+var xhr=new XMLHttpRequest();
+xhr.open('GET',track.url,true);
+xhr.responseType='blob';
+xhr.onload=function(){
+if(xhr.status===200){
+mtSaveBlob(id,xhr.response,function(ok){
+if(ok){mtLocalCheck[id]=true;console.log('Cached: '+track.name);}
+});
+}
 };
+xhr.send();
+}catch(e){}
+}
+}).catch(function(e){
+console.log('Play failed:',e);
+// iOS might need direct user tap - try without Web Audio
+delete mtState[id];
 renderMTracks();
+});
+}
+
+audio.addEventListener('canplaythrough',tryPlay);
+// iOS fallback
+audio.addEventListener('loadeddata',function(){
+setTimeout(tryPlay,100);
+});
+audio.addEventListener('error',function(e){
+console.log('Audio error:',audio.error);
+alert('Erro ao carregar. Verifique a conexão.');
+delete mtState[id];renderMTracks();
+});
+audio.load();
+});
 }
 
 function mtStopTrack(id){
 if(!mtState[id])return;
-if(mtState[id].source&&mtState[id].playing){
-try{mtState[id].source.stop();}catch(e){}
+if(mtState[id].audio){
+try{mtState[id].audio.pause();mtState[id].audio.currentTime=0;mtState[id].audio.src='';}catch(e){}
 }
-mtState[id].playing=false;
-mtState[id].source=null;
+if(mtState[id].blobUrl){
+try{URL.revokeObjectURL(mtState[id].blobUrl);}catch(e){}
+}
+delete mtState[id];
 renderMTracks();
 }
 
@@ -2523,25 +2542,18 @@ mtPlayAll();
 }
 
 function mtPlayAll(){
-mtPauseOffset=0;
-mtStartTime=mtGetCtx().currentTime;
 mtTracks.forEach(function(t){
-if(!t.uploading&&t.url)mtPlayTrack(t);
+if(!t.uploading)mtPlayTrack(t);
 });
 mtIsPlaying=true;
 renderMTracks();
 }
 
 function mtPauseAll(){
-var ctx=mtGetCtx();
-if(mtIsPlaying){
-mtPauseOffset+=(ctx.currentTime-mtStartTime);
-}
 Object.keys(mtState).forEach(function(id){
-if(mtState[id]&&mtState[id].source&&mtState[id].playing){
-try{mtState[id].source.stop();}catch(e){}
+if(mtState[id]&&mtState[id].audio&&mtState[id].playing){
+try{mtState[id].audio.pause();}catch(e){}
 mtState[id].playing=false;
-mtState[id].source=null;
 }
 });
 mtIsPlaying=false;
@@ -2550,38 +2562,40 @@ renderMTracks();
 
 function mtStopAll(){
 Object.keys(mtState).forEach(function(id){
-if(mtState[id]&&mtState[id].source&&mtState[id].playing){
-try{mtState[id].source.stop();}catch(e){}
-mtState[id].playing=false;
-mtState[id].source=null;
-}
+mtStopTrack(id);
 });
-mtPauseOffset=0;mtIsPlaying=false;
+mtIsPlaying=false;
 renderMTracks();
 }
 
 function mtUpdateTrackAudio(id){
 var t=mtTracks.find(function(x){return x.id===id;});
 if(!t||!mtState[id]||!mtState[id].playing)return;
-var ctx=mtGetCtx();
-// Update gain
 var vol=(t.mute?0:t.vol)/100;
 var hasSolo=mtTracks.some(function(x){return x.solo;});
 if(hasSolo&&!t.solo)vol=0;
+
+if(mtState[id].useWebAudio&&mtState[id].gain){
+var ctx=mtGetCtx();
 mtState[id].gain.gain.setValueAtTime(t.invert?-vol:vol,ctx.currentTime);
+}else if(mtState[id].audio){
+mtState[id].audio.volume=vol;
+}
 // Update pitch
 var totalPitch=(t.pitch||0)+mtGlobalPitch;
-if(mtState[id].source)mtState[id].source.detune.setValueAtTime(totalPitch*100,ctx.currentTime);
+if(mtState[id].audio){
+mtState[id].audio.playbackRate=Math.pow(2,totalPitch/12);
+}
 }
 
-// Swap L↔R requires restart (channel routing change)
+// Swap L↔R requires restart
 function mtSwapLR(id){
 var t=mtTracks.find(function(x){return x.id===id;});if(!t)return;
 t.swapLR=!t.swapLR;
 var wasPlaying=mtState[id]&&mtState[id].playing;
 if(wasPlaying){
 mtStopTrack(id);
-setTimeout(function(){mtPlayTrack(t);},100);
+setTimeout(function(){mtPlayTrack(t);},200);
 }
 saveMTFirebase();renderMTracks();
 }
@@ -2596,7 +2610,16 @@ t.vol=parseInt(v);mtUpdateTrackAudio(id);saveMTLocal();
 }
 function mtSetInvert(id){
 var t=mtTracks.find(function(x){return x.id===id;});if(!t)return;
-t.invert=!t.invert;mtUpdateTrackAudio(id);saveMTFirebase();renderMTracks();
+t.invert=!t.invert;
+if(mtState[id]&&mtState[id].playing){
+if(mtState[id].useWebAudio){
+mtUpdateTrackAudio(id);
+}else{
+mtStopTrack(id);
+setTimeout(function(){mtPlayTrack(t);},200);
+}
+}
+saveMTFirebase();renderMTracks();
 }
 function mtSetMute(id){
 var t=mtTracks.find(function(x){return x.id===id;});if(!t)return;
@@ -2605,8 +2628,8 @@ t.mute=!t.mute;mtUpdateTrackAudio(id);saveMTFirebase();renderMTracks();
 function mtSetLoop(id){
 var t=mtTracks.find(function(x){return x.id===id;});if(!t)return;
 t.loop=!t.loop;
-if(mtState[id]&&mtState[id].source){
-mtState[id].source.loop=t.loop;
+if(mtState[id]&&mtState[id].audio){
+mtState[id].audio.loop=t.loop;
 }
 saveMTFirebase();renderMTracks();
 }
@@ -2668,11 +2691,24 @@ h+='<div class="mt-track'+(isMuted?' muted':'')+(t.solo?' solo-active':'')+'">';
 var isTrackPlaying=st.playing||false;
 var isTrackLoading=st.loading||false;
 h+='<button class="mt-btn '+(isTrackPlaying?'mt-btn-stop':'mt-btn-play')+'" onclick="mtToggleTrack(\''+t.id+'\')" style="padding:6px 12px;font-size:11px;min-width:44px">'+(isTrackLoading?'⏳':(isTrackPlaying?'⏹':'▶'))+'</button>';
-h+='<div class="mt-track-name" onclick="mtRenameTrack(\''+t.id+'\')" title="'+esc(t.fileName)+'">'+ esc(t.name)+(hasLocal?'':'<span style="font-size:8px;color:var(--gold);margin-left:4px">☁️</span>')+'</div>';
+h+='<div class="mt-track-name" onclick="mtRenameTrack(\''+t.id+'\')" title="'+esc(t.fileName)+'">'+ esc(t.name)+(hasLocal?'<span style="font-size:8px;color:var(--green);margin-left:4px">💾</span>':'<span style="font-size:8px;color:var(--gold);margin-left:4px">☁️</span>')+'</div>';
 // Upload progress
 if(t.uploading){
 h+='<div style="flex:1"><div class="mt-upload-progress"><div class="mt-upload-bar" style="width:'+(t.progress||0)+'%"></div></div><span style="font-size:9px;color:var(--text-dim)">'+(t.progress||0)+'%</span></div>';
+}else if(!hasLocal&&t.url){
+// Not local — show download + stream controls
+h+='<button class="mt-btn mt-btn-accent" onclick="mtDownloadTrack(\''+t.id+'\')" style="font-size:10px;padding:5px 10px" id="mt-dl-'+t.id+'">📥 Baixar</button>';
+// Vol
+h+='<div class="mt-track-ctrl"><label>Vol</label><input type="range" class="mt-slider" min="0" max="100" value="'+t.vol+'" oninput="mtSetVol(\''+t.id+'\',this.value)" onchange="mtSaveVol(\''+t.id+'\')"><span class="mt-slider-val">'+t.vol+'%</span></div>';
+// Pitch
+var pp=t.pitch||0;
+h+='<div class="mt-track-ctrl" style="gap:2px"><button class="mt-pitch-btn" onclick="mtTrackPitch(\''+t.id+'\',-1)" style="width:22px;height:22px;font-size:13px">−</button>';
+h+='<span style="font-size:11px;color:var(--text);min-width:24px;text-align:center;font-family:var(--fd)">'+(pp>0?'+':'')+pp+'</span>';
+h+='<button class="mt-pitch-btn" onclick="mtTrackPitch(\''+t.id+'\',1)" style="width:22px;height:22px;font-size:13px">+</button></div>';
+h+='<button class="mt-mute-btn'+(t.mute?' on':'')+'" onclick="mtSetMute(\''+t.id+'\')">M</button>';
+h+='<button class="mt-solo-btn'+(t.loop?' on':'')+'" onclick="mtSetLoop(\''+t.id+'\')" style="font-size:9px" title="Loop">🔁</button>';
 }else{
+// Local file — full controls
 // Vol
 h+='<div class="mt-track-ctrl"><label>Vol</label><input type="range" class="mt-slider" min="0" max="100" value="'+t.vol+'" oninput="mtSetVol(\''+t.id+'\',this.value)" onchange="mtSaveVol(\''+t.id+'\')"><span class="mt-slider-val">'+t.vol+'%</span></div>';
 // Swap L↔R
@@ -2681,7 +2717,7 @@ h+='<span style="font-size:9px;color:var(--text-dim);min-width:24px">'+(t.swapLR
 // Invert phase
 h+='<div class="mt-toggle'+(t.invert?' on':'')+'" onclick="mtSetInvert(\''+t.id+'\')" title="Inverter fase"></div>';
 h+='<span style="font-size:9px;color:var(--text-dim);min-width:16px">Ø</span>';
-// Pitch per track
+// Pitch
 var pp=t.pitch||0;
 h+='<div class="mt-track-ctrl" style="gap:2px"><button class="mt-pitch-btn" onclick="mtTrackPitch(\''+t.id+'\',-1)" style="width:22px;height:22px;font-size:13px">−</button>';
 h+='<span style="font-size:11px;color:var(--text);min-width:24px;text-align:center;font-family:var(--fd)">'+(pp>0?'+':'')+pp+'</span>';
@@ -2700,6 +2736,44 @@ el.innerHTML=h;
 }
 
 // Re-upload file for a track that exists in Firebase but not locally
+function mtDownloadTrack(id){
+var t=mtTracks.find(function(x){return x.id===id;});
+if(!t||!t.url)return;
+var btn=document.getElementById('mt-dl-'+id);
+if(btn){btn.textContent='⏳ Baixando...';btn.disabled=true;}
+var xhr=new XMLHttpRequest();
+xhr.open('GET',t.url,true);
+xhr.responseType='blob';
+xhr.onprogress=function(e){
+if(e.lengthComputable&&btn){
+var p=Math.round((e.loaded/e.total)*100);
+btn.textContent='📥 '+p+'%';
+}
+};
+xhr.onload=function(){
+if(xhr.status===200){
+mtSaveBlob(id,xhr.response,function(ok){
+if(ok){
+mtLocalCheck[id]=true;
+console.log('Downloaded: '+t.name);
+renderMTracks();
+}else{
+alert('Erro ao salvar');
+if(btn){btn.textContent='📥 Baixar';btn.disabled=false;}
+}
+});
+}else{
+alert('Erro HTTP '+xhr.status);
+if(btn){btn.textContent='📥 Baixar';btn.disabled=false;}
+}
+};
+xhr.onerror=function(){
+alert('Erro de rede. Tente novamente.');
+if(btn){btn.textContent='📥 Baixar';btn.disabled=false;}
+};
+xhr.send();
+}
+
 loadEnsaioData();
 initProfileScreen();
 
