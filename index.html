@@ -2521,15 +2521,57 @@ function mtStartBufferDirect(track,origBuffer,playBuffer){
 var id=track.id;
 var totalPitch=(track.pitch||0)+mtGlobalPitch;
 
-// Use Tone.js if available for proper pitch shift
-if(typeof Tone!=='undefined'&&totalPitch!==0){
+// Tom 0 = caminho limpo, sem processamento (qualidade máxima)
+if(totalPitch===0){
+var ctx=mtGetCtx();
+var source=ctx.createBufferSource();
+source.buffer=origBuffer;
+source.loop=!!track.loop;
+
+var gainNode=ctx.createGain();
+var vol=(track.mute?0:track.vol)/100;
+var hasSolo=mtTracks.some(function(t){return t.solo;});
+if(hasSolo&&!track.solo)vol=0;
+gainNode.gain.value=vol;
+
+var outputNode;
+if(track.swapLR){
+var splitter=ctx.createChannelSplitter(2);
+var merger=ctx.createChannelMerger(2);
+splitter.connect(merger,0,1);
+splitter.connect(merger,1,0);
+gainNode.connect(splitter);
+outputNode=merger;
+}else{
+outputNode=gainNode;
+}
+
+source.connect(gainNode);
+outputNode.connect(ctx.destination);
+source.start(0);
+
+mtState[id]={source:source,gain:gainNode,output:outputNode,buffer:origBuffer,playing:true,loading:false,mode:'buffer',pitch:0};
+source.onended=function(){
+if(mtState[id]&&mtState[id].mode==='buffer'){mtState[id].playing=false;mtState[id].source=null;}
+renderMTracks();
+};
+renderMTracks();
+return;
+}
+
+// Com pitch shift: Tone.js GrainPlayer (qualidade profissional)
+if(typeof Tone!=='undefined'){
 try{
 Tone.start();
+// Converter AudioBuffer para Tone.ToneAudioBuffer
+var toneBuffer=new Tone.ToneAudioBuffer(origBuffer);
+
 var player=new Tone.GrainPlayer({
-url:origBuffer,
-grainSize:0.1,
-overlap:0.05,
-loop:!!track.loop
+url:toneBuffer,
+grainSize:0.2,        // 200ms grains = mais suave pra música
+overlap:0.15,         // 150ms overlap = transições suaves
+loop:!!track.loop,
+playbackRate:1        // velocidade normal sempre
 });
 player.detune=totalPitch*100;
 
@@ -2538,12 +2580,23 @@ var hasSolo=mtTracks.some(function(t){return t.solo;});
 if(hasSolo&&!track.solo)vol=0;
 var gain=new Tone.Gain(vol);
 
+// L↔R swap via Tone
+if(track.swapLR){
+var split=new Tone.Split();
+var merge=new Tone.Merge();
+player.connect(gain);
+gain.connect(split);
+split.connect(merge,0,1); // L→R
+split.connect(merge,1,0); // R→L
+merge.toDestination();
+mtState[id]={tonePlayer:player,toneGain:gain,toneSplit:split,toneMerge:merge,buffer:origBuffer,playing:true,loading:false,mode:'tone',pitch:totalPitch};
+}else{
 player.connect(gain);
 gain.toDestination();
+mtState[id]={tonePlayer:player,toneGain:gain,buffer:origBuffer,playing:true,loading:false,mode:'tone',pitch:totalPitch};
+}
 
 player.start();
-
-mtState[id]={tonePlayer:player,toneGain:gain,buffer:origBuffer,playing:true,loading:false,mode:'tone',pitch:totalPitch};
 renderMTracks();
 return;
 }catch(e){
@@ -2551,12 +2604,12 @@ console.log('Tone.js error, fallback:',e);
 }
 }
 
-// Fallback: standard Web Audio (no pitch shift or pitch+speed)
+// Fallback: detune (muda velocidade junto mas funciona sempre)
 var ctx=mtGetCtx();
 var source=ctx.createBufferSource();
 source.buffer=origBuffer;
 source.loop=!!track.loop;
-if(totalPitch!==0) source.detune.value=totalPitch*100;
+source.detune.value=totalPitch*100;
 
 var gainNode=ctx.createGain();
 var vol=(track.mute?0:track.vol)/100;
@@ -2581,7 +2634,6 @@ outputNode.connect(ctx.destination);
 source.start(0);
 
 mtState[id]={source:source,gain:gainNode,output:outputNode,buffer:origBuffer,playing:true,loading:false,mode:'buffer',pitch:totalPitch};
-
 source.onended=function(){
 if(mtState[id]&&mtState[id].mode==='buffer'){mtState[id].playing=false;mtState[id].source=null;}
 renderMTracks();
@@ -2663,6 +2715,8 @@ if(mtState[id].audio){try{mtState[id].audio.pause();mtState[id].audio.currentTim
 }else if(mtState[id].mode==='tone'){
 if(mtState[id].tonePlayer){try{mtState[id].tonePlayer.stop();mtState[id].tonePlayer.dispose();}catch(e){}}
 if(mtState[id].toneGain){try{mtState[id].toneGain.dispose();}catch(e){}}
+if(mtState[id].toneSplit){try{mtState[id].toneSplit.dispose();}catch(e){}}
+if(mtState[id].toneMerge){try{mtState[id].toneMerge.dispose();}catch(e){}}
 }
 var buf=mtState[id].buffer; // keep decoded buffer for reuse
 delete mtState[id];
