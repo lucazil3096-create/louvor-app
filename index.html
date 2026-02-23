@@ -334,8 +334,20 @@ body.light .pads-header{background:var(--surface)}
 .ensaio-url{flex:1;padding:10px 14px;background:var(--card-bg);border:1px solid var(--card-border);border-radius:12px;color:var(--text);font-size:13px;font-family:var(--fb);outline:none;transition:border-color .2s}
 .ensaio-url:focus{border-color:var(--accent)}
 .ensaio-url::placeholder{color:var(--text-dim)}
-.ensaio-btn{background:var(--accent);color:#fff;padding:10px 18px;font-size:13px;font-weight:700;border-radius:12px;border:none;cursor:pointer;font-family:var(--fb);white-space:nowrap;transition:all .2s;letter-spacing:.3px}
+.ensaio-extra-fields{margin-top:8px}
+.ensaio-field-row{display:flex;gap:8px;margin-bottom:8px}
+.ensaio-tom{padding:9px 10px;background:var(--card-bg);border:1px solid var(--card-border);border-radius:10px;color:var(--text);font-size:13px;font-family:var(--fb);outline:none;min-width:80px;cursor:pointer;-webkit-appearance:none;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23888' d='M6 8L1 3h10z'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 10px center}
+.ensaio-tom:focus{border-color:var(--accent)}
+.ensaio-comment-input{flex:1;padding:9px 12px;background:var(--card-bg);border:1px solid var(--card-border);border-radius:10px;color:var(--text);font-size:12px;font-family:var(--fb);outline:none}
+.ensaio-comment-input:focus{border-color:var(--accent)}
+.ensaio-comment-input::placeholder{color:var(--text-dim)}
+.ensaio-btn{background:var(--accent);color:#fff;padding:10px 18px;font-size:13px;font-weight:700;border-radius:12px;border:none;cursor:pointer;font-family:var(--fb);white-space:nowrap;transition:all .2s;letter-spacing:.3px;width:100%}
 .ensaio-btn:active{transform:scale(.96);opacity:.9}
+.ensaio-tom-badge{display:inline-block;background:var(--accent-glow);color:var(--accent2);font-size:10px;font-weight:700;padding:2px 8px;border-radius:8px;margin-top:3px;font-family:var(--fb);border:1px solid var(--accent)}
+.ensaio-comment-text{font-size:11px;color:var(--text-dim);margin-top:3px;font-style:italic;line-height:1.3;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.ensaio-whatsapp-btn{display:flex;align-items:center;gap:6px;background:#25D366;color:#fff;border:none;padding:8px 14px;border-radius:10px;font-size:12px;font-weight:600;font-family:var(--fb);cursor:pointer;transition:all .2s;white-space:nowrap}
+.ensaio-whatsapp-btn:active{transform:scale(.96);opacity:.9}
+.ensaio-whatsapp-btn svg{flex-shrink:0}
 .ensaio-body{flex:1;display:flex;flex-direction:column;padding:10px 14px;overflow-y:auto}
 .ensaio-empty{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;opacity:.25;text-align:center}
 .ensaio-empty-icon{font-size:52px;margin-bottom:14px}
@@ -890,10 +902,23 @@ if(typeof _fbOnReady==='function')_fbOnReady();
 </div>
 <div class="ensaio-input-row">
 <input type="text" class="ensaio-url" id="ensaio-url" placeholder="Cole o link do YouTube..." autocomplete="off">
+</div>
+<div class="ensaio-extra-fields" id="ensaio-extra-fields">
+<div class="ensaio-field-row">
+<select class="ensaio-tom" id="ensaio-tom">
+<option value="">Tom...</option>
+<option>C</option><option>C#</option><option>D</option><option>D#</option><option>E</option><option>F</option><option>F#</option><option>G</option><option>G#</option><option>A</option><option>A#</option><option>B</option>
+<option>Cm</option><option>C#m</option><option>Dm</option><option>D#m</option><option>Em</option><option>Fm</option><option>F#m</option><option>Gm</option><option>G#m</option><option>Am</option><option>A#m</option><option>Bm</option>
+</select>
+<input type="text" class="ensaio-comment-input" id="ensaio-comment" placeholder="Observações (ex: intro acústica, tom original...)" autocomplete="off">
+</div>
 <button class="ensaio-btn" id="ensaio-save-btn" onclick="addEnsaioLink()">+ Salvar</button>
 </div>
 </div>
 <div class="ensaio-body" id="ensaio-body">
+<div style="display:flex;align-items:center;justify-content:flex-end;margin-bottom:8px;gap:8px">
+<button class="ensaio-whatsapp-btn" onclick="shareEnsaioWhatsApp()" title="Compartilhar ensaio via WhatsApp"><svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg> Enviar no WhatsApp</button>
+</div>
 <div class="ensaio-tabs">
 <div class="ensaio-tab active" id="ensaio-tab-now" onclick="switchEnsaioTab('now')"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg> Ensaiando <span class="ensaio-tab-count" id="ensaio-count-now">0</span></div>
 <div class="ensaio-tab" id="ensaio-tab-next" onclick="switchEnsaioTab('next')"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/></svg> Para Ensaiar <span class="ensaio-tab-count" id="ensaio-count-next">0</span></div>
@@ -2700,6 +2725,8 @@ var ensaioBtn=document.getElementById('ensaio-save-btn');
 if(ensaioBtn){ensaioBtn.style.display=authCanEdit()?'':'none';}
 var ensaioUrl=document.getElementById('ensaio-url');
 if(ensaioUrl){ensaioUrl.style.display=authCanEdit()?'':'none';}
+var ensaioExtra=document.getElementById('ensaio-extra-fields');
+if(ensaioExtra){ensaioExtra.style.display=authCanEdit()?'':'none';}
 
 // Multitrack upload button
 var mtUpBtn=document.getElementById('mt-upload-btn');
@@ -2914,20 +2941,41 @@ if(m)return m[1];
 return null;
 }
 
+function fetchYoutubeTitle(videoId,callback){
+try{
+fetch('https://noembed.com/embed?url=https://www.youtube.com/watch?v='+videoId)
+.then(function(r){return r.json();})
+.then(function(data){callback(data.title||'Video');})
+.catch(function(){callback('Video');});
+}catch(e){callback('Video');}
+}
+
 function addEnsaioLink(){
 if(!authCanEdit()){alert('Sem permissão para adicionar vídeos de ensaio.');return;}
 var input=document.getElementById('ensaio-url');
+var tomSelect=document.getElementById('ensaio-tom');
+var commentInput=document.getElementById('ensaio-comment');
 var url=input.value.trim();
 if(!url){return;}
 var id=extractYoutubeId(url);
 if(!id){alert('Link inválido. Cole um link do YouTube.');return;}
 var links=getActiveLinks();
 for(var i=0;i<links.length;i++){if(links[i].id===id)return;}
-links.push({id:id,name:url,date:Date.now(),list:ensaioTab});
+var tom=tomSelect?tomSelect.value:'';
+var comment=commentInput?commentInput.value.trim():'';
+var newItem={id:id,name:'Carregando...',tom:tom,comment:comment,date:Date.now(),list:ensaioTab};
+links.push(newItem);
 setActiveLinks(links);
 saveEnsaioData();
 input.value='';
+if(tomSelect)tomSelect.value='';
+if(commentInput)commentInput.value='';
 renderEnsaioList();
+fetchYoutubeTitle(id,function(title){
+newItem.name=title;
+saveEnsaioData();
+renderEnsaioList();
+});
 }
 
 function removeEnsaioLink(idx){
@@ -2984,19 +3032,29 @@ return;
 }
 empty.style.display='none';
 var h='';
+var needsTitleFetch=[];
 filtered.forEach(function(item,idx){
 var thumb='https://img.youtube.com/vi/'+item.id+'/mqdefault.jpg';
 var moveLabel=ensaioTab==='now'?ICO.clip+' Fila':ICO.music+' Ensaiar';
+var displayName=item.name||'Video';
+if(displayName.match(/^https?:\/\//)){displayName='Video';needsTitleFetch.push(item);}
 h+='<div class="ensaio-item">';
 h+='<img class="ensaio-thumb" src="'+thumb+'" alt="">';
-h+='<div class="ensaio-info"><div class="ensaio-name">'+(item.name||'Video')+'</div></div>';
+h+='<div class="ensaio-info">';
+h+='<div class="ensaio-name">'+displayName+'</div>';
+if(item.tom)h+='<span class="ensaio-tom-badge">Tom: '+item.tom+'</span>';
+if(item.comment)h+='<div class="ensaio-comment-text">'+item.comment+'</div>';
+h+='</div>';
 h+='<div class="ensaio-actions">';
 if(authCanEdit())h+='<button class="ensaio-move-btn" data-ens-action="move" data-ens-idx="'+idx+'">'+moveLabel+'</button>';
-h+='<button class="ensaio-play" data-ens-action="play" data-ens-id="'+item.id+'" data-ens-name="'+(item.name||'').replace(/"/g,'&quot;')+'">▶</button>';
+h+='<button class="ensaio-play" data-ens-action="play" data-ens-id="'+item.id+'" data-ens-name="'+displayName.replace(/"/g,'&quot;')+'">▶</button>';
 if(authCanEdit())h+='<button class="ensaio-del" data-ens-action="del" data-ens-idx="'+idx+'">'+ICO.trash+'</button>';
 h+='</div></div>';
 });
 container.innerHTML=h;
+needsTitleFetch.forEach(function(item){
+fetchYoutubeTitle(item.id,function(title){item.name=title;saveEnsaioData();renderEnsaioList();});
+});
 }
 
 // Event delegation for ensaio list
@@ -3021,6 +3079,40 @@ return;
 el=el.parentNode;
 }
 });
+
+function shareEnsaioWhatsApp(){
+var links=getActiveLinks();
+var nowList=links.filter(function(l){return l.list==='now';});
+var nextList=links.filter(function(l){return l.list==='next';});
+if(!nowList.length&&!nextList.length){alert('Nenhuma música para compartilhar.');return;}
+var msg='*🎵 Ensaio - Ministério Aos Pés da Cruz*\n\n';
+if(nowList.length){
+msg+='*📋 Ensaiando agora:*\n';
+nowList.forEach(function(item,i){
+var name=item.name||'Video';
+if(name.match(/^https?:\/\//))name='Video';
+msg+=(i+1)+'. '+name;
+if(item.tom)msg+=' *(Tom: '+item.tom+')*';
+msg+='\n';
+if(item.comment)msg+='   _'+item.comment+'_\n';
+msg+='   ▶ https://www.youtube.com/watch?v='+item.id+'\n';
+});
+}
+if(nextList.length){
+msg+='\n*📝 Na fila para ensaiar:*\n';
+nextList.forEach(function(item,i){
+var name=item.name||'Video';
+if(name.match(/^https?:\/\//))name='Video';
+msg+=(i+1)+'. '+name;
+if(item.tom)msg+=' *(Tom: '+item.tom+')*';
+msg+='\n';
+if(item.comment)msg+='   _'+item.comment+'_\n';
+msg+='   ▶ https://www.youtube.com/watch?v='+item.id+'\n';
+});
+}
+var encoded=encodeURIComponent(msg);
+window.open('https://wa.me/?text='+encoded,'_blank');
+}
 
 // Enter key to add link
 document.getElementById('ensaio-url').addEventListener('keydown',function(e){
