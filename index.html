@@ -373,6 +373,12 @@ body.light .pads-header{background:var(--surface)}
 .ensaio-now-title{color:var(--text);font-family:var(--fd);font-size:18px;margin-top:16px;text-align:center;padding:0 24px;max-width:90%;opacity:.7;letter-spacing:1px;text-transform:uppercase}
 .ensaio-yt-btn{margin-top:16px;background:none;border:1px solid rgba(255,255,255,.2);color:rgba(255,255,255,.6);padding:10px 24px;border-radius:12px;font-size:13px;font-family:var(--fb);font-weight:600;cursor:pointer;transition:all .2s;letter-spacing:.3px}
 .ensaio-yt-btn:active{background:rgba(255,255,255,.1);transform:scale(.96)}
+.ensaio-player-tom{display:flex;align-items:center;gap:10px;margin-top:16px}
+.ensaio-player-tom-label{color:rgba(255,255,255,.5);font-size:12px;font-family:var(--fb);font-weight:600;letter-spacing:.5px;text-transform:uppercase}
+.ensaio-player-tom-value{color:var(--gold);font-family:var(--fd);font-size:22px;font-weight:400;letter-spacing:2px;min-width:40px;text-align:center}
+.ensaio-player-tom-btn{width:34px;height:34px;border-radius:50%;border:1px solid rgba(255,255,255,.2);background:rgba(255,255,255,.06);color:rgba(255,255,255,.7);font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .2s}
+.ensaio-player-tom-btn:active{background:rgba(255,255,255,.15);transform:scale(.9);border-color:var(--gold);color:var(--gold)}
+.ensaio-player-tom-diff{font-size:10px;color:rgba(255,255,255,.3);font-family:var(--fb);min-width:30px;text-align:center}
 
 .screen{height:calc(100vh - 52px);height:calc(100dvh - 52px)}
 #screen-view,#screen-edit{height:auto;position:fixed;top:0;left:0;right:0;bottom:0;z-index:40}
@@ -939,6 +945,12 @@ if(typeof _fbOnReady==='function')_fbOnReady();
 <button class="ensaio-close" onclick="closeEnsaioPlayer()">✕</button>
 <div class="ensaio-video" id="ensaio-video"></div>
 <div class="ensaio-now-title" id="ensaio-now-title"></div>
+<div class="ensaio-player-tom" id="ensaio-player-tom" style="display:none">
+<button class="ensaio-player-tom-btn" onclick="playerTranspose(-1)">▼</button>
+<div style="text-align:center"><span class="ensaio-player-tom-label">Tom</span><br><span class="ensaio-player-tom-value" id="ensaio-player-tom-value">G</span></div>
+<button class="ensaio-player-tom-btn" onclick="playerTranspose(1)">▲</button>
+<span class="ensaio-player-tom-diff" id="ensaio-player-tom-diff"></span>
+</div>
 <button class="ensaio-yt-btn" onclick="openInYouTube()">▶ Abrir no YouTube</button>
 </div>
 
@@ -3011,6 +3023,10 @@ saveEnsaioData();
 renderEnsaioList();
 }
 
+var playerOriginalTom='';
+var playerCurrentTom='';
+var playerSemitoneDiff=0;
+
 function openEnsaioPlayer(id,name){
 var overlay=document.getElementById('ensaio-overlay');
 var video=document.getElementById('ensaio-video');
@@ -3020,6 +3036,37 @@ title.textContent=name||'';
 overlay.style.display='flex';
 overlay.classList.add('active');
 overlay.setAttribute('data-current-id',id);
+// Find tom for this video
+var links=getActiveLinks();
+var item=links.find(function(l){return l.id===id;});
+var tomEl=document.getElementById('ensaio-player-tom');
+if(item&&item.tom){
+playerOriginalTom=item.tom;
+playerCurrentTom=item.tom;
+playerSemitoneDiff=0;
+document.getElementById('ensaio-player-tom-value').textContent=item.tom;
+document.getElementById('ensaio-player-tom-diff').textContent='';
+tomEl.style.display='flex';
+}else{
+tomEl.style.display='none';
+playerOriginalTom='';
+}
+}
+
+function playerTranspose(dir){
+if(!playerCurrentTom)return;
+var isMinor=playerCurrentTom.endsWith('m')&&playerCurrentTom!=='m';
+var base=isMinor?playerCurrentTom.slice(0,-1):playerCurrentTom;
+var i=NOTAS_CHROMATIC.indexOf(base);
+if(i<0)return;
+i=(i+dir+12)%12;
+playerCurrentTom=NOTAS_CHROMATIC[i]+(isMinor?'m':'');
+playerSemitoneDiff+=dir;
+document.getElementById('ensaio-player-tom-value').textContent=playerCurrentTom;
+var diffEl=document.getElementById('ensaio-player-tom-diff');
+if(playerSemitoneDiff===0)diffEl.textContent='';
+else if(playerSemitoneDiff>0)diffEl.textContent='+'+playerSemitoneDiff+' st';
+else diffEl.textContent=playerSemitoneDiff+' st';
 }
 
 function openInYouTube(){
