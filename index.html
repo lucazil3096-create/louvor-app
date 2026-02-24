@@ -379,6 +379,16 @@ body.light .pads-header{background:var(--surface)}
 .ensaio-player-tom-btn{width:34px;height:34px;border-radius:50%;border:1px solid rgba(255,255,255,.2);background:rgba(255,255,255,.06);color:rgba(255,255,255,.7);font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .2s}
 .ensaio-player-tom-btn:active{background:rgba(255,255,255,.15);transform:scale(.9);border-color:var(--gold);color:var(--gold)}
 .ensaio-player-tom-diff{font-size:10px;color:rgba(255,255,255,.3);font-family:var(--fb);min-width:30px;text-align:center}
+.ensaio-speed-panel{display:flex;align-items:center;gap:8px;margin-top:14px;flex-wrap:wrap;justify-content:center}
+.ensaio-speed-label{color:rgba(255,255,255,.4);font-size:11px;font-family:var(--fb);font-weight:600;letter-spacing:.5px;text-transform:uppercase}
+.ensaio-speed-btn{min-width:42px;height:32px;border-radius:10px;border:1px solid rgba(255,255,255,.15);background:rgba(255,255,255,.05);color:rgba(255,255,255,.6);font-size:12px;font-weight:600;cursor:pointer;font-family:var(--fb);transition:all .2s;padding:0 8px}
+.ensaio-speed-btn:active{transform:scale(.93)}
+.ensaio-speed-btn.active{background:rgba(201,169,110,.15);border-color:var(--gold);color:var(--gold)}
+.ensaio-speed-current{color:var(--gold);font-family:var(--fd);font-size:18px;min-width:50px;text-align:center;letter-spacing:1px}
+.ensaio-player-controls{display:flex;flex-direction:column;align-items:center;gap:4px;width:94%;max-width:800px}
+.ensaio-transpose-ext{display:flex;align-items:center;gap:8px;margin-top:10px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);color:rgba(255,255,255,.7);padding:10px 18px;border-radius:12px;font-size:12px;font-family:var(--fb);font-weight:600;cursor:pointer;transition:all .2s;letter-spacing:.3px;text-decoration:none}
+.ensaio-transpose-ext:active{background:rgba(255,255,255,.12);transform:scale(.96)}
+.ensaio-transpose-ext svg{flex-shrink:0}
 
 .screen{height:calc(100vh - 52px);height:calc(100dvh - 52px)}
 #screen-view,#screen-edit{height:auto;position:fixed;top:0;left:0;right:0;bottom:0;z-index:40}
@@ -951,7 +961,21 @@ if(typeof _fbOnReady==='function')_fbOnReady();
 <button class="ensaio-player-tom-btn" onclick="playerTranspose(1)">▲</button>
 <span class="ensaio-player-tom-diff" id="ensaio-player-tom-diff"></span>
 </div>
+<div class="ensaio-player-controls">
+<div class="ensaio-speed-panel">
+<span class="ensaio-speed-label">Velocidade</span>
+<button class="ensaio-speed-btn" onclick="setEnsaioSpeed(0.5)">0.5×</button>
+<button class="ensaio-speed-btn" onclick="setEnsaioSpeed(0.75)">0.75×</button>
+<button class="ensaio-speed-btn active" onclick="setEnsaioSpeed(1)">1×</button>
+<button class="ensaio-speed-btn" onclick="setEnsaioSpeed(1.25)">1.25×</button>
+<button class="ensaio-speed-btn" onclick="setEnsaioSpeed(1.5)">1.5×</button>
+</div>
+</div>
 <button class="ensaio-yt-btn" onclick="openInYouTube()">▶ Abrir no YouTube</button>
+<a class="ensaio-transpose-ext" href="https://www.youtube.com/watch?v=redirect" id="ensaio-transpose-link" onclick="openTransposeInfo(event)" target="_blank" rel="noopener">
+<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20M2 12l4-4 4 4M14 8l4-4 4 4"/></svg>
+Mudar Tom da Música (extensão gratuita)
+</a>
 </div>
 
 <!-- ADMIN SCREEN -->
@@ -3026,16 +3050,31 @@ renderEnsaioList();
 var playerOriginalTom='';
 var playerCurrentTom='';
 var playerSemitoneDiff=0;
+var ytEnsaioPlayer=null;
+var ytApiReady=false;
+var ytApiLoading=false;
+
+function loadYTApi(cb){
+if(ytApiReady){if(cb)cb();return;}
+if(ytApiLoading){var w=setInterval(function(){if(ytApiReady){clearInterval(w);if(cb)cb();}},100);return;}
+ytApiLoading=true;
+var prev=window.onYouTubeIframeAPIReady;
+window.onYouTubeIframeAPIReady=function(){ytApiReady=true;if(prev)prev();if(cb)cb();};
+var s=document.createElement('script');
+s.src='https://www.youtube.com/iframe_api';
+document.head.appendChild(s);
+}
 
 function openEnsaioPlayer(id,name){
 var overlay=document.getElementById('ensaio-overlay');
-var video=document.getElementById('ensaio-video');
+var videoDiv=document.getElementById('ensaio-video');
 var title=document.getElementById('ensaio-now-title');
-video.innerHTML='<iframe src="https://www.youtube-nocookie.com/embed/'+id+'?autoplay=1&rel=0&modestbranding=1&playsinline=1&enablejsapi=1&origin='+encodeURIComponent(window.location.origin)+'" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen frameborder="0"></iframe>';
 title.textContent=name||'';
 overlay.style.display='flex';
 overlay.classList.add('active');
 overlay.setAttribute('data-current-id',id);
+// Reset speed buttons
+document.querySelectorAll('.ensaio-speed-btn').forEach(function(b){b.classList.toggle('active',b.textContent.trim()==='1×');});
 // Find tom for this video
 var links=getActiveLinks();
 var item=links.find(function(l){return l.id===id;});
@@ -3051,6 +3090,17 @@ tomEl.style.display='flex';
 tomEl.style.display='none';
 playerOriginalTom='';
 }
+// Use YT IFrame API for full control
+loadYTApi(function(){
+if(ytEnsaioPlayer){try{ytEnsaioPlayer.destroy();}catch(e){}}
+videoDiv.innerHTML='<div id="yt-ensaio-frame"></div>';
+ytEnsaioPlayer=new YT.Player('yt-ensaio-frame',{
+width:'100%',height:'100%',
+videoId:id,
+playerVars:{autoplay:1,rel:0,modestbranding:1,playsinline:1},
+events:{onReady:function(ev){ev.target.setPlaybackRate(1);}}
+});
+});
 }
 
 function playerTranspose(dir){
@@ -3075,9 +3125,38 @@ var id=overlay.getAttribute('data-current-id');
 if(id)window.open('https://www.youtube.com/watch?v='+id,'_blank');
 }
 
+function setEnsaioSpeed(rate){
+if(ytEnsaioPlayer&&typeof ytEnsaioPlayer.setPlaybackRate==='function'){
+ytEnsaioPlayer.setPlaybackRate(rate);
+}
+document.querySelectorAll('.ensaio-speed-btn').forEach(function(b){
+b.classList.toggle('active',parseFloat(b.textContent)===rate);
+});
+}
+
+function openTransposeInfo(e){
+e.preventDefault();
+var overlay=document.getElementById('ensaio-overlay');
+var id=overlay.getAttribute('data-current-id');
+var isMobile=/Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+if(isMobile){
+// Mobile: open video on YouTube and show alert about extension
+if(id)window.open('https://www.youtube.com/watch?v='+id,'_blank');
+alert('Para mudar o tom da música:\n\n1. No computador, instale a extensão gratuita "Transpose" no Chrome\n2. Abra o vídeo no YouTube\n3. Use a extensão para subir ou descer o tom\n\nNo celular, não há extensões disponíveis. Use o controle de Tom aqui para saber em qual tom tocar.');
+}else{
+// Desktop: open extension page
+var choice=confirm('Para mudar o tom do áudio no YouTube, você precisa da extensão gratuita "Transpose" para Chrome.\n\nClique OK para instalar a extensão.\nDepois, abra a música no YouTube e use a extensão para alterar o tom.');
+if(choice){
+window.open('https://chromewebstore.google.com/detail/transpose-%E2%96%B2%E2%96%BC-pitch-%E2%96%B9-spee/ioimlbgefgadofblnajllknopjboejda','_blank');
+}
+}
+}
+
 function closeEnsaioPlayer(){
 var overlay=document.getElementById('ensaio-overlay');
 var video=document.getElementById('ensaio-video');
+if(ytEnsaioPlayer){try{ytEnsaioPlayer.destroy();}catch(e){}}
+ytEnsaioPlayer=null;
 video.innerHTML='';
 overlay.classList.remove('active');
 overlay.style.display='none';
