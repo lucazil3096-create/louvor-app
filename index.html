@@ -2517,6 +2517,7 @@ escalas=escalas.filter(function(e){return e.id!==id;});saveEscalas();renderEscal
 var padPlaying={};
 var FADE_TIME=3;
 var audioCtx=null;
+var padBufferCache={};
 var TOMS=['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
 var TOM_NAMES={'C':'Dó','C#':'Dó#','D':'Ré','D#':'Ré#','E':'Mi','F':'Fá','F#':'Fá#','G':'Sol','G#':'Sol#','A':'Lá','A#':'Lá#','B':'Si'};
 var TOM_FOLDER={'C':'C','C#':'Cs','D':'D','D#':'Ds','E':'E','F':'F','F#':'Fs','G':'G','G#':'Gs','A':'A','A#':'As','B':'B'};
@@ -2561,25 +2562,29 @@ function playPad(t,s){
 var id=pid(t,s);if(padPlaying[id])return;
 padPlaying[id]={loading:true,fading:false};renderPads();
 var ctx=getCtx();
-var a=new Audio(padUrl(t,s));
-a.crossOrigin='anonymous';
-a.loop=true;
 var tv=padVol/100;
-a.addEventListener('canplaythrough',function r(){
-a.removeEventListener('canplaythrough',r);
-var src=ctx.createMediaElementSource(a);
+var url=padUrl(t,s);
+function startBuffer(buf){
+var src=ctx.createBufferSource();
+src.buffer=buf;
+src.loop=true;
 var gain=ctx.createGain();
 gain.gain.value=0;
 var pan=ctx.createStereoPanner();
 pan.pan.value=padPan/100;
 src.connect(gain);gain.connect(pan);pan.connect(ctx.destination);
-a.play().then(function(){
+src.start(0);
 gain.gain.setTargetAtTime(tv,ctx.currentTime,FADE_TIME/3);
-padPlaying[id]={audio:a,src:src,gain:gain,pan:pan,fading:false,loading:false,tv:tv};renderPads();
+padPlaying[id]={bufSrc:src,gain:gain,pan:pan,fading:false,loading:false,tv:tv};renderPads();
+}
+if(padBufferCache[url]){startBuffer(padBufferCache[url]);return;}
+fetch(url).then(function(r){return r.arrayBuffer();}).then(function(ab){
+return ctx.decodeAudioData(ab);
+}).then(function(buf){
+padBufferCache[url]=buf;
+if(!padPlaying[id]||!padPlaying[id].loading){return;}
+startBuffer(buf);
 }).catch(function(){delete padPlaying[id];renderPads();});
-});
-a.addEventListener('error',function(){delete padPlaying[id];renderPads();});
-a.load();
 }
 
 function stopPad(t,s){
@@ -2590,7 +2595,7 @@ p.gain.gain.cancelScheduledValues(ctx.currentTime);
 p.gain.gain.setValueAtTime(p.gain.gain.value,ctx.currentTime);
 p.gain.gain.setTargetAtTime(0,ctx.currentTime,FADE_TIME/3);
 setTimeout(function(){
-try{p.audio.pause();p.audio.src='';}catch(x){}
+try{p.bufSrc.stop();}catch(x){}
 delete padPlaying[id];renderPads();
 },FADE_TIME*1000+500);
 }
