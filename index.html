@@ -2033,22 +2033,6 @@ if(sub==='musicas')renderList();
 if(sub==='pads'){renderPads();renderMetro();}
 }
 
-var h='';
-for(var i=0;i<todayList.length;i++){
-var item=null;
-for(var j=0;j<lyrics.length;j++){if(lyrics[j].id===todayList[i]){item=lyrics[j];break;}}
-if(!item)continue;
-h+='<div class="lyric-card"><div class="card-main" onclick="openView(\''+esc(item.id)+'\')">';
-h+='<div class="today-num">'+(i+1)+'</div>';
-h+='<div class="card-info"><div class="card-title">'+esc(item.title)+'</div>';
-h+='<div class="card-meta">';
-if(item.tom)h+='<span class="card-tom">'+esc(item.tom)+'</span>';
-if(item.bpm)h+='<span class="card-bpm" onclick="event.stopPropagation();quickBpm('+item.bpm+')">&#9833; '+item.bpm+'</span>';
-h+='</div></div></div></div>';
-}
-el.innerHTML=h;
-}
-
 // ===== MP3 PADS - SERVER FILES =====
 var padPlaying={};
 var FADE_TIME=3;
