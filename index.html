@@ -2246,8 +2246,36 @@ return '<div class="cifra-song-card" onclick="buscarCifra(\''+esc(l.id)+'\')"><d
 function buscarCifra(songId){
 var song=lyrics.find(function(x){return x.id===songId;});
 if(!song)return;
-var searchUrl='https://www.cifraclub.com.br/?q='+encodeURIComponent(song.title);
-window.open(searchUrl,'_blank');
+var body=document.getElementById('cifras-body');
+var body2=document.getElementById('aovivo-cifras-body');
+var target=null;
+if(body&&body.offsetParent!==null)target=body;
+else if(body2&&body2.offsetParent!==null)target=body2;
+else target=body||body2;
+if(!target)return;
+cifraViewMode='detail';
+var q=song.title;
+if(song.tom)q+=' tom '+song.tom;
+var searchUrl='https://www.cifraclub.com.br/?q='+encodeURIComponent(q);
+var directUrl='https://www.cifraclub.com.br/?q='+encodeURIComponent(song.title);
+var proxyUrl='https://translate.google.com/translate?sl=en&tl=pt&u='+encodeURIComponent(directUrl);
+var h='<button class="cifra-back" onclick="cifraViewMode=\'list\';renderCifras()">&#8592; Voltar</button>';
+h+='<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;flex-wrap:wrap;gap:8px">';
+h+='<div><div style="font-family:var(--fd);font-size:15px;text-transform:uppercase;letter-spacing:1px">'+esc(song.title)+'</div>';
+h+='<div style="font-size:11px;color:var(--accent2);margin-top:2px">'+(song.tom?'Tom: '+esc(song.tom):'')+'</div></div>';
+h+='<a href="'+esc(directUrl)+'" target="_blank" style="font-size:11px;color:var(--accent);text-decoration:none;padding:5px 10px;border:1px solid var(--accent);border-radius:8px">Abrir no CifraClub &#8599;</a></div>';
+h+='<div id="cifra-iframe-box" style="border-radius:10px;overflow:hidden;border:1px solid var(--border);height:calc(100vh - 210px);height:calc(100dvh - 210px);background:#fff;position:relative">';
+h+='<iframe id="cifra-iframe" src="'+esc(proxyUrl)+'" style="width:100%;height:100%;border:none" loading="eager"></iframe>';
+h+='<div id="cifra-iframe-loading" style="position:absolute;top:0;left:0;right:0;bottom:0;display:flex;flex-direction:column;align-items:center;justify-content:center;background:#fff;z-index:2;pointer-events:none">';
+h+='<div class="cifra-spinner" style="border-top-color:#e74c3c"></div>';
+h+='<div style="margin-top:12px;font-size:13px;color:#666">Carregando CifraClub...</div>';
+h+='</div></div>';
+target.innerHTML=h;
+if(body&&body!==target)body.innerHTML=h;
+if(body2&&body2!==target)body2.innerHTML=h;
+var iframe=document.getElementById('cifra-iframe');
+if(iframe)iframe.onload=function(){var ld=document.getElementById('cifra-iframe-loading');if(ld)ld.style.display='none';};
+setTimeout(function(){var ld=document.getElementById('cifra-iframe-loading');if(ld)ld.style.display='none';},4000);
 }
 // ===== ESCALA DE MINISTROS - CALENDARIO =====
 function loadEscalas(){try{var d=localStorage.getItem(ESCALA_KEY);if(d)escalas=JSON.parse(d);else escalas=[];}catch(e){escalas=[];}}
