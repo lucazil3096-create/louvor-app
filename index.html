@@ -658,6 +658,10 @@ body{display:flex;justify-content:center;align-items:stretch}
 .ensaio-header{padding:18px 28px}
 .ensaio-body{padding:14px 28px}
 .ensaio-item{padding:16px}
+
+.cifras-screen{max-width:1400px;width:100%;margin:0 auto}
+.cifras-body{padding:14px 28px}
+.cifra-song-card{max-width:600px}
 .ensaio-thumb{width:80px;height:45px}
 .ensaio-name{font-size:14px}
 
@@ -2234,6 +2238,19 @@ if(body2)body2.innerHTML=h;
 function cifraCardHtml(l){
 return '<div class="cifra-song-card" onclick="buscarCifra(\''+esc(l.id)+'\')"><div class="cifra-song-info"><div class="cifra-song-title">'+esc(l.title)+'</div><div class="cifra-song-tom">'+(l.tom?'Tom: '+esc(l.tom):'')+'</div></div><div class="cifra-link-icon" style="font-size:13px;color:var(--accent)">Ver Cifra</div></div>';
 }
+var CORS_PROXIES=[
+'https://api.allorigins.win/raw?url=',
+'https://corsproxy.io/?',
+'https://api.codetabs.com/v1/proxy?quest='
+];
+function fetchWithProxy(url,proxyIdx){
+proxyIdx=proxyIdx||0;
+if(proxyIdx>=CORS_PROXIES.length)return Promise.reject(new Error('All proxies failed'));
+return fetch(CORS_PROXIES[proxyIdx]+encodeURIComponent(url)).then(function(r){
+if(!r.ok)throw new Error('HTTP '+r.status);
+return r.text();
+}).catch(function(){return fetchWithProxy(url,proxyIdx+1);});
+}
 function buscarCifra(songId){
 var song=lyrics.find(function(x){return x.id===songId;});
 if(!song)return;
@@ -2246,40 +2263,43 @@ else target=body||body2;
 if(!target)return;
 cifraViewMode='detail';
 if(cifraCache[songId]){showCifraDetail(target,song,cifraCache[songId]);return;}
-target.innerHTML='<div style="text-align:center;padding:40px"><div style="font-size:14px;color:var(--text-dim)">Buscando cifra de "'+esc(song.title)+'"...</div></div>';
 var searchUrl='https://www.cifraclub.com.br/?q='+encodeURIComponent(song.title);
-var proxyUrl='https://api.allorigins.win/raw?url='+encodeURIComponent(searchUrl);
-fetch(proxyUrl).then(function(r){return r.text();}).then(function(html){
-var parser=new DOMParser();var doc=parser.parseFromString(html,'text/html');
+target.innerHTML='<button class="cifra-back" onclick="cifraViewMode=\'list\';renderCifras()">&#8592; Voltar</button><div style="text-align:center;padding:40px"><div style="font-size:14px;color:var(--text-dim)">Buscando cifra de "'+esc(song.title)+'"...</div></div>';
+fetchWithProxy(searchUrl).then(function(html){
+var doc=new DOMParser().parseFromString(html,'text/html');
 var firstLink=doc.querySelector('a[href*="/cifra/"]');
 if(!firstLink){
-target.innerHTML='<button class="cifra-back" onclick="cifraViewMode=\'list\';renderCifras()">&#8592; Voltar</button><div style="text-align:center;padding:20px;color:var(--text-dim)">Cifra não encontrada no Cifra Club<br><br><a href="'+searchUrl+'" target="_blank" style="color:var(--accent)">Buscar manualmente</a></div>';
+showCifraFallback(target,song,searchUrl,'Cifra não encontrada');
 return;}
-var cifraUrl=firstLink.href;
-if(cifraUrl.startsWith('/'))cifraUrl='https://www.cifraclub.com.br'+cifraUrl;
-if(!cifraUrl.includes('cifraclub.com.br')){
 var hrefAttr=firstLink.getAttribute('href');
-cifraUrl='https://www.cifraclub.com.br'+hrefAttr;
-}
-var proxyUrl2='https://api.allorigins.win/raw?url='+encodeURIComponent(cifraUrl);
-return fetch(proxyUrl2).then(function(r2){return r2.text();}).then(function(html2){
+var cifraUrl=hrefAttr;
+if(!cifraUrl.startsWith('http'))cifraUrl='https://www.cifraclub.com.br'+hrefAttr;
+return fetchWithProxy(cifraUrl).then(function(html2){
 var doc2=new DOMParser().parseFromString(html2,'text/html');
-var pre=doc2.querySelector('pre');
 var cifraText='';
+var pre=doc2.querySelector('pre[class*="cifra"]')||doc2.querySelector('.cifra pre')||doc2.querySelector('pre');
 if(pre)cifraText=pre.textContent;
-else{var cif=doc2.querySelector('.cifra_cnt,.cifra,.g-1');if(cif)cifraText=cif.textContent;}
-if(!cifraText){cifraText='Não foi possível extrair a cifra.\nTente buscar manualmente.';}
+if(!cifraText){var cif=doc2.querySelector('.cifra_cnt,.cifra,.g-1,[class*="cifra"]');if(cif)cifraText=cif.innerText||cif.textContent;}
+if(!cifraText)cifraText='Não foi possível extrair a cifra automaticamente.';
 cifraCache[songId]=cifraText;
 showCifraDetail(target,song,cifraText);
 });
-}).catch(function(err){
-target.innerHTML='<button class="cifra-back" onclick="cifraViewMode=\'list\';renderCifras()">&#8592; Voltar</button><div style="text-align:center;padding:20px;color:var(--text-dim)">Erro ao buscar cifra<br><br><a href="'+searchUrl+'" target="_blank" style="color:var(--accent)">Abrir no Cifra Club</a></div>';
+}).catch(function(){
+showCifraFallback(target,song,searchUrl,'Erro de conexão');
 });
+}
+function showCifraFallback(target,song,searchUrl,msg){
+var h='<button class="cifra-back" onclick="cifraViewMode=\'list\';renderCifras()">&#8592; Voltar</button>';
+h+='<div style="text-align:center;padding:30px;color:var(--text-dim)">';
+h+='<div style="font-size:15px;margin-bottom:16px">'+esc(msg)+'</div>';
+h+='<a href="'+searchUrl+'" target="_blank" style="display:inline-block;padding:12px 24px;background:var(--accent);color:#fff;border-radius:10px;text-decoration:none;font-size:14px;font-weight:700">Buscar no Cifra Club</a>';
+h+='</div>';
+target.innerHTML=h;
 }
 function showCifraDetail(target,song,cifraText){
 var searchUrl='https://www.cifraclub.com.br/?q='+encodeURIComponent(song.title);
 var h='<button class="cifra-back" onclick="cifraViewMode=\'list\';renderCifras()">&#8592; Voltar</button>';
-h+='<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px"><div><div style="font-family:var(--fd);font-size:16px;text-transform:uppercase;letter-spacing:1px">'+esc(song.title)+'</div>';
+h+='<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;flex-wrap:wrap;gap:8px"><div><div style="font-family:var(--fd);font-size:16px;text-transform:uppercase;letter-spacing:1px">'+esc(song.title)+'</div>';
 h+='<div style="font-size:12px;color:var(--accent2);margin-top:2px">'+(song.tom?'Tom: '+esc(song.tom):'')+'</div></div>';
 h+='<a href="'+searchUrl+'" target="_blank" style="font-size:11px;color:var(--accent);text-decoration:none">Abrir no Cifra Club</a></div>';
 h+='<pre style="font-size:13px;line-height:1.6;white-space:pre-wrap;word-wrap:break-word;color:var(--text);background:var(--card);padding:14px;border-radius:10px;border:1px solid var(--border);overflow-x:auto;font-family:monospace">'+esc(cifraText)+'</pre>';
