@@ -3240,7 +3240,10 @@ h+='</div></div>';
 });
 container.innerHTML=h;
 needsTitleFetch.forEach(function(item){
-fetchYoutubeTitle(item.id,function(title){item.name=title;saveEnsaioData();renderEnsaioList();});
+fetchYoutubeTitle(item.id,function(title){item.name=title;saveEnsaioData();
+var names=container.querySelectorAll('.ensaio-name');
+for(var n=0;n<names.length;n++){if(names[n].textContent==='Video')names[n].textContent=title;}
+});
 });
 }
 
