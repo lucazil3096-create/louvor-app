@@ -2558,6 +2558,35 @@ PAD_MAP[t].forEach(function(s){playPad(t,s);});
 }
 }
 
+function trimBuffer(ctx,buf){
+var ch=buf.numberOfChannels,sr=buf.sampleRate,len=buf.length;
+var thresh=0.005;
+var data=buf.getChannelData(0);
+var start=0,end=len-1;
+for(var i=0;i<len;i++){if(Math.abs(data[i])>thresh){start=i;break;}}
+for(var i=len-1;i>=start;i--){if(Math.abs(data[i])>thresh){end=i;break;}}
+var fade=Math.min(Math.floor(sr*0.05),2205);
+start=Math.max(0,start-fade);
+end=Math.min(len-1,end+fade);
+var newLen=end-start+1;
+if(newLen<sr*0.5)return buf;
+var trimmed=ctx.createBuffer(ch,newLen,sr);
+for(var c=0;c<ch;c++){
+var src=buf.getChannelData(c);
+var dst=trimmed.getChannelData(c);
+for(var i=0;i<newLen;i++)dst[i]=src[start+i];
+var cf=Math.min(fade,Math.floor(newLen/4));
+for(var i=0;i<cf;i++){
+var mix=i/cf;
+var endIdx=newLen-cf+i;
+var avg=(dst[i]+dst[endIdx])*0.5;
+dst[i]=dst[i]*mix+avg*(1-mix);
+dst[endIdx]=dst[endIdx]*(1-mix)+avg*mix;
+}
+}
+return trimmed;
+}
+
 function playPad(t,s){
 var id=pid(t,s);if(padPlaying[id])return;
 padPlaying[id]={loading:true,fading:false};renderPads();
@@ -2568,6 +2597,8 @@ function startBuffer(buf){
 var src=ctx.createBufferSource();
 src.buffer=buf;
 src.loop=true;
+src.loopStart=0;
+src.loopEnd=buf.duration;
 var gain=ctx.createGain();
 gain.gain.value=0;
 var pan=ctx.createStereoPanner();
@@ -2581,9 +2612,10 @@ if(padBufferCache[url]){startBuffer(padBufferCache[url]);return;}
 fetch(url).then(function(r){return r.arrayBuffer();}).then(function(ab){
 return ctx.decodeAudioData(ab);
 }).then(function(buf){
-padBufferCache[url]=buf;
+var trimmed=trimBuffer(ctx,buf);
+padBufferCache[url]=trimmed;
 if(!padPlaying[id]||!padPlaying[id].loading){return;}
-startBuffer(buf);
+startBuffer(trimmed);
 }).catch(function(){delete padPlaying[id];renderPads();});
 }
 
