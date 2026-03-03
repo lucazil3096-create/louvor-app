@@ -928,7 +928,11 @@ if(typeof _fbOnReady==='function')_fbOnReady();
 <!-- ENSAIO SCREEN -->
 <div id="screen-ensaio" class="ensaio-screen">
 <div class="ensaio-header">
-
+<div class="subtab-bar" style="margin-bottom:10px">
+<button class="subtab active" data-louvor-sub="ensaio" onclick="switchLouvorSub('ensaio')">Ensaio</button>
+<button class="subtab" data-louvor-sub="escala" onclick="switchLouvorSub('escala')">Escala</button>
+</div>
+<div id="ensaio-content-wrap" style="display:flex;flex-direction:column;flex:1;overflow:hidden">
 <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
 <div class="ensaio-title"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg> Ensaio</div>
 <span class="profile-badge" id="ensaio-profile-badge">Grupo</span>
@@ -963,6 +967,7 @@ if(typeof _fbOnReady==='function')_fbOnReady();
 </div>
 </div>
 </div>
+</div><!-- /ensaio-content-wrap -->
 
 <!-- ENSAIO OVERLAY PLAYER -->
 <div class="ensaio-overlay" id="ensaio-overlay">
@@ -992,6 +997,11 @@ Mudar Tom da Música (extensão gratuita)
 </a>
 </div>
 
+<!-- ESCALA (sub-aba dentro do Louvor) -->
+<div id="screen-escala" style="display:none;flex-direction:column;flex:1;overflow-y:auto;padding:0 16px 16px">
+<div class="escala-title" style="margin:12px 0"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg> Escala de Ministros</div>
+<div class="escala-body" id="escala-body"></div>
+</div>
 
 </div>
 
@@ -1017,19 +1027,10 @@ Mudar Tom da Música (extensão gratuita)
 </div>
 </div>
 
-<!-- ESCALA SCREEN -->
-<div id="screen-escala" class="escala-screen">
-<div class="escala-header">
-<div class="escala-title"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg> Escala de Ministros</div>
-</div>
-<div class="escala-body" id="escala-body"></div>
-</div>
-
 <!-- BOTTOM NAV -->
 <nav class="bottom-nav">
 <button class="nav-btn active" id="nav-louvor" onclick="switchNav('louvor')"><span class="nav-icon"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg></span>Louvor</button>
 <button class="nav-btn" id="nav-aovivo" onclick="switchNav('aovivo')"><span class="nav-icon"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polygon points="10 8 16 12 10 16 10 8"/></svg></span>Ao Vivo</button>
-<button class="nav-btn" id="nav-escala" onclick="switchNav('escala')"><span class="nav-icon"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></span>Escala</button>
 <button class="nav-btn perm-hidden" id="nav-admin" onclick="switchNav('admin')"><span class="nav-icon"><svg class="ico" viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M2 20h20L19 8l-5 5-2-7-2 7-5-5z"/><rect x="2" y="20" width="20" height="2" rx="1"/></svg></span>Admin</button>
 </nav>
 
@@ -2062,7 +2063,7 @@ document.addEventListener('fullscreenchange',function(){if(!document.fullscreenE
 
 // ===== NAVIGATION =====
 var currentNav='louvor';
-var currentLouvorSub='musicas';
+var currentLouvorSub='ensaio';
 var currentAoVivoSub='musicas';
 
 function switchNav(nav){
@@ -2070,8 +2071,6 @@ currentNav=nav;
 document.getElementById('nav-louvor').classList.toggle('active',nav==='louvor');
 var aoVivoBtn=document.getElementById('nav-aovivo');
 if(aoVivoBtn)aoVivoBtn.classList.toggle('active',nav==='aovivo');
-var escalaBtn=document.getElementById('nav-escala');
-if(escalaBtn)escalaBtn.classList.toggle('active',nav==='escala');
 var adminBtn=document.getElementById('nav-admin');
 if(adminBtn)adminBtn.classList.toggle('active',nav==='admin');
 // Hide all main screens
@@ -2083,19 +2082,23 @@ var escalaScreen=document.getElementById('screen-escala');
 if(escalaScreen)escalaScreen.style.display='none';
 var adminScreen=document.getElementById('screen-admin');
 if(adminScreen)adminScreen.style.display='none';
-if(nav==='louvor'){document.getElementById('screen-ensaio').style.display='flex';renderEnsaioList();}
+if(nav==='louvor'){switchLouvorSub(currentLouvorSub);}
 else if(nav==='aovivo'){switchAoVivoSub(currentAoVivoSub);}
-else if(nav==='escala'){if(escalaScreen){escalaScreen.style.display='flex';renderEscala();}}
 else if(nav==='admin'){if(adminScreen)adminScreen.style.display='flex';renderAdminPanel();}
 }
 
 function switchLouvorSub(sub){
 currentLouvorSub=sub;
 document.getElementById('screen-list').style.display=sub==='musicas'?'flex':'none';
-document.getElementById('screen-ensaio').style.display=sub==='ensaio'?'flex':'none';
+document.getElementById('screen-ensaio').style.display=(sub==='ensaio'||sub==='escala')?'flex':'none';
+var ensaioContent=document.getElementById('ensaio-content-wrap');
+if(ensaioContent)ensaioContent.style.display=sub==='ensaio'?'flex':'none';
+var escalaScreen=document.getElementById('screen-escala');
+if(escalaScreen)escalaScreen.style.display=sub==='escala'?'flex':'none';
 document.querySelectorAll('[data-louvor-sub]').forEach(function(btn){btn.classList.toggle('active',btn.getAttribute('data-louvor-sub')===sub);});
 if(sub==='musicas')renderList();
 if(sub==='ensaio')renderEnsaioList();
+if(sub==='escala')renderEscala();
 }
 
 function switchAoVivoSub(sub){
@@ -2110,18 +2113,75 @@ if(sub==='cifras')renderCifras();
 }
 
 // ===== CIFRAS - CIFRA CLUB INTEGRATION =====
+var cifraViewMode='list';
+var cifraCache={};
 function renderCifras(){
 var body=document.getElementById('cifras-body');
 var body2=document.getElementById('aovivo-cifras-body');
-var songs=todayList.map(function(id){return lyrics.find(function(x){return x.id===id;});}).filter(Boolean);
+if(cifraViewMode==='detail'){return;}
+var allSongs=lyrics.slice();
+var todaySongs=todayList.map(function(id){return lyrics.find(function(x){return x.id===id;});}).filter(Boolean);
 var h='';
-if(!songs.length){h='<div class="escala-empty"><svg viewBox="0 0 24 24" width="48" height="48" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg><div>Nenhuma música no culto de hoje<br><span style="font-size:11px">Adicione músicas na aba Louvor</span></div></div>';}
-else{songs.forEach(function(l){
-var searchQ=encodeURIComponent(l.title);
-h+='<div class="cifra-song-card" onclick="window.open(\'https://www.cifraclub.com.br/?q='+searchQ+'\',\'_blank\')"><div class="cifra-song-info"><div class="cifra-song-title">'+esc(l.title)+'</div><div class="cifra-song-tom">'+(l.tom?'Tom: '+esc(l.tom):'')+'</div></div><div class="cifra-link-icon">&#x1F50D;</div></div>';
-});}
+if(todaySongs.length){
+h+='<div style="font-size:11px;color:var(--text-dim);text-transform:uppercase;letter-spacing:1px;margin:8px 0 6px;font-weight:700">Culto de Hoje</div>';
+todaySongs.forEach(function(l){h+=cifraCardHtml(l);});
+}
+h+='<div style="font-size:11px;color:var(--text-dim);text-transform:uppercase;letter-spacing:1px;margin:12px 0 6px;font-weight:700">Todas as Músicas</div>';
+if(!allSongs.length){h+='<div class="escala-empty"><div>Nenhuma música cadastrada</div></div>';}
+else{allSongs.forEach(function(l){h+=cifraCardHtml(l);});}
 if(body)body.innerHTML=h;
 if(body2)body2.innerHTML=h;
+}
+function cifraCardHtml(l){
+return '<div class="cifra-song-card" onclick="buscarCifra(\''+esc(l.id)+'\')"><div class="cifra-song-info"><div class="cifra-song-title">'+esc(l.title)+'</div><div class="cifra-song-tom">'+(l.tom?'Tom: '+esc(l.tom):'')+'</div></div><div class="cifra-link-icon" style="font-size:13px;color:var(--accent)">Ver Cifra</div></div>';
+}
+function buscarCifra(songId){
+var song=lyrics.find(function(x){return x.id===songId;});
+if(!song)return;
+var body=document.getElementById('cifras-body');
+var body2=document.getElementById('aovivo-cifras-body');
+var target=body||body2;
+if(!target)return;
+cifraViewMode='detail';
+if(cifraCache[songId]){showCifraDetail(target,song,cifraCache[songId]);return;}
+target.innerHTML='<div style="text-align:center;padding:40px"><div style="font-size:14px;color:var(--text-dim)">Buscando cifra de "'+esc(song.title)+'"...</div></div>';
+var searchUrl='https://www.cifraclub.com.br/?q='+encodeURIComponent(song.title);
+var proxyUrl='https://api.allorigins.win/raw?url='+encodeURIComponent(searchUrl);
+fetch(proxyUrl).then(function(r){return r.text();}).then(function(html){
+var parser=new DOMParser();var doc=parser.parseFromString(html,'text/html');
+var firstLink=doc.querySelector('a[href*="/cifra/"]');
+if(!firstLink){
+target.innerHTML='<button class="cifra-back" onclick="cifraViewMode=\'list\';renderCifras()">&#8592; Voltar</button><div style="text-align:center;padding:20px;color:var(--text-dim)">Cifra não encontrada no Cifra Club<br><br><a href="'+searchUrl+'" target="_blank" style="color:var(--accent)">Buscar manualmente</a></div>';
+return;}
+var cifraUrl=firstLink.href;
+if(cifraUrl.startsWith('/'))cifraUrl='https://www.cifraclub.com.br'+cifraUrl;
+if(!cifraUrl.includes('cifraclub.com.br')){
+var hrefAttr=firstLink.getAttribute('href');
+cifraUrl='https://www.cifraclub.com.br'+hrefAttr;
+}
+var proxyUrl2='https://api.allorigins.win/raw?url='+encodeURIComponent(cifraUrl);
+return fetch(proxyUrl2).then(function(r2){return r2.text();}).then(function(html2){
+var doc2=new DOMParser().parseFromString(html2,'text/html');
+var pre=doc2.querySelector('pre');
+var cifraText='';
+if(pre)cifraText=pre.textContent;
+else{var cif=doc2.querySelector('.cifra_cnt,.cifra,.g-1');if(cif)cifraText=cif.textContent;}
+if(!cifraText){cifraText='Não foi possível extrair a cifra.\nTente buscar manualmente.';}
+cifraCache[songId]=cifraText;
+showCifraDetail(target,song,cifraText);
+});
+}).catch(function(err){
+target.innerHTML='<button class="cifra-back" onclick="cifraViewMode=\'list\';renderCifras()">&#8592; Voltar</button><div style="text-align:center;padding:20px;color:var(--text-dim)">Erro ao buscar cifra<br><br><a href="'+searchUrl+'" target="_blank" style="color:var(--accent)">Abrir no Cifra Club</a></div>';
+});
+}
+function showCifraDetail(target,song,cifraText){
+var searchUrl='https://www.cifraclub.com.br/?q='+encodeURIComponent(song.title);
+var h='<button class="cifra-back" onclick="cifraViewMode=\'list\';renderCifras()">&#8592; Voltar</button>';
+h+='<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px"><div><div style="font-family:var(--fd);font-size:16px;text-transform:uppercase;letter-spacing:1px">'+esc(song.title)+'</div>';
+h+='<div style="font-size:12px;color:var(--accent2);margin-top:2px">'+(song.tom?'Tom: '+esc(song.tom):'')+'</div></div>';
+h+='<a href="'+searchUrl+'" target="_blank" style="font-size:11px;color:var(--accent);text-decoration:none">Abrir no Cifra Club</a></div>';
+h+='<pre style="font-size:13px;line-height:1.6;white-space:pre-wrap;word-wrap:break-word;color:var(--text);background:var(--card);padding:14px;border-radius:10px;border:1px solid var(--border);overflow-x:auto;font-family:monospace">'+esc(cifraText)+'</pre>';
+target.innerHTML=h;
 }
 
 // ===== ESCALA DE MINISTROS =====
