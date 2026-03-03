@@ -146,7 +146,7 @@ body.light .btn-theme{border-color:var(--card-border);color:var(--gold)}
 .view-body{flex:1;overflow:hidden;position:relative;display:flex;flex-direction:column;background:var(--bg)}
 .lyrics-scroll{flex:1;overflow-y:auto;padding:24px 20px 80px;display:none;scroll-behavior:auto;-webkit-overflow-scrolling:touch;will-change:scroll-position}
 .lyrics-single{white-space:pre-wrap;max-width:800px;margin:0 auto;word-wrap:break-word;font-family:var(--fb);font-weight:700;letter-spacing:.3px;color:#fff}
-.cifra-inline{white-space:pre-wrap;max-width:800px;margin:0 auto;word-wrap:break-word;font-family:'Courier New',monospace;font-size:13px;line-height:1.7;color:var(--text);display:none}
+.cifra-inline{white-space:pre-wrap;max-width:800px;margin:0 auto;word-wrap:break-word;font-family:'Courier New',monospace;font-size:14px;line-height:1.7;color:var(--text);margin-top:12px;padding-top:12px;border-top:1px solid var(--border)}
 .cifra-inline .chord-line{color:var(--accent2);font-weight:700;letter-spacing:.5px}
 .cifra-inline .lyric-line{color:var(--text);font-weight:500}
 .cifra-loading{text-align:center;padding:40px 20px;color:var(--text-dim);font-size:13px}
@@ -3582,23 +3582,19 @@ authInit();
 
 // ===== CIFRA INLINE - AUTO FETCH FROM CIFRACLUB =====
 var cifraInlineCache={};
-var cifraViewActive=false;
+var cifraViewActive=true; // ON by default - always show cifra
 var cifraFetching=false;
 
 function toggleCifraView(){
 var btn=document.getElementById('tb-cifra');
-var lyricsEl=document.getElementById('lyrics-single');
-var cifraEl=document.getElementById('cifra-inline');
-if(!cifraEl||!lyricsEl)return;
 cifraViewActive=!cifraViewActive;
 btn.classList.toggle('active',cifraViewActive);
+var cifraEl=document.getElementById('cifra-inline');
 if(cifraViewActive){
-lyricsEl.style.display='none';
-cifraEl.style.display='block';
+if(cifraEl)cifraEl.style.display='block';
 loadCifraForCurrent();
 }else{
-lyricsEl.style.display='';
-cifraEl.style.display='none';
+if(cifraEl)cifraEl.style.display='none';
 }
 }
 
@@ -3640,7 +3636,6 @@ cifraFetching=false;
 return;
 }
 cifraInlineCache[currentId]=cifraText;
-// Also cache in the cifras tab cache
 cifraCache[currentId]=cifraText;
 if(cifraViewActive&&song.id===currentId){
 renderCifraInline(cifraEl,song,cifraText);
@@ -3670,48 +3665,18 @@ h+='<div style="margin-top:16px;text-align:center"><a href="https://www.cifraclu
 container.innerHTML=h;
 }
 
-// Auto-fetch cifra when opening a view (preload in background)
+// Auto-show cifra when opening a view
 var _origOpenView=openView;
 openView=function(id,keepSettings){
 _origOpenView(id,keepSettings);
-// Reset cifra view state
 var cifraEl=document.getElementById('cifra-inline');
-var lyricsEl=document.getElementById('lyrics-single');
 var btn=document.getElementById('tb-cifra');
+if(btn)btn.classList.toggle('active',cifraViewActive);
 if(cifraViewActive){
-// Keep cifra mode active, load for new song
-if(lyricsEl)lyricsEl.style.display='none';
 if(cifraEl){cifraEl.style.display='block';cifraEl.innerHTML='';}
 loadCifraForCurrent();
 }else{
 if(cifraEl)cifraEl.style.display='none';
-if(lyricsEl)lyricsEl.style.display='';
-}
-// Preload cifra in background
-if(!cifraInlineCache[id]&&!cifraFetching){
-var song=lyrics.find(function(x){return x.id===id;});
-if(song){
-var searchUrl='https://www.cifraclub.com.br/?q='+encodeURIComponent(song.title);
-fetchViaProxy(searchUrl).then(function(html){
-var doc=new DOMParser().parseFromString(html,'text/html');
-var firstLink=doc.querySelector('a[href*="/cifra/"]');
-if(!firstLink)return;
-var hrefAttr=firstLink.getAttribute('href');
-var cifraUrl=hrefAttr;
-if(!cifraUrl.startsWith('http'))cifraUrl='https://www.cifraclub.com.br'+hrefAttr;
-return fetchViaProxy(cifraUrl).then(function(html2){
-var doc2=new DOMParser().parseFromString(html2,'text/html');
-var cifraText='';
-var pre=doc2.querySelector('pre[class*="cifra"]')||doc2.querySelector('.cifra pre')||doc2.querySelector('pre');
-if(pre)cifraText=pre.textContent;
-if(!cifraText){var cif=doc2.querySelector('.cifra_cnt,.cifra,.g-1,[class*="cifra"]');if(cif)cifraText=cif.innerText||cif.textContent;}
-if(cifraText){
-cifraInlineCache[id]=cifraText;
-cifraCache[id]=cifraText;
-}
-});
-}).catch(function(){});
-}
 }
 };
 
