@@ -658,6 +658,10 @@ body{display:flex;justify-content:center;align-items:stretch}
 .ensaio-header{padding:18px 28px}
 .ensaio-body{padding:14px 28px}
 .ensaio-item{padding:16px}
+
+.cifras-screen{max-width:1400px;width:100%;margin:0 auto}
+.cifras-body{padding:14px 28px}
+.cifra-song-card{max-width:600px}
 .ensaio-thumb{width:80px;height:45px}
 .ensaio-name{font-size:14px}
 
@@ -2208,7 +2212,7 @@ function switchAoVivoSub(sub){
 currentAoVivoSub=sub;
 document.getElementById('screen-list').style.display=sub==='musicas'?'flex':'none';
 document.getElementById('screen-pads').style.display=sub==='pads'?'flex':'none';
-var aoC=document.getElementById('screen-aovivo-cifras');if(aoC)aoC.style.display=sub==='cifras'?'flex':'none';
+var scC=document.getElementById('screen-cifras');if(scC)scC.style.display=sub==='cifras'?'flex':'none';
 document.querySelectorAll('[data-aovivo-sub]').forEach(function(btn){btn.classList.toggle('active',btn.getAttribute('data-aovivo-sub')===sub);});
 if(sub==='musicas')renderList();
 if(sub==='pads'){renderPads();renderMetro();}
@@ -2252,7 +2256,10 @@ var song=lyrics.find(function(x){return x.id===songId;});
 if(!song)return;
 var body=document.getElementById('cifras-body');
 var body2=document.getElementById('aovivo-cifras-body');
-var target=body||body2;
+var target=null;
+if(body&&body.offsetParent!==null)target=body;
+else if(body2&&body2.offsetParent!==null)target=body2;
+else target=body||body2;
 if(!target)return;
 cifraViewMode='detail';
 if(cifraCache[songId]){showCifraDetail(target,song,cifraCache[songId]);return;}
@@ -2297,6 +2304,10 @@ h+='<div style="font-size:12px;color:var(--accent2);margin-top:2px">'+(song.tom?
 h+='<a href="'+searchUrl+'" target="_blank" style="font-size:11px;color:var(--accent);text-decoration:none">Abrir no Cifra Club</a></div>';
 h+='<pre style="font-size:13px;line-height:1.6;white-space:pre-wrap;word-wrap:break-word;color:var(--text);background:var(--card);padding:14px;border-radius:10px;border:1px solid var(--border);overflow-x:auto;font-family:monospace">'+esc(cifraText)+'</pre>';
 target.innerHTML=h;
+var body=document.getElementById('cifras-body');
+var body2=document.getElementById('aovivo-cifras-body');
+if(body&&body!==target)body.innerHTML=h;
+if(body2&&body2!==target)body2.innerHTML=h;
 }
 
 // ===== ESCALA DE MINISTROS - CALENDARIO =====
@@ -2574,6 +2585,35 @@ PAD_MAP[t].forEach(function(s){playPad(t,s);});
 }
 }
 
+function trimBuffer(ctx,buf){
+var ch=buf.numberOfChannels,sr=buf.sampleRate,len=buf.length;
+var thresh=0.005;
+var data=buf.getChannelData(0);
+var start=0,end=len-1;
+for(var i=0;i<len;i++){if(Math.abs(data[i])>thresh){start=i;break;}}
+for(var i=len-1;i>=start;i--){if(Math.abs(data[i])>thresh){end=i;break;}}
+var fade=Math.min(Math.floor(sr*0.05),2205);
+start=Math.max(0,start-fade);
+end=Math.min(len-1,end+fade);
+var newLen=end-start+1;
+if(newLen<sr*0.5)return buf;
+var trimmed=ctx.createBuffer(ch,newLen,sr);
+for(var c=0;c<ch;c++){
+var src=buf.getChannelData(c);
+var dst=trimmed.getChannelData(c);
+for(var i=0;i<newLen;i++)dst[i]=src[start+i];
+var cf=Math.min(fade,Math.floor(newLen/4));
+for(var i=0;i<cf;i++){
+var mix=i/cf;
+var endIdx=newLen-cf+i;
+var avg=(dst[i]+dst[endIdx])*0.5;
+dst[i]=dst[i]*mix+avg*(1-mix);
+dst[endIdx]=dst[endIdx]*(1-mix)+avg*mix;
+}
+}
+return trimmed;
+}
+
 function playPad(t,s){
 var id=pid(t,s);if(padPlaying[id])return;
 padPlaying[id]={loading:true,fading:false};renderPads();
@@ -2584,6 +2624,8 @@ function startBuffer(buf){
 var src=ctx.createBufferSource();
 src.buffer=buf;
 src.loop=true;
+src.loopStart=0;
+src.loopEnd=buf.duration;
 var gain=ctx.createGain();
 gain.gain.value=0;
 var pan=ctx.createStereoPanner();
@@ -2597,9 +2639,10 @@ if(padBufferCache[url]){startBuffer(padBufferCache[url]);return;}
 fetch(url).then(function(r){return r.arrayBuffer();}).then(function(ab){
 return ctx.decodeAudioData(ab);
 }).then(function(buf){
-padBufferCache[url]=buf;
+var trimmed=trimBuffer(ctx,buf);
+padBufferCache[url]=trimmed;
 if(!padPlaying[id]||!padPlaying[id].loading){return;}
-startBuffer(buf);
+startBuffer(trimmed);
 }).catch(function(){delete padPlaying[id];renderPads();});
 }
 
