@@ -2223,7 +2223,6 @@ if(sub==='cifras')renderCifras();
 
 // ===== CIFRAS - CIFRA CLUB INTEGRATION =====
 var cifraViewMode='list';
-var cifraCache={};
 function renderCifras(){
 var body=document.getElementById('cifras-body');
 var body2=document.getElementById('aovivo-cifras-body');
@@ -2244,136 +2243,6 @@ if(body2)body2.innerHTML=h;
 function cifraCardHtml(l){
 return '<div class="cifra-song-card" onclick="buscarCifra(\''+esc(l.id)+'\')"><div class="cifra-song-info"><div class="cifra-song-title">'+esc(l.title)+'</div><div class="cifra-song-tom">'+(l.tom?'Tom: '+esc(l.tom):'')+'</div></div><div class="cifra-link-icon" style="font-size:13px;color:var(--accent)">Ver Cifra</div></div>';
 }
-var CORS_PROXIES=[
-'https://api.allorigins.win/raw?url=',
-'https://corsproxy.io/?',
-'https://api.codetabs.com/v1/proxy?quest=',
-'https://thingproxy.freeboard.io/fetch/',
-'https://cors-anywhere.herokuapp.com/'
-];
-function fetchViaProxy(url,idx){
-idx=idx||0;
-if(idx>=CORS_PROXIES.length)return Promise.reject(new Error('All proxies failed'));
-var proxyUrl=CORS_PROXIES[idx]+encodeURIComponent(url);
-return fetch(proxyUrl,{headers:{'X-Requested-With':'XMLHttpRequest'}}).then(function(r){
-if(!r.ok)throw new Error('HTTP '+r.status);
-return r.text();
-}).then(function(text){
-if(!text||text.length<100)throw new Error('Empty response');
-return text;
-}).catch(function(){return fetchViaProxy(url,idx+1);});
-}
-
-function extractCifraFromHtml(html){
-var doc=new DOMParser().parseFromString(html,'text/html');
-var cifraText='';
-// Strategy 1: __NEXT_DATA__ JSON (Next.js)
-var scripts=doc.querySelectorAll('script');
-for(var i=0;i<scripts.length;i++){
-var sc=scripts[i];
-if(sc.id==='__NEXT_DATA__'||sc.type==='application/json'){
-try{
-var json=JSON.parse(sc.textContent);
-var found=findCifraInObj(json);
-if(found&&found.length>30)return found;
-}catch(e){}
-}
-// Strategy 2: look for cifra data in inline scripts
-var sctxt=sc.textContent||'';
-if(sctxt.indexOf('cifra')!==-1||sctxt.indexOf('cipher')!==-1){
-// Try to find JSON with cifra content
-var jsonMatch=sctxt.match(/\{[^{}]*"(?:cifra|cipher|content|body)"[^{}]*\}/);
-if(jsonMatch){
-try{
-var obj=JSON.parse(jsonMatch[0]);
-var val=obj.cifra||obj.cipher||obj.content||obj.body||'';
-if(val.length>30)return val;
-}catch(e){}
-}
-}
-}
-// Strategy 3: pre#ct_cifra (old CifraClub)
-var preCt=doc.querySelector('pre#ct_cifra');
-if(preCt){
-var t=(preCt.innerText||preCt.textContent||'').trim();
-if(t.length>20)return t;
-}
-// Strategy 4: Multiple CSS selectors
-var selectors=['pre[class*="cifra"]','pre[class*="cipher"]','.cifra pre','.cifra_cnt','.g-1','[class*="cipher"]','[class*="cifra_cnt"]','.tablatura pre','pre'];
-for(var s=0;s<selectors.length;s++){
-var els=doc.querySelectorAll(selectors[s]);
-for(var e=0;e<els.length;e++){
-var txt=(els[e].innerText||els[e].textContent||'').trim();
-if(txt.length>30&&hasChordPattern(txt))return txt;
-}
-}
-// Strategy 5: any pre with chord-like content
-var pres=doc.querySelectorAll('pre');
-for(var p=0;p<pres.length;p++){
-var ptxt=(pres[p].innerText||pres[p].textContent||'').trim();
-if(ptxt.length>30)return ptxt;
-}
-// Strategy 6: look for elements with b tags containing chords (CifraClub uses <b> for chords)
-var bolds=doc.querySelectorAll('b');
-var chordBolds=[];
-var chordRe=/^[A-G][#b]?(m|M|dim|aug|sus|add|maj|min|°|ø|[0-9]|\/[A-G][#b]?)*[0-9]?$/;
-for(var b=0;b<bolds.length;b++){
-var bt=(bolds[b].textContent||'').trim();
-if(chordRe.test(bt))chordBolds.push(bolds[b]);
-}
-if(chordBolds.length>3){
-// Found chord bold tags - get the parent content
-var parent=chordBolds[0].closest('pre')||chordBolds[0].parentElement;
-while(parent&&parent.tagName!=='BODY'){
-var pt=(parent.innerText||parent.textContent||'').trim();
-if(pt.length>50)return pt;
-parent=parent.parentElement;
-}
-}
-// Strategy 7: search full body text for sections with many chords
-var bodyText=(doc.body?doc.body.innerText||doc.body.textContent:'').trim();
-if(bodyText&&hasChordPattern(bodyText)){
-var lines=bodyText.split('\n');
-var chordStart=-1,chordEnd=-1;
-for(var l=0;l<lines.length;l++){
-if(isChordLine(lines[l])){
-if(chordStart===-1)chordStart=Math.max(0,l-1);
-chordEnd=Math.min(lines.length-1,l+2);
-}
-}
-if(chordStart!==-1&&chordEnd-chordStart>5){
-return lines.slice(chordStart,chordEnd+1).join('\n');
-}
-}
-return '';
-}
-
-function findCifraInObj(obj){
-if(!obj||typeof obj!=='object')return '';
-if(typeof obj==='string'&&obj.length>30&&hasChordPattern(obj))return obj;
-var keys=['cifra','cipher','content','body','text','html','lyrics','chord','chords','tab'];
-for(var k=0;k<keys.length;k++){
-if(obj[keys[k]]){
-var v=obj[keys[k]];
-if(typeof v==='string'&&v.length>30)return v;
-if(typeof v==='object'){var r=findCifraInObj(v);if(r)return r;}
-}
-}
-for(var key in obj){
-if(obj.hasOwnProperty(key)){
-var val=obj[key];
-if(typeof val==='string'&&val.length>50&&hasChordPattern(val))return val;
-if(typeof val==='object'&&val!==null){var r2=findCifraInObj(val);if(r2)return r2;}
-}
-}
-return '';
-}
-
-function hasChordPattern(text){
-var m=text.match(/\b[A-G][#b]?(?:m|M|dim|aug|sus|add|maj|min|°|ø|[0-9]|\/[A-G][#b]?)*[0-9]?\b/g);
-return m&&m.length>=3;
-}
-
 function buscarCifra(songId){
 var song=lyrics.find(function(x){return x.id===songId;});
 if(!song)return;
@@ -2385,116 +2254,18 @@ else if(body2&&body2.offsetParent!==null)target=body2;
 else target=body||body2;
 if(!target)return;
 cifraViewMode='detail';
-if(cifraCache[songId]){showCifraDetail(target,song,cifraCache[songId]);return;}
-var searchUrl='https://www.cifraclub.com.br/?q='+encodeURIComponent(song.title);
-var cifraClubDirect='https://www.cifraclub.com.br/'+encodeURIComponent(song.title.toLowerCase().replace(/\s+/g,'-').replace(/[^a-z0-9-]/g,''))+'/';
-target.innerHTML='<button class="cifra-back" onclick="cifraViewMode=\'list\';renderCifras()">&#8592; Voltar</button><div style="text-align:center;padding:40px"><div class="cifra-spinner"></div><div style="font-size:14px;color:var(--text-dim);margin-top:12px">Buscando cifra de "'+esc(song.title)+'"...</div><div style="font-size:11px;color:var(--text-dim);margin-top:6px;opacity:.5">Conectando ao CifraClub...</div></div>';
-fetchViaProxy(searchUrl).then(function(html){
-var doc=new DOMParser().parseFromString(html,'text/html');
-var firstLink=doc.querySelector('a[href*="/cifra/"]');
-if(!firstLink){
-var links=doc.querySelectorAll('a[href]');
-for(var i=0;i<links.length;i++){
-var h=links[i].getAttribute('href')||'';
-if(h.indexOf('/cifra/')!==-1){firstLink=links[i];break;}
-}
-}
-if(!firstLink){
-// Try any link with song-like path (artist/song pattern)
-var allLinks=doc.querySelectorAll('a[href]');
-for(var j=0;j<allLinks.length;j++){
-var href=allLinks[j].getAttribute('href')||'';
-if(href.match(/\/[a-z0-9-]+\/[a-z0-9-]+\/?$/)&&href.indexOf('cifraclub')!==-1){
-firstLink=allLinks[j];break;
-}
-}
-}
-if(!firstLink){
-showCifraIframe(target,song,searchUrl);
-return;}
-var hrefAttr=firstLink.getAttribute('href');
-var cifraUrl=hrefAttr;
-if(!cifraUrl.startsWith('http'))cifraUrl='https://www.cifraclub.com.br'+hrefAttr;
-return fetchViaProxy(cifraUrl).then(function(html2){
-var cifraText=extractCifraFromHtml(html2);
-if(!cifraText){
-showCifraIframe(target,song,cifraUrl);
-return;
-}
-cifraCache[songId]=cifraText;
-showCifraDetail(target,song,cifraText);
-});
-}).catch(function(err){
-// On proxy failure, show iframe fallback
-showCifraIframe(target,song,searchUrl);
-});
-}
-
-function showCifraIframe(target,song,url){
 var searchUrl='https://www.cifraclub.com.br/?q='+encodeURIComponent(song.title);
 var h='<button class="cifra-back" onclick="cifraViewMode=\'list\';renderCifras()">&#8592; Voltar</button>';
 h+='<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:8px"><div><div style="font-family:var(--fd);font-size:16px;text-transform:uppercase;letter-spacing:1px">'+esc(song.title)+'</div>';
 h+='<div style="font-size:12px;color:var(--accent2);margin-top:2px">'+(song.tom?'Tom: '+esc(song.tom):'')+'</div></div>';
-h+='<a href="'+esc(searchUrl)+'" target="_blank" style="font-size:11px;color:var(--accent);text-decoration:none;padding:6px 12px;border:1px solid var(--accent);border-radius:8px">Abrir no CifraClub</a></div>';
-h+='<div style="border-radius:10px;overflow:hidden;border:1px solid var(--border);height:calc(100vh - 200px);background:#fff">';
-h+='<iframe src="'+esc(searchUrl)+'" style="width:100%;height:100%;border:none" sandbox="allow-scripts allow-same-origin allow-popups allow-forms" loading="lazy"></iframe>';
+h+='<a href="'+esc(searchUrl)+'" target="_blank" style="font-size:11px;color:var(--accent);text-decoration:none;padding:6px 12px;border:1px solid var(--accent);border-radius:8px">Abrir em nova aba</a></div>';
+h+='<div style="border-radius:10px;overflow:hidden;border:1px solid var(--border);height:calc(100vh - 220px);height:calc(100dvh - 220px);background:#fff">';
+h+='<iframe src="'+esc(searchUrl)+'" style="width:100%;height:100%;border:none" allow="clipboard-write" loading="lazy"></iframe>';
 h+='</div>';
 target.innerHTML=h;
-var body=document.getElementById('cifras-body');
-var body2=document.getElementById('aovivo-cifras-body');
 if(body&&body!==target)body.innerHTML=h;
 if(body2&&body2!==target)body2.innerHTML=h;
 }
-
-function showCifraFallback(target,song,searchUrl,msg){
-var h='<button class="cifra-back" onclick="cifraViewMode=\'list\';renderCifras()">&#8592; Voltar</button>';
-h+='<div style="text-align:center;padding:30px;color:var(--text-dim)">';
-h+='<div style="font-size:15px;margin-bottom:8px">'+esc(msg)+'</div>';
-h+='<div style="font-size:12px;margin-bottom:16px;opacity:.6">Os proxies podem estar indisponíveis temporariamente</div>';
-h+='<button onclick="cifraCache={};buscarCifra(\''+esc(song.id)+'\')" style="display:inline-block;padding:10px 20px;background:var(--card);color:var(--text);border:1px solid var(--border);border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;margin-bottom:10px;font-family:var(--fb)">Tentar Novamente</button><br>';
-h+='<a href="'+searchUrl+'" target="_blank" style="display:inline-block;padding:12px 24px;background:var(--accent);color:#fff;border-radius:10px;text-decoration:none;font-size:14px;font-weight:700">Abrir no CifraClub</a>';
-h+='</div>';
-target.innerHTML=h;
-}
-function isChordLine(line){
-if(!line||!line.trim())return false;
-var t=line.trim();
-if(t.length>80||t.length<1)return false;
-var words=t.split(/\s+/);
-var chordCount=0;
-var chordPattern=/^[A-G][#b]?(m|M|dim|aug|sus|add|maj|min|°|ø|[0-9]|\/[A-G][#b]?)*[0-9]?$/;
-for(var i=0;i<words.length;i++){
-if(chordPattern.test(words[i]))chordCount++;
-}
-return chordCount>0&&(chordCount/words.length)>=0.5;
-}
-function showCifraDetail(target,song,cifraText){
-var searchUrl='https://www.cifraclub.com.br/?q='+encodeURIComponent(song.title);
-var h='<button class="cifra-back" onclick="cifraViewMode=\'list\';renderCifras()">&#8592; Voltar</button>';
-h+='<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:8px"><div><div style="font-family:var(--fd);font-size:16px;text-transform:uppercase;letter-spacing:1px">'+esc(song.title)+'</div>';
-h+='<div style="font-size:12px;color:var(--accent2);margin-top:2px">'+(song.tom?'Tom: '+esc(song.tom):'')+'</div></div>';
-h+='<a href="'+searchUrl+'" target="_blank" style="font-size:11px;color:var(--accent);text-decoration:none;padding:6px 12px;border:1px solid var(--accent);border-radius:8px">Abrir no CifraClub</a></div>';
-// Render with highlighted chords
-var lines=cifraText.split('\n');
-h+='<div style="background:var(--card);padding:14px;border-radius:10px;border:1px solid var(--border);overflow-x:auto;font-family:\'Courier New\',monospace;font-size:13px;line-height:1.7">';
-for(var i=0;i<lines.length;i++){
-var line=lines[i];
-if(isChordLine(line)){
-h+='<div style="color:var(--accent2);font-weight:700;letter-spacing:.5px;white-space:pre">'+esc(line)+'</div>';
-}else if(!line.trim()){
-h+='<div style="height:8px"></div>';
-}else{
-h+='<div style="color:var(--text);white-space:pre-wrap">'+esc(line)+'</div>';
-}
-}
-h+='</div>';
-target.innerHTML=h;
-var body=document.getElementById('cifras-body');
-var body2=document.getElementById('aovivo-cifras-body');
-if(body&&body!==target)body.innerHTML=h;
-if(body2&&body2!==target)body2.innerHTML=h;
-}
-
 // ===== ESCALA DE MINISTROS - CALENDARIO =====
 function loadEscalas(){try{var d=localStorage.getItem(ESCALA_KEY);if(d)escalas=JSON.parse(d);else escalas=[];}catch(e){escalas=[];}}
 function saveEscalas(){try{localStorage.setItem(ESCALA_KEY,JSON.stringify(escalas));}catch(e){}fbSaveEscala();}
