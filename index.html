@@ -1041,6 +1041,7 @@ if(typeof _fbOnReady==='function')_fbOnReady();
 </div>
 <div id="ensaio-add-now" class="lv-add-form" style="display:none">
 <input type="text" class="lv-input-clean" id="ensaio-url-now" placeholder="Cole o link do YouTube..." autocomplete="off">
+<input type="text" class="lv-input-clean" id="ensaio-comment-now" placeholder="Comentario (opcional)" autocomplete="off" style="margin-top:6px">
 <div style="display:flex;gap:6px;margin-top:6px">
 <select class="lv-select-clean" id="ensaio-tom-now"><option value="">Tom</option><option>C</option><option>C#</option><option>D</option><option>D#</option><option>E</option><option>F</option><option>F#</option><option>G</option><option>G#</option><option>A</option><option>A#</option><option>B</option><option>Cm</option><option>C#m</option><option>Dm</option><option>D#m</option><option>Em</option><option>Fm</option><option>F#m</option><option>Gm</option><option>G#m</option><option>Am</option><option>A#m</option><option>Bm</option></select>
 <button class="lv-confirm-btn" onclick="addEnsaioTo('now')">Salvar</button>
@@ -1059,6 +1060,7 @@ if(typeof _fbOnReady==='function')_fbOnReady();
 </div>
 <div id="ensaio-add-next" class="lv-add-form" style="display:none">
 <input type="text" class="lv-input-clean" id="ensaio-url-next" placeholder="Cole o link do YouTube..." autocomplete="off">
+<input type="text" class="lv-input-clean" id="ensaio-comment-next" placeholder="Comentario (opcional)" autocomplete="off" style="margin-top:6px">
 <div style="display:flex;gap:6px;margin-top:6px">
 <select class="lv-select-clean" id="ensaio-tom-next"><option value="">Tom</option><option>C</option><option>C#</option><option>D</option><option>D#</option><option>E</option><option>F</option><option>F#</option><option>G</option><option>G#</option><option>A</option><option>A#</option><option>B</option><option>Cm</option><option>C#m</option><option>Dm</option><option>D#m</option><option>Em</option><option>Fm</option><option>F#m</option><option>Gm</option><option>G#m</option><option>Am</option><option>A#m</option><option>Bm</option></select>
 <button class="lv-confirm-btn" onclick="addEnsaioTo('next')">Salvar</button>
@@ -4041,8 +4043,9 @@ h+='<div class="ensaio-item" style="margin-bottom:6px">';
 h+='<img class="ensaio-thumb" src="'+thumb+'" alt="">';
 h+='<div class="ensaio-info">';
 h+='<div class="ensaio-name">'+displayName+'</div>';
-h+='<div class="ensaio-tom-row"><span class="ensaio-tom-badge" onclick="editEnsaioTom(\''+item.id+'\')" style="cursor:pointer" title="Editar tom">'+(item.tom?'Tom: '+item.tom:'+ Tom')+'</span></div>';
-if(item.comment)h+='<div class="ensaio-comment-text">'+item.comment+'</div>';
+h+='<div class="ensaio-tom-row"><span class="ensaio-tom-badge" onclick="editEnsaioTom(\''+item.id+'\')" style="cursor:pointer" title="Editar tom">'+(item.tom?'Tom: '+item.tom:'+ Tom')+'</span>';
+h+='<span class="ensaio-tom-badge" onclick="editEnsaioComment(\''+item.id+'\')" style="cursor:pointer;margin-left:4px" title="Editar comentario">'+(item.comment?'\u270E':'\u002B Obs')+'</span></div>';
+if(item.comment)h+='<div class="ensaio-comment-text" onclick="editEnsaioComment(\''+item.id+'\')" style="cursor:pointer" title="Editar comentario">'+item.comment+'</div>';
 h+='</div>';
 h+='<div class="ensaio-actions">';
 if(authCanEdit())h+='<button class="ensaio-move-btn" onclick="moveEnsaioItem(\''+item.id+'\',\''+tab+'\')">'+moveLabel+'</button>';
@@ -4069,6 +4072,7 @@ if(el)el.style.display='none';
 function addEnsaioTo(tab){
 var urlInput=document.getElementById('ensaio-url-'+tab);
 var tomSelect=document.getElementById('ensaio-tom-'+tab);
+var commentInput=document.getElementById('ensaio-comment-'+tab);
 if(!urlInput)return;
 var url=urlInput.value.trim();
 if(!url)return;
@@ -4079,12 +4083,14 @@ ensaioTab=tab;
 var links=getActiveLinks();
 for(var i=0;i<links.length;i++){if(links[i].id===id)return;}
 var tom=tomSelect?tomSelect.value:'';
-var newItem={id:id,name:'Carregando...',tom:tom,comment:'',date:Date.now(),list:tab};
+var comment=commentInput?commentInput.value.trim():'';
+var newItem={id:id,name:'Carregando...',tom:tom,comment:comment,date:Date.now(),list:tab};
 links.push(newItem);
 setActiveLinks(links);
 saveEnsaioData();
 urlInput.value='';
 if(tomSelect)tomSelect.value='';
+if(commentInput)commentInput.value='';
 hideEnsaioAdd(tab);
 renderEnsaioList();
 fetchYoutubeTitle(id,function(title){newItem.name=title;saveEnsaioData();renderEnsaioList();});
@@ -4107,6 +4113,16 @@ if(choice===null)return;
 choice=choice.trim();
 if(choice&&toms.indexOf(choice)<0){alert('Tom inválido. Use: '+toms.join(', '));return;}
 item.tom=choice||'';
+saveEnsaioData();renderEnsaioList();
+}
+function editEnsaioComment(videoId){
+var links=getActiveLinks();
+var item=links.find(function(l){return l.id===videoId;});
+if(!item)return;
+var current=item.comment||'';
+var choice=prompt('Comentario / observacao:',current);
+if(choice===null)return;
+item.comment=choice.trim();
 saveEnsaioData();renderEnsaioList();
 }
 
