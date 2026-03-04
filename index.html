@@ -1040,12 +1040,12 @@ if(typeof _fbOnReady==='function')_fbOnReady();
 <button onclick="showEnsaioAdd('now')" class="lv-plus-btn" id="btn-add-now" style="display:none" title="Adicionar musica">+</button>
 </div>
 <div id="ensaio-add-now" class="lv-add-form" style="display:none">
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px"><span style="font-size:12px;font-weight:600;color:var(--text-dim)">Adicionar musica</span><button onclick="hideEnsaioAdd('now')" style="background:none;border:none;cursor:pointer;font-size:18px;color:var(--text-dim);padding:0 4px;line-height:1">&times;</button></div>
 <input type="text" class="lv-input-clean" id="ensaio-url-now" placeholder="Cole o link do YouTube..." autocomplete="off">
 <input type="text" class="lv-input-clean" id="ensaio-comment-now" placeholder="Comentario (opcional)" autocomplete="off" style="margin-top:6px">
 <div style="display:flex;gap:6px;margin-top:6px">
 <select class="lv-select-clean" id="ensaio-tom-now"><option value="">Tom</option><option>C</option><option>C#</option><option>D</option><option>D#</option><option>E</option><option>F</option><option>F#</option><option>G</option><option>G#</option><option>A</option><option>A#</option><option>B</option><option>Cm</option><option>C#m</option><option>Dm</option><option>D#m</option><option>Em</option><option>Fm</option><option>F#m</option><option>Gm</option><option>G#m</option><option>Am</option><option>A#m</option><option>Bm</option></select>
 <button class="lv-confirm-btn" onclick="addEnsaioTo('now')">Salvar</button>
-<button class="lv-cancel-btn" onclick="hideEnsaioAdd('now')">Cancelar</button>
 </div>
 </div>
 <div id="ensaio-list-now"></div>
@@ -1059,12 +1059,12 @@ if(typeof _fbOnReady==='function')_fbOnReady();
 <button onclick="showEnsaioAdd('next')" class="lv-plus-btn" id="btn-add-next" style="display:none" title="Adicionar musica">+</button>
 </div>
 <div id="ensaio-add-next" class="lv-add-form" style="display:none">
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px"><span style="font-size:12px;font-weight:600;color:var(--text-dim)">Adicionar musica</span><button onclick="hideEnsaioAdd('next')" style="background:none;border:none;cursor:pointer;font-size:18px;color:var(--text-dim);padding:0 4px;line-height:1">&times;</button></div>
 <input type="text" class="lv-input-clean" id="ensaio-url-next" placeholder="Cole o link do YouTube..." autocomplete="off">
 <input type="text" class="lv-input-clean" id="ensaio-comment-next" placeholder="Comentario (opcional)" autocomplete="off" style="margin-top:6px">
 <div style="display:flex;gap:6px;margin-top:6px">
 <select class="lv-select-clean" id="ensaio-tom-next"><option value="">Tom</option><option>C</option><option>C#</option><option>D</option><option>D#</option><option>E</option><option>F</option><option>F#</option><option>G</option><option>G#</option><option>A</option><option>A#</option><option>B</option><option>Cm</option><option>C#m</option><option>Dm</option><option>D#m</option><option>Em</option><option>Fm</option><option>F#m</option><option>Gm</option><option>G#m</option><option>Am</option><option>A#m</option><option>Bm</option></select>
 <button class="lv-confirm-btn" onclick="addEnsaioTo('next')">Salvar</button>
-<button class="lv-cancel-btn" onclick="hideEnsaioAdd('next')">Cancelar</button>
 </div>
 </div>
 <div id="ensaio-list-next"></div>
