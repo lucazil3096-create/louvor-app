@@ -416,7 +416,7 @@ body.light .aovivo-sub.active{background:rgba(178,34,34,.1);border-color:var(--a
 .ensaio-actions{display:flex;gap:4px;flex-shrink:0;flex-direction:column;align-items:center}
 .ensaio-play{background:var(--accent);color:#fff;border:none;border-radius:50%;width:34px;height:34px;font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .2s}
 .ensaio-play:active{transform:scale(.9);opacity:.9}
-.ensaio-del{background:none;border:none;font-size:13px;cursor:pointer;opacity:.3;padding:2px;transition:opacity .15s}
+.ensaio-del{background:none;border:none;font-size:18px;cursor:pointer;opacity:1;padding:4px 6px;color:#e53935;transition:opacity .15s;display:flex;align-items:center;justify-content:center}
 .ensaio-move-btn{background:none;border:1px solid var(--card-border);color:var(--text-dim);border-radius:6px;padding:3px 6px;font-size:9px;cursor:pointer;font-family:var(--fb);white-space:nowrap}
 .ensaio-move-btn:active{background:var(--accent-glow);border-color:var(--accent)}
 .ensaio-tab-count{font-size:10px;background:rgba(178,34,34,.15);color:var(--accent2);padding:1px 6px;border-radius:8px;margin-left:4px;font-weight:700}
@@ -3790,12 +3790,35 @@ return null;
 }
 
 function fetchYoutubeTitle(videoId,callback){
-try{
-fetch('https://noembed.com/embed?url=https://www.youtube.com/watch?v='+videoId)
-.then(function(r){return r.json();})
-.then(function(data){callback(data.title||'Video');})
-.catch(function(){callback('Video');});
-}catch(e){callback('Video');}
+var done=false;
+function finish(t){if(done)return;done=true;callback(t||'Video');}
+var apis=[
+'https://noembed.com/embed?url=https://www.youtube.com/watch?v='+videoId,
+'https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v='+videoId+'&format=json',
+'https://youtube.com/oembed?url=https://www.youtube.com/watch?v='+videoId+'&format=json',
+'https://www.youtube.com/watch?v='+videoId
+];
+function tryApi(i){
+if(i>=apis.length){finish('Video');return;}
+if(i<3){
+fetch(apis[i]).then(function(r){
+if(!r.ok)throw new Error('status '+r.status);
+return r.json();
+}).then(function(data){
+if(data&&data.title)finish(data.title);else throw new Error('no title');
+}).catch(function(){tryApi(i+1);});
+}else{
+fetch(apis[i]).then(function(r){return r.text();}).then(function(html){
+var m=html.match(/<title>(.*?)\s*-\s*YouTube<\/title>/);
+if(m&&m[1])finish(m[1]);else{
+var m2=html.match(/"title":"(.*?)"/);
+if(m2&&m2[1])finish(m2[1]);else finish('Video');
+}
+}).catch(function(){finish('Video');});
+}
+}
+try{tryApi(0);}catch(e){finish('Video');}
+setTimeout(function(){finish('Video');},12000);
 }
 
 function addEnsaioLink(){
@@ -4004,7 +4027,7 @@ filtered.forEach(function(item,idx){
 var thumb='https://img.youtube.com/vi/'+item.id+'/mqdefault.jpg';
 var moveLabel=tab==='now'?'&#8594; Fila':'&#8592; Ensaiar';
 var displayName=item.name||'Video';
-if(displayName.match(/^https?:\/\//)){displayName='Video';needsTitleFetch.push(item);}
+if(displayName.match(/^https?:\/\//)||displayName==='Carregando...'){displayName='Video';needsTitleFetch.push(item);}
 h+='<div class="ensaio-item" style="margin-bottom:6px">';
 h+='<img class="ensaio-thumb" src="'+thumb+'" alt="">';
 h+='<div class="ensaio-info">';
@@ -4015,7 +4038,7 @@ h+='</div>';
 h+='<div class="ensaio-actions">';
 if(authCanEdit())h+='<button class="ensaio-move-btn" onclick="moveEnsaioItem(\''+item.id+'\',\''+tab+'\')">'+moveLabel+'</button>';
 h+='<button class="ensaio-play" onclick="openEnsaioPlayer(\''+item.id+'\',\''+displayName.replace(/'/g,"\\'")+'\')">\u25B6</button>';
-if(authCanEdit())h+='<button class="ensaio-del" onclick="deleteEnsaioItem(\''+item.id+'\')">'+ICO.trash+'</button>';
+h+='<button class="ensaio-del" onclick="deleteEnsaioItem(\''+item.id+'\')" title="Remover" style="background:none;border:none;cursor:pointer;padding:4px 6px;font-size:18px;line-height:1;color:#e53935">&#128465;</button>';
 h+='</div></div>';
 });
 container.innerHTML=h;
@@ -4058,6 +4081,8 @@ item.list=(fromTab==='now'?'next':'now');
 saveEnsaioData();renderEnsaioList();
 }
 function deleteEnsaioItem(videoId){
+if(!authCanEdit()){alert('Apenas líderes e administradores podem remover músicas.');return;}
+if(!confirm('Remover esta música?'))return;
 var links=getActiveLinks();
 var idx=links.findIndex(function(l){return l.id===videoId;});
 if(idx<0)return;
