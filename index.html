@@ -1502,7 +1502,7 @@ var nav=document.querySelector('.bottom-nav');
 if(n==='view'||n==='edit'){nav.style.display='none';}
 else{nav.style.display='flex';}
 }
-function goList(){hideAllScreens();stopScroll();document.querySelector('.bottom-nav').style.display='flex';switchNav(currentNav);}
+function goList(){cifraViewMode='list';hideAllScreens();stopScroll();document.querySelector('.bottom-nav').style.display='flex';switchNav(currentNav);}
 function renderTagFilter(){
 var bar=document.getElementById('tag-filter-bar');if(!bar)return;
 var usedTags={};lyrics.forEach(function(l){if(l.tags)l.tags.forEach(function(t){usedTags[t]=true;});});
@@ -2308,6 +2308,7 @@ if(body&&body!==target)body.innerHTML=h;
 if(body2&&body2!==target)body2.innerHTML=h;
 }
 function editarCifra(songId){
+cifraViewMode='list';
 openEdit(songId);
 setTimeout(function(){var el=document.getElementById('edit-cifra');if(el){el.scrollIntoView({behavior:'smooth'});el.focus();}},300);
 }
