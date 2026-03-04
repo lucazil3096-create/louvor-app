@@ -839,6 +839,11 @@ body.light .subtab.active{background:rgba(178,34,34,.1);border-color:var(--accen
 .lv-btn.green{background:#25d366;color:#fff;padding:7px 8px}
 .lv-send-btn{width:32px;height:32px;border-radius:50%;background:var(--accent2);border:none;color:#fff;cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center}
 .lv-send-btn:active{opacity:.7}
+.lv-icon-btn{width:30px;height:30px;border-radius:8px;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:700;flex-shrink:0}
+.lv-icon-btn:active{opacity:.7}
+.lv-icon-btn.accent{background:var(--accent2);color:#fff}
+.lv-icon-btn.green{background:#25d366;color:#fff}
+.lv-icon-btn.dim{background:var(--border);color:var(--text-dim)}
 /* CHAT */
 .chat-msg{display:flex;gap:8px;padding:4px 0;align-items:flex-start}
 .chat-msg.mine{flex-direction:row-reverse}
@@ -1037,36 +1042,47 @@ if(typeof _fbOnReady==='function')_fbOnReady();
 <div class="ensaio-header" style="overflow-y:auto;flex:1;display:flex;flex-direction:column;gap:8px">
 <span class="profile-badge" id="ensaio-profile-badge" style="align-self:flex-start">Grupo</span>
 
-<!-- ENSAIO SECTION -->
+<!-- ENSAIANDO -->
 <div class="lv-card">
 <div class="lv-card-head">
-<span class="lv-card-title"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg>Ensaio</span>
+<span class="lv-card-title"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>Ensaiando <span class="ensaio-tab-count" id="ensaio-count-now">0</span></span>
 <div style="display:flex;gap:4px">
-<button onclick="shareEnsaioWhatsApp()" class="lv-btn green" title="WhatsApp"><svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg></button>
-<button onclick="openEdit()" class="lv-btn accent" id="btn-add-musica" style="display:none">+ Música</button>
+<button onclick="shareEnsaioWhatsApp()" class="lv-icon-btn green" title="WhatsApp"><svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg></button>
+<button onclick="showEnsaioAdd('now')" class="lv-icon-btn accent" id="btn-add-now" style="display:none" title="Adicionar">+</button>
 </div>
 </div>
-<div id="ensaio-content-wrap">
+<div id="ensaio-add-now" style="display:none;margin-bottom:8px">
 <div class="lv-add-row">
-<input type="text" class="lv-input" id="ensaio-url" placeholder="Link do YouTube..." autocomplete="off" style="flex:1">
-<select class="lv-select" id="ensaio-tom"><option value="">Tom</option><option>C</option><option>C#</option><option>D</option><option>D#</option><option>E</option><option>F</option><option>F#</option><option>G</option><option>G#</option><option>A</option><option>A#</option><option>B</option><option>Cm</option><option>C#m</option><option>Dm</option><option>D#m</option><option>Em</option><option>Fm</option><option>F#m</option><option>Gm</option><option>G#m</option><option>Am</option><option>A#m</option><option>Bm</option></select>
-<button class="lv-btn accent" id="ensaio-save-btn" onclick="addEnsaioLink()">+</button>
-</div>
-<div class="ensaio-extra-fields" id="ensaio-extra-fields" style="display:none">
-<input type="text" class="lv-input" id="ensaio-comment" placeholder="Obs (opcional)..." autocomplete="off" style="width:100%;margin-top:4px">
+<input type="text" class="lv-input" id="ensaio-url-now" placeholder="Link YouTube..." autocomplete="off" style="flex:1">
+<select class="lv-select" id="ensaio-tom-now"><option value="">Tom</option><option>C</option><option>C#</option><option>D</option><option>D#</option><option>E</option><option>F</option><option>F#</option><option>G</option><option>G#</option><option>A</option><option>A#</option><option>B</option><option>Cm</option><option>C#m</option><option>Dm</option><option>D#m</option><option>Em</option><option>Fm</option><option>F#m</option><option>Gm</option><option>G#m</option><option>Am</option><option>A#m</option><option>Bm</option></select>
+<button class="lv-icon-btn accent" onclick="addEnsaioTo('now')">&#10003;</button>
+<button class="lv-icon-btn dim" onclick="hideEnsaioAdd('now')">&#10005;</button>
 </div>
 </div>
-<div class="ensaio-body" id="ensaio-body">
-<div class="ensaio-tabs" style="margin-bottom:4px">
-<div class="ensaio-tab active" id="ensaio-tab-now" onclick="switchEnsaioTab('now')">Ensaiando <span class="ensaio-tab-count" id="ensaio-count-now">0</span></div>
-<div class="ensaio-tab" id="ensaio-tab-next" onclick="switchEnsaioTab('next')">Para Ensaiar <span class="ensaio-tab-count" id="ensaio-count-next">0</span></div>
+<div id="ensaio-list-now"></div>
+<div id="ensaio-empty-now" style="text-align:center;padding:12px 0;opacity:.3;font-size:11px">Nenhuma música ensaiando</div>
 </div>
-<div id="ensaio-list"></div>
-<div class="ensaio-empty" id="ensaio-empty">
-<div style="text-align:center;padding:16px 0;opacity:.4;font-size:12px">Nenhuma música no ensaio</div>
+
+<!-- PARA ENSAIAR -->
+<div class="lv-card">
+<div class="lv-card-head">
+<span class="lv-card-title"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/></svg>Para Ensaiar <span class="ensaio-tab-count" id="ensaio-count-next">0</span></span>
+<button onclick="showEnsaioAdd('next')" class="lv-icon-btn accent" id="btn-add-next" style="display:none" title="Adicionar">+</button>
+</div>
+<div id="ensaio-add-next" style="display:none;margin-bottom:8px">
+<div class="lv-add-row">
+<input type="text" class="lv-input" id="ensaio-url-next" placeholder="Link YouTube..." autocomplete="off" style="flex:1">
+<select class="lv-select" id="ensaio-tom-next"><option value="">Tom</option><option>C</option><option>C#</option><option>D</option><option>D#</option><option>E</option><option>F</option><option>F#</option><option>G</option><option>G#</option><option>A</option><option>A#</option><option>B</option><option>Cm</option><option>C#m</option><option>Dm</option><option>D#m</option><option>Em</option><option>Fm</option><option>F#m</option><option>Gm</option><option>G#m</option><option>Am</option><option>A#m</option><option>Bm</option></select>
+<button class="lv-icon-btn accent" onclick="addEnsaioTo('next')">&#10003;</button>
+<button class="lv-icon-btn dim" onclick="hideEnsaioAdd('next')">&#10005;</button>
 </div>
 </div>
+<div id="ensaio-list-next"></div>
+<div id="ensaio-empty-next" style="text-align:center;padding:12px 0;opacity:.3;font-size:11px">Nenhuma música para ensaiar</div>
 </div>
+
+<!-- Hidden legacy elements for compatibility -->
+<div style="display:none"><div id="ensaio-content-wrap"></div><div class="ensaio-body" id="ensaio-body"><div class="ensaio-tabs"><div class="ensaio-tab" id="ensaio-tab-now"></div><div class="ensaio-tab" id="ensaio-tab-next"></div></div><div id="ensaio-list"></div><div id="ensaio-empty"></div></div><div class="ensaio-extra-fields" id="ensaio-extra-fields"></div><input id="ensaio-url"><select id="ensaio-tom"></select><input id="ensaio-comment"><button id="ensaio-save-btn"></button><button id="btn-add-musica"></button></div>
 
 <!-- CHAT SECTION -->
 <div class="lv-card">
@@ -3969,36 +3985,48 @@ overlay.style.display='none';
 function renderEnsaioList(){
 loadEnsaioData();
 var links=getActiveLinks();
-var filtered=links.filter(function(l){return l.list===ensaioTab;});
-var container=document.getElementById('ensaio-list');
-var empty=document.getElementById('ensaio-empty');
 updateProfileUI();
 updateEnsaioCounts();
+// Show add buttons for leaders
+var canEdit=authCanEdit();
+var btnNow=document.getElementById('btn-add-now');if(btnNow)btnNow.style.display=canEdit?'flex':'none';
+var btnNext=document.getElementById('btn-add-next');if(btnNext)btnNext.style.display=canEdit?'flex':'none';
+// Render both lists
+renderEnsaioBlock('now',links.filter(function(l){return l.list==='now';}));
+renderEnsaioBlock('next',links.filter(function(l){return l.list==='next';}));
+// Also render into legacy container for event delegation
+ensaioTab='now';
+var legacyContainer=document.getElementById('ensaio-list');
+if(legacyContainer)legacyContainer.innerHTML='';
+}
+function renderEnsaioBlock(tab,filtered){
+var container=document.getElementById('ensaio-list-'+tab);
+var empty=document.getElementById('ensaio-empty-'+tab);
+if(!container)return;
 if(!filtered.length){
 container.innerHTML='';
-empty.style.display='flex';
-empty.innerHTML='<div class="ensaio-empty-icon">'+(ensaioTab==='now'?ICO.music:ICO.clip)+'</div><div class="ensaio-empty-text">'+(ensaioTab==='now'?'Nenhuma música sendo ensaiada<br>Cole um link do YouTube e toque <b>+ Salvar</b>':'Nenhuma música na fila<br>Adicione músicas para ensaiar futuramente')+'</div>';
+if(empty)empty.style.display='block';
 return;
 }
-empty.style.display='none';
+if(empty)empty.style.display='none';
 var h='';
 var needsTitleFetch=[];
 filtered.forEach(function(item,idx){
 var thumb='https://img.youtube.com/vi/'+item.id+'/mqdefault.jpg';
-var moveLabel=ensaioTab==='now'?ICO.clip+' Fila':ICO.music+' Ensaiar';
+var moveLabel=tab==='now'?'&#8594; Fila':'&#8592; Ensaiar';
 var displayName=item.name||'Video';
 if(displayName.match(/^https?:\/\//)){displayName='Video';needsTitleFetch.push(item);}
-h+='<div class="ensaio-item">';
+h+='<div class="ensaio-item" style="margin-bottom:6px">';
 h+='<img class="ensaio-thumb" src="'+thumb+'" alt="">';
 h+='<div class="ensaio-info">';
 h+='<div class="ensaio-name">'+displayName+'</div>';
-if(item.tom)h+='<div class="ensaio-tom-row"><span class="ensaio-tom-badge">Tom: '+item.tom+'</span><button class="ensaio-transpose-btn" data-ens-action="transpose-down" data-ens-idx="'+idx+'" title="Baixar tom">&#9660;</button><button class="ensaio-transpose-btn" data-ens-action="transpose-up" data-ens-idx="'+idx+'" title="Subir tom">&#9650;</button></div>';
+if(item.tom)h+='<div class="ensaio-tom-row"><span class="ensaio-tom-badge">Tom: '+item.tom+'</span></div>';
 if(item.comment)h+='<div class="ensaio-comment-text">'+item.comment+'</div>';
 h+='</div>';
 h+='<div class="ensaio-actions">';
-if(authCanEdit())h+='<button class="ensaio-move-btn" data-ens-action="move" data-ens-idx="'+idx+'">'+moveLabel+'</button>';
-h+='<button class="ensaio-play" data-ens-action="play" data-ens-id="'+item.id+'" data-ens-name="'+displayName.replace(/"/g,'&quot;')+'">▶</button>';
-if(authCanEdit())h+='<button class="ensaio-del" data-ens-action="del" data-ens-idx="'+idx+'">'+ICO.trash+'</button>';
+if(authCanEdit())h+='<button class="ensaio-move-btn" onclick="moveEnsaioItem(\''+item.id+'\',\''+tab+'\')">'+moveLabel+'</button>';
+h+='<button class="ensaio-play" onclick="openEnsaioPlayer(\''+item.id+'\',\''+displayName.replace(/'/g,"\\'")+'\')">\u25B6</button>';
+if(authCanEdit())h+='<button class="ensaio-del" onclick="deleteEnsaioItem(\''+item.id+'\')">'+ICO.trash+'</button>';
 h+='</div></div>';
 });
 container.innerHTML=h;
@@ -4008,6 +4036,44 @@ var names=container.querySelectorAll('.ensaio-name');
 for(var n=0;n<names.length;n++){if(names[n].textContent==='Video')names[n].textContent=title;}
 });
 });
+}
+function showEnsaioAdd(tab){
+var el=document.getElementById('ensaio-add-'+tab);
+if(el){el.style.display='block';var inp=document.getElementById('ensaio-url-'+tab);if(inp)inp.focus();}
+}
+function hideEnsaioAdd(tab){
+var el=document.getElementById('ensaio-add-'+tab);
+if(el)el.style.display='none';
+}
+function addEnsaioTo(tab){
+var urlInput=document.getElementById('ensaio-url-'+tab);
+var tomSelect=document.getElementById('ensaio-tom-'+tab);
+if(!urlInput)return;
+var url=urlInput.value.trim();
+if(!url)return;
+// Reuse existing addEnsaioLink logic by temporarily setting inputs
+document.getElementById('ensaio-url').value=url;
+document.getElementById('ensaio-tom').value=tomSelect?tomSelect.value:'';
+document.getElementById('ensaio-comment').value='';
+ensaioTab=tab;
+addEnsaioLink();
+urlInput.value='';
+if(tomSelect)tomSelect.value='';
+hideEnsaioAdd(tab);
+}
+function moveEnsaioItem(videoId,fromTab){
+var links=getActiveLinks();
+var item=links.find(function(l){return l.id===videoId;});
+if(!item)return;
+item.list=(fromTab==='now'?'next':'now');
+saveEnsaioData();renderEnsaioList();
+}
+function deleteEnsaioItem(videoId){
+var links=getActiveLinks();
+var idx=links.findIndex(function(l){return l.id===videoId;});
+if(idx<0)return;
+links.splice(idx,1);
+saveEnsaioData();renderEnsaioList();
 }
 
 // Event delegation for ensaio list
