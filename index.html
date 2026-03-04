@@ -1037,7 +1037,6 @@ if(typeof _fbOnReady==='function')_fbOnReady();
 <div class="lv-block">
 <div class="lv-block-head">
 <span class="lv-block-label"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg> Ensaiando <span class="ensaio-tab-count" id="ensaio-count-now">0</span></span>
-<button onclick="sharePlaylist('now')" class="lv-plus-btn" id="btn-playlist-now" style="display:none" title="Playlist no WhatsApp"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="5 3 19 12 5 21 5 3"/><line x1="5" y1="3" x2="5" y2="21"/></svg></button>
 <button onclick="showEnsaioAdd('now')" class="lv-plus-btn" id="btn-add-now" style="display:none" title="Adicionar musica">+</button>
 </div>
 <div id="ensaio-add-now" class="lv-add-form" style="display:none">
@@ -1056,7 +1055,6 @@ if(typeof _fbOnReady==='function')_fbOnReady();
 <div class="lv-block">
 <div class="lv-block-head">
 <span class="lv-block-label"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/></svg> Para Ensaiar <span class="ensaio-tab-count" id="ensaio-count-next">0</span></span>
-<button onclick="sharePlaylist('next')" class="lv-plus-btn" id="btn-playlist-next" style="display:none" title="Playlist no WhatsApp"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="5 3 19 12 5 21 5 3"/><line x1="5" y1="3" x2="5" y2="21"/></svg></button>
 <button onclick="showEnsaioAdd('next')" class="lv-plus-btn" id="btn-add-next" style="display:none" title="Adicionar musica">+</button>
 </div>
 <div id="ensaio-add-next" class="lv-add-form" style="display:none">
@@ -4007,8 +4005,6 @@ var btnNow=document.getElementById('btn-add-now');if(btnNow)btnNow.style.display
 var btnNext=document.getElementById('btn-add-next');if(btnNext)btnNext.style.display=canEdit?'flex':'none';
 var nowItems=links.filter(function(l){return l.list==='now';});
 var nextItems=links.filter(function(l){return l.list==='next';});
-var plNow=document.getElementById('btn-playlist-now');if(plNow)plNow.style.display=nowItems.length?'flex':'none';
-var plNext=document.getElementById('btn-playlist-next');if(plNext)plNext.style.display=nextItems.length?'flex':'none';
 // Render both lists
 renderEnsaioBlock('now',nowItems);
 renderEnsaioBlock('next',nextItems);
@@ -4116,22 +4112,6 @@ if(idx<0)return;
 links.splice(idx,1);
 saveEnsaioData();renderEnsaioList();
 }
-function sharePlaylist(tab){
-var links=getActiveLinks();
-var filtered=links.filter(function(l){return l.list===tab;});
-if(!filtered.length){alert('Nenhuma música na lista.');return;}
-var ids=filtered.map(function(l){return l.id;});
-var playlistUrl='https://www.youtube.com/watch_videos?video_ids='+ids.join(',');
-var label=tab==='now'?'Ensaiando':'Para Ensaiar';
-var text='🎵 *Playlist - '+label+'*\n\n';
-filtered.forEach(function(item,i){
-text+=(i+1)+'. '+item.name+(item.tom?' ('+item.tom+')':'')+'\n';
-});
-text+='\n▶️ Playlist: '+playlistUrl;
-var waUrl='https://api.whatsapp.com/send?text='+encodeURIComponent(text);
-window.open(waUrl,'_blank');
-}
-
 // Event delegation for ensaio list
 document.getElementById('ensaio-body').addEventListener('click',function(e){
 var el=e.target;
@@ -4176,8 +4156,8 @@ msg+=(i+1)+'. '+name;
 if(item.tom)msg+=' *(Tom: '+item.tom+')*';
 msg+='\n';
 if(item.comment)msg+='   _'+item.comment+'_\n';
-msg+='   ▶ https://www.youtube.com/watch?v='+item.id+'\n';
 });
+msg+='\n▶️ *Playlist Ensaiando:*\nhttps://www.youtube.com/watch_videos?video_ids='+nowList.map(function(l){return l.id;}).join(',')+'\n';
 }
 if(nextList.length){
 msg+='\n*📝 Na fila para ensaiar:*\n';
@@ -4188,8 +4168,8 @@ msg+=(i+1)+'. '+name;
 if(item.tom)msg+=' *(Tom: '+item.tom+')*';
 msg+='\n';
 if(item.comment)msg+='   _'+item.comment+'_\n';
-msg+='   ▶ https://www.youtube.com/watch?v='+item.id+'\n';
 });
+msg+='\n▶️ *Playlist Para Ensaiar:*\nhttps://www.youtube.com/watch_videos?video_ids='+nextList.map(function(l){return l.id;}).join(',')+'\n';
 }
 msg+='\n🔗 Acesse o app: https://lucazil3096-create.github.io/louvor-app/';
 var encoded=encodeURIComponent(msg);
