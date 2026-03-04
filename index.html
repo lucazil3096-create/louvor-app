@@ -4063,15 +4063,22 @@ var tomSelect=document.getElementById('ensaio-tom-'+tab);
 if(!urlInput)return;
 var url=urlInput.value.trim();
 if(!url)return;
-// Reuse existing addEnsaioLink logic by temporarily setting inputs
-document.getElementById('ensaio-url').value=url;
-document.getElementById('ensaio-tom').value=tomSelect?tomSelect.value:'';
-document.getElementById('ensaio-comment').value='';
+if(!authCanEdit()){alert('Sem permissão para adicionar vídeos de ensaio.');return;}
+var id=extractYoutubeId(url);
+if(!id){alert('Link inválido. Cole um link do YouTube.');return;}
 ensaioTab=tab;
-addEnsaioLink();
+var links=getActiveLinks();
+for(var i=0;i<links.length;i++){if(links[i].id===id)return;}
+var tom=tomSelect?tomSelect.value:'';
+var newItem={id:id,name:'Carregando...',tom:tom,comment:'',date:Date.now(),list:tab};
+links.push(newItem);
+setActiveLinks(links);
+saveEnsaioData();
 urlInput.value='';
 if(tomSelect)tomSelect.value='';
 hideEnsaioAdd(tab);
+renderEnsaioList();
+fetchYoutubeTitle(id,function(title){newItem.name=title;saveEnsaioData();renderEnsaioList();});
 }
 function moveEnsaioItem(videoId,fromTab){
 var links=getActiveLinks();
