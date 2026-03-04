@@ -1488,10 +1488,10 @@ function clearToday(){if(todayList.length&&confirm('Limpar todas as músicas de 
 function hideAllScreens(){
 var screens=document.querySelectorAll('.screen');
 for(var i=0;i<screens.length;i++){screens[i].classList.remove('active');screens[i].style.display='none';}
-document.getElementById('screen-pads').style.display='none';
-document.getElementById('screen-ensaio').style.display='none';
-var aoC=document.getElementById('screen-aovivo-cifras');if(aoC)aoC.style.display='none';
-var adm=document.getElementById('screen-admin');if(adm)adm.style.display='none';
+var pads=document.getElementById('screen-pads');pads.classList.remove('active');pads.style.display='none';
+var ens=document.getElementById('screen-ensaio');ens.classList.remove('active');ens.style.display='none';
+var aoC=document.getElementById('screen-aovivo-cifras');if(aoC){aoC.classList.remove('active');aoC.style.display='none';}
+var adm=document.getElementById('screen-admin');if(adm){adm.classList.remove('active');adm.style.display='none';}
 }
 function showScreen(n){
 hideAllScreens();
@@ -2309,6 +2309,8 @@ if(body2&&body2!==target)body2.innerHTML=h;
 }
 function editarCifra(songId){
 cifraViewMode='list';
+var b1=document.getElementById('cifras-body');if(b1)b1.innerHTML='';
+var b2=document.getElementById('aovivo-cifras-body');if(b2)b2.innerHTML='';
 openEdit(songId);
 setTimeout(function(){var el=document.getElementById('edit-cifra');if(el){el.scrollIntoView({behavior:'smooth'});el.focus();}},300);
 }
