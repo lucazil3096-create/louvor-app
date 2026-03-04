@@ -1296,6 +1296,9 @@ try{localStorage.setItem(ESCALA_KEY,data.escalaData);
 escalas=JSON.parse(data.escalaData);
 }catch(e){}
 }
+if(data.chatData){
+try{chatMessages=JSON.parse(data.chatData);renderChat();}catch(e){}
+}
 fbSynced=true;
 },function(e){console.log('Firebase listener error:',e);fbSynced=true;});
 
@@ -1418,6 +1421,7 @@ try{var ed=localStorage.getItem('church-ensaio-v2');if(ed)saveData.ensaioData=ed
 try{var pd=localStorage.getItem('church-profiles-v1');if(pd)saveData.profileData=pd;}catch(e){}
 try{var ud=localStorage.getItem('church-users-local');if(ud)saveData.userData=ud;}catch(e){}
 try{var ek=localStorage.getItem(ESCALA_KEY);if(ek)saveData.escalaData=ek;}catch(e){}
+if(chatMessages.length)saveData.chatData=JSON.stringify(chatMessages.slice(-200));
 ignoreSnapshot=true;
 fbDoc.set(saveData).then(function(){
 console.log('Saved OK ('+lyrics.length+' songs)');
@@ -1435,6 +1439,7 @@ try{var ed=localStorage.getItem('church-ensaio-v2');if(ed)saveData.ensaioData=ed
 try{var pd=localStorage.getItem('church-profiles-v1');if(pd)saveData.profileData=pd;}catch(e2){}
 try{var ud=localStorage.getItem('church-users-local');if(ud)saveData.userData=ud;}catch(e2){}
 try{var ek=localStorage.getItem(ESCALA_KEY);if(ek)saveData.escalaData=ek;}catch(e2){}
+if(chatMessages.length)saveData.chatData=JSON.stringify(chatMessages.slice(-200));
 ignoreSnapshot=true;
 fbDoc.set(saveData).then(function(){
 console.log('Saved OK ('+lyrics.length+' songs)');
@@ -2377,14 +2382,10 @@ var chatLoaded=false;
 var chatUnsubscribe=null;
 
 function loadChat(){
-if(chatUnsubscribe)return;// already listening
-if(!db)return;
-chatUnsubscribe=db.collection('app').doc('chat').onSnapshot(function(doc){
-if(doc.exists&&doc.data().messages){
-try{chatMessages=JSON.parse(doc.data().messages);}catch(e){chatMessages=[];}
-}else{chatMessages=[];}
+if(chatLoaded)return;
+chatLoaded=true;
+// Chat is loaded from the main data snapshot - just render
 renderChat();
-});
 }
 
 function renderChat(){
@@ -2450,7 +2451,12 @@ renderChat();
 if(db){
 // Keep last 200 messages
 var toSave=chatMessages.slice(-200);
-db.collection('app').doc('chat').set({messages:JSON.stringify(toSave),updated:Date.now()});
+db.collection('app').doc('data').update({chatData:JSON.stringify(toSave)}).then(function(){
+console.log('Chat saved OK');
+}).catch(function(e){
+console.error('Chat save error:',e);
+alert('Erro ao enviar mensagem. Verifique sua conexão.');
+});
 }
 }
 
