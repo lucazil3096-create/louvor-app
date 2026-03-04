@@ -405,49 +405,21 @@ body.light .aovivo-sub.active{background:rgba(178,34,34,.1);border-color:var(--a
 
 .ensaio-screen{display:none;flex-direction:column;height:calc(100vh - 52px);height:calc(100dvh - 52px)}
 .ensaio-screen.active{display:flex}
-.ensaio-header{padding:14px 16px;background:var(--surface);border-bottom:1px solid rgba(255,255,255,.04);flex-shrink:0}
-.ensaio-title{font-family:var(--fd);font-size:24px;font-weight:400;color:var(--text);margin-bottom:10px;letter-spacing:1.5px;text-transform:uppercase}
-.ensaio-input-row{display:flex;gap:8px;align-items:center}
-.ensaio-tabs{display:flex;gap:0;margin-bottom:10px}
-.ensaio-tab{flex:1;padding:10px 8px;text-align:center;font-size:12px;font-weight:600;cursor:pointer;border:1px solid var(--card-border);background:var(--card-bg);color:var(--text-dim);transition:all .2s;font-family:var(--fb)}
-.ensaio-tab:first-child{border-radius:10px 0 0 10px}
-.ensaio-tab:last-child{border-radius:0 10px 10px 0}
-.ensaio-tab.active{background:var(--accent-glow);border-color:var(--accent);color:var(--accent2)}
-.ensaio-tab-count{font-size:10px;background:rgba(178,34,34,.2);color:var(--accent2);padding:2px 6px;border-radius:10px;margin-left:4px;font-weight:700}
-.ensaio-move-btn{background:none;border:1px solid var(--card-border);color:var(--text-dim);border-radius:6px;padding:4px 8px;font-size:10px;cursor:pointer;font-family:var(--fb);transition:all .2s;white-space:nowrap}
-.ensaio-move-btn:active{background:var(--accent-glow);border-color:var(--accent)}
-.ensaio-url{flex:1;padding:10px 14px;background:var(--card-bg);border:1px solid var(--card-border);border-radius:12px;color:var(--text);font-size:13px;font-family:var(--fb);outline:none;transition:border-color .2s}
-.ensaio-url:focus{border-color:var(--accent)}
-.ensaio-url::placeholder{color:var(--text-dim)}
-.ensaio-extra-fields{margin-top:8px}
-.ensaio-field-row{display:flex;gap:8px;margin-bottom:8px}
-.ensaio-tom{padding:9px 10px;background:var(--card-bg);border:1px solid var(--card-border);border-radius:10px;color:var(--text);font-size:13px;font-family:var(--fb);outline:none;min-width:80px;cursor:pointer;-webkit-appearance:none;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23888' d='M6 8L1 3h10z'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 10px center}
-.ensaio-tom:focus{border-color:var(--accent)}
-.ensaio-comment-input{flex:1;padding:9px 12px;background:var(--card-bg);border:1px solid var(--card-border);border-radius:10px;color:var(--text);font-size:12px;font-family:var(--fb);outline:none}
-.ensaio-comment-input:focus{border-color:var(--accent)}
-.ensaio-comment-input::placeholder{color:var(--text-dim)}
-.ensaio-btn{background:var(--accent);color:#fff;padding:10px 18px;font-size:13px;font-weight:700;border-radius:12px;border:none;cursor:pointer;font-family:var(--fb);white-space:nowrap;transition:all .2s;letter-spacing:.3px;width:100%}
-.ensaio-btn:active{transform:scale(.96);opacity:.9}
-.ensaio-tom-badge{display:inline-block;background:var(--accent-glow);color:var(--accent2);font-size:10px;font-weight:700;padding:2px 8px;border-radius:8px;margin-top:3px;font-family:var(--fb);border:1px solid var(--accent)}
-.ensaio-tom-row{display:flex;align-items:center;gap:4px;margin-top:3px}
-.ensaio-transpose-btn{width:20px;height:20px;border-radius:6px;border:1px solid var(--card-border);background:var(--card-bg);color:var(--text-dim);font-size:11px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .15s;padding:0;line-height:1}
-.ensaio-transpose-btn:active{transform:scale(.9);background:var(--accent-glow);color:var(--accent2);border-color:var(--accent)}
-.ensaio-comment-text{font-size:11px;color:var(--text-dim);margin-top:3px;font-style:italic;line-height:1.3;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
-.ensaio-whatsapp-btn{display:flex;align-items:center;gap:6px;background:#25D366;color:#fff;border:none;padding:8px 14px;border-radius:10px;font-size:12px;font-weight:600;font-family:var(--fb);cursor:pointer;transition:all .2s;white-space:nowrap}
-.ensaio-whatsapp-btn:active{transform:scale(.96);opacity:.9}
-.ensaio-whatsapp-btn svg{flex-shrink:0}
-.ensaio-body{flex:1;display:flex;flex-direction:column;padding:10px 14px;overflow-y:auto}
-.ensaio-empty{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;opacity:.25;text-align:center}
-.ensaio-empty-icon{font-size:52px;margin-bottom:14px}
-.ensaio-empty-text{font-size:14px;line-height:1.7}
-.ensaio-item{display:flex;align-items:center;gap:12px;padding:12px;background:var(--card-bg);border:1px solid var(--card-border);border-radius:var(--radius);margin-bottom:6px;transition:all .15s}
-.ensaio-thumb{width:64px;height:36px;border-radius:8px;object-fit:cover;background:var(--surface2);flex-shrink:0}
+.ensaio-header{padding:14px 16px;flex:1;overflow-y:auto}
+.ensaio-item{display:flex;align-items:center;gap:10px;padding:10px;background:var(--card-bg);border:1px solid var(--card-border);border-radius:12px;margin-bottom:6px;transition:all .15s}
+.ensaio-thumb{width:56px;height:56px;border-radius:10px;object-fit:cover;background:var(--surface2);flex-shrink:0}
 .ensaio-info{flex:1;min-width:0}
-.ensaio-name{font-size:13px;font-weight:500;color:var(--text);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;line-height:1.4}
-.ensaio-actions{display:flex;gap:6px;flex-shrink:0}
-.ensaio-play{background:var(--accent);color:#fff;border:none;border-radius:50%;width:38px;height:38px;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .2s}
+.ensaio-name{font-size:13px;font-weight:600;color:var(--text);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;line-height:1.35}
+.ensaio-tom-badge{display:inline-block;background:var(--accent-glow);color:var(--accent2);font-size:9px;font-weight:700;padding:2px 7px;border-radius:6px;margin-top:3px;font-family:var(--fb);letter-spacing:.3px}
+.ensaio-tom-row{display:flex;align-items:center;gap:4px;margin-top:3px}
+.ensaio-comment-text{font-size:10px;color:var(--text-dim);margin-top:2px;line-height:1.3;display:-webkit-box;-webkit-line-clamp:1;-webkit-box-orient:vertical;overflow:hidden}
+.ensaio-actions{display:flex;gap:4px;flex-shrink:0;flex-direction:column;align-items:center}
+.ensaio-play{background:var(--accent);color:#fff;border:none;border-radius:50%;width:34px;height:34px;font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .2s}
 .ensaio-play:active{transform:scale(.9);opacity:.9}
-.ensaio-del{background:none;border:none;font-size:15px;cursor:pointer;opacity:.3;padding:4px;transition:opacity .15s}
+.ensaio-del{background:none;border:none;font-size:13px;cursor:pointer;opacity:.3;padding:2px;transition:opacity .15s}
+.ensaio-move-btn{background:none;border:1px solid var(--card-border);color:var(--text-dim);border-radius:6px;padding:3px 6px;font-size:9px;cursor:pointer;font-family:var(--fb);white-space:nowrap}
+.ensaio-move-btn:active{background:var(--accent-glow);border-color:var(--accent)}
+.ensaio-tab-count{font-size:10px;background:rgba(178,34,34,.15);color:var(--accent2);padding:1px 6px;border-radius:8px;margin-left:4px;font-weight:700}
 /* Overlay player */
 .ensaio-overlay{display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.96);z-index:200;flex-direction:column;align-items:center;justify-content:center;backdrop-filter:blur(20px)}
 .ensaio-overlay.active{display:flex}
@@ -822,28 +794,27 @@ body.light .subtab.active{background:rgba(178,34,34,.1);border-color:var(--accen
 .aovivo-empty-text{font-size:14px;line-height:1.6}
 @media(min-width:1025px){.aovivo-screen{max-width:1400px;width:100%;margin:0 auto}}
 /* LOUVOR HOME */
-.lv-card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:10px 12px;overflow:hidden}
-.lv-card-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;user-select:none}
-.lv-card-head:active{opacity:.7}
-.lv-card-title{font-size:12px;font-weight:700;font-family:var(--fd);text-transform:uppercase;letter-spacing:.8px;display:flex;align-items:center;gap:5px;color:var(--text)}
-.lv-card-title .ico{width:14px;height:14px;color:var(--accent2)}
 .lv-arrow{font-size:9px;color:var(--text-dim);transition:transform .2s}
 .lv-arrow.open{transform:rotate(180deg)}
-.lv-add-row{display:flex;gap:4px;align-items:center}
-.lv-input{background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:7px 10px;color:var(--text);font-size:12px;font-family:var(--fb);outline:none;min-width:0}
-.lv-input:focus{border-color:var(--accent2)}
-.lv-select{background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:7px 4px;color:var(--text);font-size:11px;font-family:var(--fb);outline:none;width:52px;text-align:center;-webkit-appearance:none}
-.lv-btn{border:none;border-radius:8px;padding:7px 10px;font-size:11px;font-weight:700;font-family:var(--fb);cursor:pointer;white-space:nowrap;display:flex;align-items:center;gap:3px}
-.lv-btn:active{opacity:.7}
-.lv-btn.accent{background:var(--accent2);color:#fff}
-.lv-btn.green{background:#25d366;color:#fff;padding:7px 8px}
-.lv-send-btn{width:32px;height:32px;border-radius:50%;background:var(--accent2);border:none;color:#fff;cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center}
+.lv-send-btn{width:34px;height:34px;border-radius:50%;background:var(--accent2);border:none;color:#fff;cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center}
 .lv-send-btn:active{opacity:.7}
-.lv-icon-btn{width:30px;height:30px;border-radius:8px;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:700;flex-shrink:0}
-.lv-icon-btn:active{opacity:.7}
-.lv-icon-btn.accent{background:var(--accent2);color:#fff}
-.lv-icon-btn.green{background:#25d366;color:#fff}
-.lv-icon-btn.dim{background:var(--border);color:var(--text-dim)}
+.lv-round-btn{width:36px;height:36px;border-radius:50%;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:opacity .2s}
+.lv-round-btn:active{opacity:.7}
+.lv-round-btn.green{background:#25d366;color:#fff}
+.lv-section-label{display:flex;align-items:center;gap:6px;font-size:11px;font-weight:700;font-family:var(--fd);text-transform:uppercase;letter-spacing:1px;color:var(--text-dim);margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid var(--border)}
+.lv-section-label .ico{width:14px;height:14px;color:var(--accent2)}
+.lv-section-label .lv-arrow{margin-left:auto}
+.lv-add-btn{margin-left:auto;font-size:10px;font-weight:700;font-family:var(--fb);color:var(--accent2);background:none;border:1px solid var(--accent2);border-radius:8px;padding:3px 10px;cursor:pointer;letter-spacing:.3px}
+.lv-add-btn:active{opacity:.6;background:var(--accent-glow)}
+.lv-add-form{background:var(--card-bg);border:1px solid var(--border);border-radius:10px;padding:10px;margin-bottom:10px}
+.lv-input-clean{width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:9px 12px;color:var(--text);font-size:12px;font-family:var(--fb);outline:none;box-sizing:border-box}
+.lv-input-clean:focus{border-color:var(--accent2)}
+.lv-select-clean{background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:8px 6px;color:var(--text);font-size:11px;font-family:var(--fb);outline:none;-webkit-appearance:none;min-width:54px;text-align:center}
+.lv-confirm-btn{background:var(--accent2);color:#fff;border:none;border-radius:8px;padding:8px 16px;font-size:11px;font-weight:700;font-family:var(--fb);cursor:pointer}
+.lv-confirm-btn:active{opacity:.7}
+.lv-cancel-btn{background:none;color:var(--text-dim);border:1px solid var(--border);border-radius:8px;padding:8px 12px;font-size:11px;font-family:var(--fb);cursor:pointer}
+.lv-cancel-btn:active{opacity:.7}
+.lv-empty-msg{text-align:center;padding:16px 0;color:var(--text-dim);font-size:11px;opacity:.4}
 /* CHAT */
 .chat-msg{display:flex;gap:8px;padding:4px 0;align-items:flex-start}
 .chat-msg.mine{flex-direction:row-reverse}
@@ -1039,76 +1010,62 @@ if(typeof _fbOnReady==='function')_fbOnReady();
 
 <!-- LOUVOR HOME SCREEN -->
 <div id="screen-ensaio" class="ensaio-screen">
-<div class="ensaio-header" style="overflow-y:auto;flex:1;display:flex;flex-direction:column;gap:8px">
-<span class="profile-badge" id="ensaio-profile-badge" style="align-self:flex-start">Grupo</span>
+<div class="ensaio-header">
+<!-- Top Bar -->
+<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+<div>
+<div style="font-family:var(--fd);font-size:20px;letter-spacing:1.5px;text-transform:uppercase;color:var(--text)">Louvor</div>
+<span class="profile-badge" id="ensaio-profile-badge" style="font-size:10px;margin-top:2px">Grupo</span>
+</div>
+<div style="display:flex;gap:6px">
+<button onclick="shareEnsaioWhatsApp()" class="lv-round-btn green" title="WhatsApp"><svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg></button>
+</div>
+</div>
 
-<!-- ENSAIANDO -->
-<div class="lv-card">
-<div class="lv-card-head">
-<span class="lv-card-title"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>Ensaiando <span class="ensaio-tab-count" id="ensaio-count-now">0</span></span>
-<div style="display:flex;gap:4px">
-<button onclick="shareEnsaioWhatsApp()" class="lv-icon-btn green" title="WhatsApp"><svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg></button>
-<button onclick="showEnsaioAdd('now')" class="lv-icon-btn accent" id="btn-add-now" style="display:none" title="Adicionar">+</button>
-</div>
-</div>
-<div id="ensaio-add-now" style="display:none;margin-bottom:8px">
-<div class="lv-add-row">
-<input type="text" class="lv-input" id="ensaio-url-now" placeholder="Link YouTube..." autocomplete="off" style="flex:1">
-<select class="lv-select" id="ensaio-tom-now"><option value="">Tom</option><option>C</option><option>C#</option><option>D</option><option>D#</option><option>E</option><option>F</option><option>F#</option><option>G</option><option>G#</option><option>A</option><option>A#</option><option>B</option><option>Cm</option><option>C#m</option><option>Dm</option><option>D#m</option><option>Em</option><option>Fm</option><option>F#m</option><option>Gm</option><option>G#m</option><option>Am</option><option>A#m</option><option>Bm</option></select>
-<button class="lv-icon-btn accent" onclick="addEnsaioTo('now')">&#10003;</button>
-<button class="lv-icon-btn dim" onclick="hideEnsaioAdd('now')">&#10005;</button>
+<!-- REPERTORIO / ENSAIANDO -->
+<div class="lv-section-label"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg> Ensaiando <span class="ensaio-tab-count" id="ensaio-count-now">0</span><button onclick="showEnsaioAdd('now')" class="lv-add-btn" id="btn-add-now" style="display:none">+ Adicionar</button></div>
+<div id="ensaio-add-now" class="lv-add-form" style="display:none">
+<input type="text" class="lv-input-clean" id="ensaio-url-now" placeholder="Cole o link do YouTube..." autocomplete="off">
+<div style="display:flex;gap:6px;margin-top:6px">
+<select class="lv-select-clean" id="ensaio-tom-now"><option value="">Tom</option><option>C</option><option>C#</option><option>D</option><option>D#</option><option>E</option><option>F</option><option>F#</option><option>G</option><option>G#</option><option>A</option><option>A#</option><option>B</option><option>Cm</option><option>C#m</option><option>Dm</option><option>D#m</option><option>Em</option><option>Fm</option><option>F#m</option><option>Gm</option><option>G#m</option><option>Am</option><option>A#m</option><option>Bm</option></select>
+<button class="lv-confirm-btn" onclick="addEnsaioTo('now')">Salvar</button>
+<button class="lv-cancel-btn" onclick="hideEnsaioAdd('now')">Cancelar</button>
 </div>
 </div>
 <div id="ensaio-list-now"></div>
-<div id="ensaio-empty-now" style="text-align:center;padding:12px 0;opacity:.3;font-size:11px">Nenhuma música ensaiando</div>
-</div>
+<div id="ensaio-empty-now" class="lv-empty-msg">Toque em "+ Adicionar" para montar o repertorio</div>
 
 <!-- PARA ENSAIAR -->
-<div class="lv-card">
-<div class="lv-card-head">
-<span class="lv-card-title"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/></svg>Para Ensaiar <span class="ensaio-tab-count" id="ensaio-count-next">0</span></span>
-<button onclick="showEnsaioAdd('next')" class="lv-icon-btn accent" id="btn-add-next" style="display:none" title="Adicionar">+</button>
-</div>
-<div id="ensaio-add-next" style="display:none;margin-bottom:8px">
-<div class="lv-add-row">
-<input type="text" class="lv-input" id="ensaio-url-next" placeholder="Link YouTube..." autocomplete="off" style="flex:1">
-<select class="lv-select" id="ensaio-tom-next"><option value="">Tom</option><option>C</option><option>C#</option><option>D</option><option>D#</option><option>E</option><option>F</option><option>F#</option><option>G</option><option>G#</option><option>A</option><option>A#</option><option>B</option><option>Cm</option><option>C#m</option><option>Dm</option><option>D#m</option><option>Em</option><option>Fm</option><option>F#m</option><option>Gm</option><option>G#m</option><option>Am</option><option>A#m</option><option>Bm</option></select>
-<button class="lv-icon-btn accent" onclick="addEnsaioTo('next')">&#10003;</button>
-<button class="lv-icon-btn dim" onclick="hideEnsaioAdd('next')">&#10005;</button>
+<div class="lv-section-label" style="margin-top:16px"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/></svg> Para Ensaiar <span class="ensaio-tab-count" id="ensaio-count-next">0</span><button onclick="showEnsaioAdd('next')" class="lv-add-btn" id="btn-add-next" style="display:none">+ Adicionar</button></div>
+<div id="ensaio-add-next" class="lv-add-form" style="display:none">
+<input type="text" class="lv-input-clean" id="ensaio-url-next" placeholder="Cole o link do YouTube..." autocomplete="off">
+<div style="display:flex;gap:6px;margin-top:6px">
+<select class="lv-select-clean" id="ensaio-tom-next"><option value="">Tom</option><option>C</option><option>C#</option><option>D</option><option>D#</option><option>E</option><option>F</option><option>F#</option><option>G</option><option>G#</option><option>A</option><option>A#</option><option>B</option><option>Cm</option><option>C#m</option><option>Dm</option><option>D#m</option><option>Em</option><option>Fm</option><option>F#m</option><option>Gm</option><option>G#m</option><option>Am</option><option>A#m</option><option>Bm</option></select>
+<button class="lv-confirm-btn" onclick="addEnsaioTo('next')">Salvar</button>
+<button class="lv-cancel-btn" onclick="hideEnsaioAdd('next')">Cancelar</button>
 </div>
 </div>
 <div id="ensaio-list-next"></div>
-<div id="ensaio-empty-next" style="text-align:center;padding:12px 0;opacity:.3;font-size:11px">Nenhuma música para ensaiar</div>
-</div>
+<div id="ensaio-empty-next" class="lv-empty-msg">Nenhuma musica na fila</div>
 
-<!-- Hidden legacy elements for compatibility -->
+<!-- Hidden legacy elements -->
 <div style="display:none"><div id="ensaio-content-wrap"></div><div class="ensaio-body" id="ensaio-body"><div class="ensaio-tabs"><div class="ensaio-tab" id="ensaio-tab-now"></div><div class="ensaio-tab" id="ensaio-tab-next"></div></div><div id="ensaio-list"></div><div id="ensaio-empty"></div></div><div class="ensaio-extra-fields" id="ensaio-extra-fields"></div><input id="ensaio-url"><select id="ensaio-tom"></select><input id="ensaio-comment"><button id="ensaio-save-btn"></button><button id="btn-add-musica"></button></div>
 
-<!-- CHAT SECTION -->
-<div class="lv-card">
-<div class="lv-card-head" onclick="toggleSection('chat')" style="cursor:pointer">
-<span class="lv-card-title"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>Chat <span id="chat-unread-badge" style="display:none;background:var(--accent2);color:#fff;font-size:8px;padding:1px 5px;border-radius:8px;margin-left:4px">0</span></span>
-<span class="lv-arrow" id="arrow-chat">&#9660;</span>
-</div>
+<!-- CHAT -->
+<div class="lv-section-label" style="margin-top:16px;cursor:pointer" onclick="toggleSection('chat')"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg> Chat <span id="chat-unread-badge" style="display:none;background:var(--accent2);color:#fff;font-size:8px;padding:1px 5px;border-radius:8px">0</span><span class="lv-arrow" id="arrow-chat">&#9660;</span></div>
 <div id="section-chat" style="display:none">
-<div id="chat-messages" style="max-height:280px;overflow-y:auto;display:flex;flex-direction:column;gap:1px"></div>
-<div style="display:flex;gap:6px;align-items:flex-end;margin-top:6px">
-<textarea id="chat-input" rows="1" placeholder="Mensagem..." class="lv-input" style="flex:1;border-radius:16px;padding:7px 12px;resize:none;max-height:60px;line-height:1.3" oninput="this.style.height='auto';this.style.height=Math.min(this.scrollHeight,60)+'px'" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendChat();}"></textarea>
+<div id="chat-messages" style="max-height:280px;overflow-y:auto;display:flex;flex-direction:column;gap:1px;margin-bottom:6px"></div>
+<div style="display:flex;gap:6px;align-items:flex-end">
+<textarea id="chat-input" rows="1" placeholder="Mensagem..." class="lv-input-clean" style="flex:1;border-radius:16px;padding:8px 14px;resize:none;max-height:60px;line-height:1.3" oninput="this.style.height='auto';this.style.height=Math.min(this.scrollHeight,60)+'px'" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendChat();}"></textarea>
 <button onclick="sendChat()" class="lv-send-btn"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg></button>
 </div>
 </div>
-</div>
 
-<!-- ESCALA SECTION -->
-<div class="lv-card">
-<div class="lv-card-head" onclick="toggleSection('escala')" style="cursor:pointer">
-<span class="lv-card-title"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>Escala</span>
-<span class="lv-arrow" id="arrow-escala">&#9660;</span>
-</div>
+<!-- ESCALA -->
+<div class="lv-section-label" style="margin-top:16px;cursor:pointer" onclick="toggleSection('escala')"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg> Escala <span class="lv-arrow" id="arrow-escala">&#9660;</span></div>
 <div id="section-escala" style="display:none">
 <div id="screen-escala" style="display:flex;flex-direction:column;padding:0">
 <div class="escala-body" id="escala-body"></div>
-</div>
 </div>
 </div>
 
