@@ -821,6 +821,21 @@ body.light .subtab.active{background:rgba(178,34,34,.1);border-color:var(--accen
 .aovivo-empty-icon{font-size:48px;margin-bottom:14px}
 .aovivo-empty-text{font-size:14px;line-height:1.6}
 @media(min-width:1025px){.aovivo-screen{max-width:1400px;width:100%;margin:0 auto}}
+/* CHAT */
+.chat-msg{display:flex;gap:8px;padding:4px 0;align-items:flex-start}
+.chat-msg.mine{flex-direction:row-reverse}
+.chat-avatar{width:32px;height:32px;border-radius:50%;flex-shrink:0;overflow:hidden;background:var(--card);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:var(--accent2);border:1.5px solid var(--border)}
+.chat-avatar img{width:100%;height:100%;object-fit:cover}
+.chat-bubble{max-width:75%;padding:8px 12px;border-radius:16px;font-size:13px;line-height:1.45;word-break:break-word}
+.chat-msg:not(.mine) .chat-bubble{background:var(--card);border:1px solid var(--border);border-top-left-radius:4px;color:var(--text)}
+.chat-msg.mine .chat-bubble{background:var(--accent2);color:#fff;border-bottom-right-radius:4px}
+.chat-sender{font-size:10px;font-weight:700;color:var(--accent2);margin-bottom:2px;display:flex;align-items:center;gap:4px}
+.chat-badge-lider{font-size:8px;background:var(--gold);color:#fff;padding:1px 5px;border-radius:6px;font-weight:700;letter-spacing:.3px;text-transform:uppercase}
+.chat-badge-admin{font-size:8px;background:var(--accent2);color:#fff;padding:1px 5px;border-radius:6px;font-weight:700;letter-spacing:.3px;text-transform:uppercase}
+.chat-time{font-size:9px;color:var(--text-dim);margin-top:2px;opacity:.6}
+.chat-date-sep{text-align:center;font-size:10px;color:var(--text-dim);padding:10px 0 4px;font-weight:600;letter-spacing:.5px;text-transform:uppercase}
+.chat-msg.mine .chat-sender{display:none}
+.chat-msg.mine .chat-time{text-align:right}
 </style>
 <script>
 // Load Firebase SDK
@@ -1005,6 +1020,7 @@ if(typeof _fbOnReady==='function')_fbOnReady();
 <div class="subtab-bar" style="margin-bottom:10px">
 <button class="subtab active" data-louvor-sub="ensaio" onclick="switchLouvorSub('ensaio')">Ensaio</button>
 <button class="subtab" data-louvor-sub="escala" onclick="switchLouvorSub('escala')">Escala</button>
+<button class="subtab" data-louvor-sub="chat" onclick="switchLouvorSub('chat')">Chat</button>
 </div>
 <div id="ensaio-content-wrap" style="display:flex;flex-direction:column;flex:1;overflow:hidden">
 <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
@@ -1045,6 +1061,15 @@ if(typeof _fbOnReady==='function')_fbOnReady();
 <!-- ESCALA (sub-aba dentro do Louvor) -->
 <div id="screen-escala" style="display:none;flex-direction:column;flex:1;overflow-y:auto;padding:0 16px 16px">
 <div class="escala-body" id="escala-body"></div>
+</div>
+
+<!-- CHAT (sub-aba dentro do Louvor) -->
+<div id="screen-chat" style="display:none;flex-direction:column;flex:1;overflow:hidden">
+<div id="chat-messages" style="flex:1;overflow-y:auto;padding:8px 12px;display:flex;flex-direction:column;gap:2px"></div>
+<div style="padding:8px 12px 12px;border-top:1px solid var(--border);display:flex;gap:8px;align-items:flex-end">
+<textarea id="chat-input" rows="1" placeholder="Mensagem..." style="flex:1;background:var(--card);border:1px solid var(--border);border-radius:16px;padding:10px 14px;color:var(--text);font-size:13px;font-family:var(--fb);resize:none;max-height:80px;line-height:1.4;outline:none" oninput="this.style.height='auto';this.style.height=Math.min(this.scrollHeight,80)+'px'" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendChat();}"></textarea>
+<button onclick="sendChat()" style="width:38px;height:38px;border-radius:50%;background:var(--accent2);border:none;color:#fff;font-size:16px;cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg></button>
+</div>
 </div>
 
 </div><!-- /screen-ensaio -->
@@ -2190,6 +2215,8 @@ document.getElementById('screen-pads').style.display='none';
 var aoC=document.getElementById('screen-aovivo-cifras');if(aoC)aoC.style.display='none';
 var escalaScreen=document.getElementById('screen-escala');
 if(escalaScreen)escalaScreen.style.display='none';
+var chatScreen=document.getElementById('screen-chat');
+if(chatScreen)chatScreen.style.display='none';
 var adminScreen=document.getElementById('screen-admin');
 if(adminScreen)adminScreen.style.display='none';
 if(nav==='louvor'){switchLouvorSub(currentLouvorSub);}
@@ -2200,17 +2227,20 @@ else if(nav==='admin'){if(adminScreen)adminScreen.style.display='flex';renderAdm
 function switchLouvorSub(sub){
 currentLouvorSub=sub;
 document.getElementById('screen-list').style.display=sub==='musicas'?'flex':'none';
-document.getElementById('screen-ensaio').style.display=(sub==='ensaio'||sub==='escala')?'flex':'none';
+document.getElementById('screen-ensaio').style.display=(sub==='ensaio'||sub==='escala'||sub==='chat')?'flex':'none';
 var ensaioContent=document.getElementById('ensaio-content-wrap');
 if(ensaioContent)ensaioContent.style.display=sub==='ensaio'?'flex':'none';
 var ensaioBody=document.getElementById('ensaio-body');
 if(ensaioBody)ensaioBody.style.display=sub==='ensaio'?'block':'none';
 var escalaScreen=document.getElementById('screen-escala');
 if(escalaScreen)escalaScreen.style.display=sub==='escala'?'flex':'none';
+var chatScreen=document.getElementById('screen-chat');
+if(chatScreen)chatScreen.style.display=sub==='chat'?'flex':'none';
 document.querySelectorAll('[data-louvor-sub]').forEach(function(btn){btn.classList.toggle('active',btn.getAttribute('data-louvor-sub')===sub);});
 if(sub==='musicas')renderList();
 if(sub==='ensaio')renderEnsaioList();
 if(sub==='escala')renderEscala();
+if(sub==='chat')loadChat();
 }
 
 function switchAoVivoSub(sub){
@@ -2314,6 +2344,87 @@ var b2=document.getElementById('aovivo-cifras-body');if(b2)b2.innerHTML='';
 openEdit(songId);
 setTimeout(function(){var el=document.getElementById('edit-cifra');if(el){el.scrollIntoView({behavior:'smooth'});el.focus();}},300);
 }
+// ===== CHAT DO LOUVOR =====
+var chatMessages=[];
+var chatLoaded=false;
+var chatUnsubscribe=null;
+
+function loadChat(){
+if(chatUnsubscribe)return;// already listening
+if(!db)return;
+chatUnsubscribe=db.collection('app').doc('chat').onSnapshot(function(doc){
+if(doc.exists&&doc.data().messages){
+try{chatMessages=JSON.parse(doc.data().messages);}catch(e){chatMessages=[];}
+}else{chatMessages=[];}
+renderChat();
+});
+}
+
+function renderChat(){
+var container=document.getElementById('chat-messages');
+if(!container)return;
+var myName=currentUser?currentUser.name:'';
+var h='';
+var lastDate='';
+for(var i=0;i<chatMessages.length;i++){
+var m=chatMessages[i];
+var d=new Date(m.ts);
+var dateStr=d.toLocaleDateString('pt-BR',{day:'2-digit',month:'short'});
+if(dateStr!==lastDate){
+h+='<div class="chat-date-sep">'+esc(dateStr)+'</div>';
+lastDate=dateStr;
+}
+var isMine=m.name===myName;
+var photo=getUserPhoto(m.name);
+var initials=m.name?m.name.split(' ').map(function(w){return w[0];}).join('').substring(0,2).toUpperCase():'?';
+var role=m.role||'membro';
+var badge='';
+if(role==='lider')badge='<span class="chat-badge-lider">L\u00edder</span>';
+else if(role==='admin')badge='<span class="chat-badge-admin">Admin</span>';
+var avatarHtml=photo?'<img src="'+photo+'" alt="">':esc(initials);
+var timeStr=d.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
+h+='<div class="chat-msg'+(isMine?' mine':'')+'">';
+h+='<div class="chat-avatar">'+avatarHtml+'</div>';
+h+='<div>';
+h+='<div class="chat-sender">'+esc(m.name.split(' ')[0])+' '+badge+'</div>';
+h+='<div class="chat-bubble">'+esc(m.text).replace(/\n/g,'<br>')+'</div>';
+h+='<div class="chat-time">'+timeStr+'</div>';
+h+='</div></div>';
+}
+if(!chatMessages.length){
+h+='<div style="flex:1;display:flex;align-items:center;justify-content:center;flex-direction:column;opacity:.3;padding:40px">';
+h+='<svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>';
+h+='<div style="margin-top:12px;font-size:14px">Nenhuma mensagem ainda</div>';
+h+='<div style="font-size:11px;margin-top:4px">Comece a conversa!</div>';
+h+='</div>';
+}
+container.innerHTML=h;
+container.scrollTop=container.scrollHeight;
+}
+
+function sendChat(){
+if(!currentUser)return;
+var input=document.getElementById('chat-input');
+var text=input.value.trim();
+if(!text)return;
+input.value='';
+input.style.height='auto';
+var msg={
+name:currentUser.name,
+role:currentUser.role||'membro',
+text:text,
+ts:Date.now()
+};
+chatMessages.push(msg);
+renderChat();
+// Save to Firebase
+if(db){
+// Keep last 200 messages
+var toSave=chatMessages.slice(-200);
+db.collection('app').doc('chat').set({messages:JSON.stringify(toSave),updated:Date.now()});
+}
+}
+
 // ===== ESCALA DE MINISTROS - CALENDARIO =====
 function loadEscalas(){try{var d=localStorage.getItem(ESCALA_KEY);if(d)escalas=JSON.parse(d);else escalas=[];}catch(e){escalas=[];}}
 function saveEscalas(){try{localStorage.setItem(ESCALA_KEY,JSON.stringify(escalas));}catch(e){}fbSaveEscala();}
@@ -2440,7 +2551,17 @@ h+='<div class="escala-detail-tipo">'+esc(e.tipo||'')+(e.manual?' (manual)':'')+
 if(authCanEdit())h+='<button class="escala-detail-del" onclick="deleteEscala(\''+e.id+'\')" title="Excluir">&#10005;</button>';
 h+='</div>';
 h+='<div class="escala-detail-membros">';
-(e.membros||[]).forEach(function(m){h+='<div class="escala-detail-membro'+(e.manual?' manual':'')+'">'+esc(m.split(' ')[0])+'</div>';});
+(e.membros||[]).forEach(function(m){
+var firstName=m.split(' ')[0];
+var photo=getUserPhoto(m);
+var user=allUsers.find(function(u){return u.name===m;});
+var role=user?user.role:'membro';
+var funcao=user?user.funcao:'';
+var avatarHtml=photo?'<img src="'+photo+'" style="width:20px;height:20px;border-radius:50%;object-fit:cover;vertical-align:middle;margin-right:4px">':'';
+var badgeHtml=role==='lider'?'<span style="font-size:7px;background:var(--gold);color:#fff;padding:1px 4px;border-radius:4px;margin-left:3px;vertical-align:middle;font-weight:700">L</span>':role==='admin'?'<span style="font-size:7px;background:var(--accent2);color:#fff;padding:1px 4px;border-radius:4px;margin-left:3px;vertical-align:middle;font-weight:700">A</span>':'';
+var funcaoHtml=funcao?'<span style="font-size:9px;opacity:.6;margin-left:2px">'+esc(funcao)+'</span>':'';
+h+='<div class="escala-detail-membro'+(e.manual?' manual':'')+'" style="display:flex;align-items:center;gap:2px">'+avatarHtml+esc(firstName)+badgeHtml+funcaoHtml+'</div>';
+});
 h+='</div>';
 if(e.obs)h+='<div style="font-size:11px;color:var(--text-dim);margin-top:6px;font-style:italic">'+esc(e.obs)+'</div>';
 h+='</div>';
@@ -3463,9 +3584,10 @@ var isLider=u.role==='lider';
 var initial=(u.name||'?').charAt(0).toUpperCase();
 var roleLabel=isAdmin?'Administrador':isLider?'Líder de Louvor':'Membro';
 var grupoLabel=getUserGrupoLabel(u.grupo);
+var photo=getUserPhoto(u.name);
 
 h+='<div class="admin-user-card">';
-h+='<div class="admin-user-icon '+u.role+'">'+initial+'</div>';
+h+='<div class="admin-user-icon '+u.role+'">'+(photo?'<img src="'+photo+'" style="width:100%;height:100%;border-radius:50%;object-fit:cover">':initial)+'</div>';
 h+='<div class="admin-user-info">';
 h+='<div class="admin-user-name">'+esc(u.name)+'</div>';
 h+='<div class="admin-user-funcao">'+esc(u.funcao||'—')+' · '+ICO.mic+' '+grupoLabel+'</div>';
