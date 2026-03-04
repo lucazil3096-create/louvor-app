@@ -819,7 +819,7 @@ body.light .subtab.active{background:rgba(178,34,34,.1);border-color:var(--accen
 .lv-cancel-btn:active{opacity:.5}
 .lv-empty-msg{text-align:center;padding:12px 0;color:var(--text-dim);font-size:11px;opacity:.35}
 .lv-chat-block .lv-block-head{margin-bottom:0}
-.lv-chat-messages{max-height:200px;overflow-y:auto;display:flex;flex-direction:column;gap:1px;padding:6px 0}
+.lv-chat-messages{max-height:350px;overflow-y:auto;display:flex;flex-direction:column;gap:1px;padding:6px 0}
 .lv-chat-input-row{display:flex;gap:6px;align-items:flex-end;padding-top:6px;border-top:1px solid var(--card-border)}
 .lv-chat-textarea{flex:1;background:var(--bg);border:1px solid var(--card-border);border-radius:18px;padding:8px 14px;color:var(--text);font-size:12px;font-family:var(--fb);outline:none;resize:none;max-height:60px;line-height:1.35;transition:border-color .2s}
 .lv-chat-textarea:focus{border-color:var(--accent2)}
@@ -839,8 +839,9 @@ body.light .subtab.active{background:rgba(178,34,34,.1);border-color:var(--accen
 .chat-badge-admin{font-size:7px;background:var(--accent2);color:#fff;padding:1px 4px;border-radius:4px;font-weight:700;letter-spacing:.3px;text-transform:uppercase}
 .chat-time{font-size:9px;color:var(--text-dim);margin-top:1px;opacity:.5}
 .chat-date-sep{text-align:center;font-size:9px;color:var(--text-dim);padding:8px 0 2px;font-weight:600;letter-spacing:.5px;text-transform:uppercase}
-.chat-msg.mine .chat-sender{display:none}
+.chat-msg.mine .chat-sender{color:var(--gold-dim)}
 .chat-msg.mine .chat-time{text-align:right}
+.chat-msg.mine .chat-sender{text-align:right;justify-content:flex-end}
 </style>
 <script>
 // Load Firebase SDK
@@ -2401,7 +2402,7 @@ h+='<div class="chat-date-sep">'+esc(dateStr)+'</div>';
 lastDate=dateStr;
 }
 var isMine=m.name===myName;
-var photo=getUserPhoto(m.name);
+var photo=m.photo||getUserPhoto(m.name);
 var initials=m.name?m.name.split(' ').map(function(w){return w[0];}).join('').substring(0,2).toUpperCase():'?';
 var role=m.role||'membro';
 var badge='';
@@ -2435,9 +2436,11 @@ var text=input.value.trim();
 if(!text)return;
 input.value='';
 input.style.height='auto';
+var photo=getUserPhoto(currentUser.name)||'';
 var msg={
 name:currentUser.name,
 role:currentUser.role||'membro',
+photo:photo,
 text:text,
 ts:Date.now()
 };
