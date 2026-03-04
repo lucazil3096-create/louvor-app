@@ -4032,7 +4032,7 @@ h+='<div class="ensaio-item" style="margin-bottom:6px">';
 h+='<img class="ensaio-thumb" src="'+thumb+'" alt="">';
 h+='<div class="ensaio-info">';
 h+='<div class="ensaio-name">'+displayName+'</div>';
-if(item.tom)h+='<div class="ensaio-tom-row"><span class="ensaio-tom-badge">Tom: '+item.tom+'</span></div>';
+h+='<div class="ensaio-tom-row"><span class="ensaio-tom-badge" onclick="editEnsaioTom(\''+item.id+'\')" style="cursor:pointer" title="Editar tom">'+(item.tom?'Tom: '+item.tom:'+ Tom')+'</span></div>';
 if(item.comment)h+='<div class="ensaio-comment-text">'+item.comment+'</div>';
 h+='</div>';
 h+='<div class="ensaio-actions">';
@@ -4080,6 +4080,20 @@ if(!item)return;
 item.list=(fromTab==='now'?'next':'now');
 saveEnsaioData();renderEnsaioList();
 }
+function editEnsaioTom(videoId){
+var toms=['C','C#','D','D#','E','F','F#','G','G#','A','A#','B','Cm','C#m','Dm','D#m','Em','Fm','F#m','Gm','G#m','Am','A#m','Bm'];
+var links=getActiveLinks();
+var item=links.find(function(l){return l.id===videoId;});
+if(!item)return;
+var current=item.tom||'';
+var choice=prompt('Tom da música:\n\n'+toms.join(', ')+'\n\nAtual: '+(current||'nenhum'),current);
+if(choice===null)return;
+choice=choice.trim();
+if(choice&&toms.indexOf(choice)<0){alert('Tom inválido. Use: '+toms.join(', '));return;}
+item.tom=choice||'';
+saveEnsaioData();renderEnsaioList();
+}
+
 function deleteEnsaioItem(videoId){
 if(!authCanEdit()){alert('Apenas líderes e administradores podem remover músicas.');return;}
 if(!confirm('Remover esta música?'))return;
