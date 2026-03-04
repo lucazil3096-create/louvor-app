@@ -821,19 +821,32 @@ body.light .subtab.active{background:rgba(178,34,34,.1);border-color:var(--accen
 .aovivo-empty-icon{font-size:48px;margin-bottom:14px}
 .aovivo-empty-text{font-size:14px;line-height:1.6}
 @media(min-width:1025px){.aovivo-screen{max-width:1400px;width:100%;margin:0 auto}}
+/* LOUVOR HOME UNIFIED */
+.louvor-section{background:var(--card);border:1px solid var(--border);border-radius:12px;margin-bottom:10px;overflow:hidden}
+.louvor-section-header{display:flex;align-items:center;justify-content:space-between;padding:12px 14px;cursor:pointer;user-select:none}
+.louvor-section-header:active{opacity:.7}
+.louvor-section-title{font-size:13px;font-weight:700;font-family:var(--fd);text-transform:uppercase;letter-spacing:.8px;display:flex;align-items:center;gap:6px;color:var(--text)}
+.louvor-section-title .ico{width:16px;height:16px;color:var(--accent2)}
+.louvor-section-arrow{font-size:10px;color:var(--text-dim);transition:transform .2s}
+.louvor-section-arrow.open{transform:rotate(180deg)}
+.louvor-section>div:not(.louvor-section-header){padding:0 14px 14px}
+.louvor-action-btn{display:flex;align-items:center;gap:5px;font-size:11px;font-weight:700;font-family:var(--fb);padding:7px 14px;border-radius:10px;border:none;cursor:pointer;background:var(--accent2);color:#fff;transition:opacity .2s}
+.louvor-action-btn:active{opacity:.7}
+.louvor-action-btn .ico{width:14px;height:14px}
+.louvor-action-btn.whatsapp{background:#25d366}
 /* CHAT */
 .chat-msg{display:flex;gap:8px;padding:4px 0;align-items:flex-start}
 .chat-msg.mine{flex-direction:row-reverse}
-.chat-avatar{width:32px;height:32px;border-radius:50%;flex-shrink:0;overflow:hidden;background:var(--card);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:var(--accent2);border:1.5px solid var(--border)}
+.chat-avatar{width:30px;height:30px;border-radius:50%;flex-shrink:0;overflow:hidden;background:var(--card-bg);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:var(--accent2);border:1.5px solid var(--border)}
 .chat-avatar img{width:100%;height:100%;object-fit:cover}
-.chat-bubble{max-width:75%;padding:8px 12px;border-radius:16px;font-size:13px;line-height:1.45;word-break:break-word}
-.chat-msg:not(.mine) .chat-bubble{background:var(--card);border:1px solid var(--border);border-top-left-radius:4px;color:var(--text)}
+.chat-bubble{max-width:75%;padding:7px 11px;border-radius:14px;font-size:12px;line-height:1.4;word-break:break-word}
+.chat-msg:not(.mine) .chat-bubble{background:var(--card-bg);border:1px solid var(--border);border-top-left-radius:4px;color:var(--text)}
 .chat-msg.mine .chat-bubble{background:var(--accent2);color:#fff;border-bottom-right-radius:4px}
-.chat-sender{font-size:10px;font-weight:700;color:var(--accent2);margin-bottom:2px;display:flex;align-items:center;gap:4px}
-.chat-badge-lider{font-size:8px;background:var(--gold);color:#fff;padding:1px 5px;border-radius:6px;font-weight:700;letter-spacing:.3px;text-transform:uppercase}
-.chat-badge-admin{font-size:8px;background:var(--accent2);color:#fff;padding:1px 5px;border-radius:6px;font-weight:700;letter-spacing:.3px;text-transform:uppercase}
-.chat-time{font-size:9px;color:var(--text-dim);margin-top:2px;opacity:.6}
-.chat-date-sep{text-align:center;font-size:10px;color:var(--text-dim);padding:10px 0 4px;font-weight:600;letter-spacing:.5px;text-transform:uppercase}
+.chat-sender{font-size:10px;font-weight:700;color:var(--accent2);margin-bottom:1px;display:flex;align-items:center;gap:4px}
+.chat-badge-lider{font-size:7px;background:var(--gold);color:#fff;padding:1px 4px;border-radius:4px;font-weight:700;letter-spacing:.3px;text-transform:uppercase}
+.chat-badge-admin{font-size:7px;background:var(--accent2);color:#fff;padding:1px 4px;border-radius:4px;font-weight:700;letter-spacing:.3px;text-transform:uppercase}
+.chat-time{font-size:9px;color:var(--text-dim);margin-top:1px;opacity:.5}
+.chat-date-sep{text-align:center;font-size:9px;color:var(--text-dim);padding:8px 0 2px;font-weight:600;letter-spacing:.5px;text-transform:uppercase}
 .chat-msg.mine .chat-sender{display:none}
 .chat-msg.mine .chat-time{text-align:right}
 </style>
@@ -1014,19 +1027,29 @@ if(typeof _fbOnReady==='function')_fbOnReady();
 <div class="cifras-body" id="cifras-body"></div>
 </div>
 
-<!-- ENSAIO SCREEN -->
+<!-- LOUVOR HOME SCREEN -->
 <div id="screen-ensaio" class="ensaio-screen">
-<div class="ensaio-header">
-<div class="subtab-bar" style="margin-bottom:10px">
-<button class="subtab active" data-louvor-sub="ensaio" onclick="switchLouvorSub('ensaio')">Ensaio</button>
-<button class="subtab" data-louvor-sub="escala" onclick="switchLouvorSub('escala')">Escala</button>
-<button class="subtab" data-louvor-sub="chat" onclick="switchLouvorSub('chat')">Chat</button>
-</div>
-<div id="ensaio-content-wrap" style="display:flex;flex-direction:column;flex:1;overflow:hidden">
-<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
-<div class="ensaio-title"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg> Ensaio</div>
+<div class="ensaio-header" style="overflow-y:auto;flex:1;display:flex;flex-direction:column">
+
+<!-- QUICK ACTIONS -->
+<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px">
+<div style="display:flex;align-items:center;gap:8px">
 <span class="profile-badge" id="ensaio-profile-badge">Grupo</span>
 </div>
+<div style="display:flex;gap:6px" id="louvor-quick-actions">
+<button onclick="openEdit()" class="louvor-action-btn" id="btn-add-musica" style="display:none"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> Nova Música</button>
+<button onclick="shareEnsaioWhatsApp()" class="louvor-action-btn whatsapp"><svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg> WhatsApp</button>
+</div>
+</div>
+
+<!-- ENSAIO SECTION -->
+<div class="louvor-section">
+<div class="louvor-section-header" onclick="toggleSection('ensaio')">
+<div class="louvor-section-title"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg> Ensaio</div>
+<span class="louvor-section-arrow" id="arrow-ensaio">&#9660;</span>
+</div>
+<div id="section-ensaio">
+<div id="ensaio-content-wrap" style="display:flex;flex-direction:column">
 <div class="ensaio-input-row">
 <input type="text" class="ensaio-url" id="ensaio-url" placeholder="Cole o link do YouTube..." autocomplete="off">
 </div>
@@ -1037,41 +1060,54 @@ if(typeof _fbOnReady==='function')_fbOnReady();
 <option>C</option><option>C#</option><option>D</option><option>D#</option><option>E</option><option>F</option><option>F#</option><option>G</option><option>G#</option><option>A</option><option>A#</option><option>B</option>
 <option>Cm</option><option>C#m</option><option>Dm</option><option>D#m</option><option>Em</option><option>Fm</option><option>F#m</option><option>Gm</option><option>G#m</option><option>Am</option><option>A#m</option><option>Bm</option>
 </select>
-<input type="text" class="ensaio-comment-input" id="ensaio-comment" placeholder="Observações (ex: intro acústica, tom original...)" autocomplete="off">
+<input type="text" class="ensaio-comment-input" id="ensaio-comment" placeholder="Observações..." autocomplete="off">
 </div>
 <button class="ensaio-btn" id="ensaio-save-btn" onclick="addEnsaioLink()">+ Salvar</button>
 </div>
 </div>
 <div class="ensaio-body" id="ensaio-body">
-<div style="display:flex;align-items:center;justify-content:flex-end;margin-bottom:8px;gap:8px">
-<button class="ensaio-whatsapp-btn" onclick="shareEnsaioWhatsApp()" title="Compartilhar ensaio via WhatsApp"><svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg> Enviar no WhatsApp</button>
-</div>
 <div class="ensaio-tabs">
 <div class="ensaio-tab active" id="ensaio-tab-now" onclick="switchEnsaioTab('now')"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg> Ensaiando <span class="ensaio-tab-count" id="ensaio-count-now">0</span></div>
 <div class="ensaio-tab" id="ensaio-tab-next" onclick="switchEnsaioTab('next')"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/></svg> Para Ensaiar <span class="ensaio-tab-count" id="ensaio-count-next">0</span></div>
 </div>
 <div id="ensaio-list"></div>
 <div class="ensaio-empty" id="ensaio-empty">
-<div class="ensaio-empty-icon"><svg viewBox="0 0 24 24" width="48" height="48" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg></div>
-<div class="ensaio-empty-text">Cole um link do YouTube<br>e toque <b>+ Salvar</b><br>para montar seu ensaio</div>
+<div class="ensaio-empty-icon"><svg viewBox="0 0 24 24" width="36" height="36" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg></div>
+<div class="ensaio-empty-text" style="font-size:12px">Cole um link do YouTube e toque <b>+ Salvar</b></div>
+</div>
 </div>
 </div>
 </div>
 
-<!-- ESCALA (sub-aba dentro do Louvor) -->
-<div id="screen-escala" style="display:none;flex-direction:column;flex:1;overflow-y:auto;padding:0 16px 16px">
+<!-- CHAT SECTION -->
+<div class="louvor-section">
+<div class="louvor-section-header" onclick="toggleSection('chat')">
+<div class="louvor-section-title"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg> Chat<span id="chat-unread-badge" style="display:none;background:var(--accent2);color:#fff;font-size:9px;padding:1px 6px;border-radius:10px;margin-left:6px;font-weight:700">0</span></div>
+<span class="louvor-section-arrow" id="arrow-chat">&#9660;</span>
+</div>
+<div id="section-chat" style="display:none">
+<div id="chat-messages" style="max-height:300px;overflow-y:auto;padding:4px 0;display:flex;flex-direction:column;gap:2px"></div>
+<div style="display:flex;gap:8px;align-items:flex-end;margin-top:6px">
+<textarea id="chat-input" rows="1" placeholder="Mensagem..." style="flex:1;background:var(--card);border:1px solid var(--border);border-radius:16px;padding:8px 14px;color:var(--text);font-size:13px;font-family:var(--fb);resize:none;max-height:80px;line-height:1.4;outline:none" oninput="this.style.height='auto';this.style.height=Math.min(this.scrollHeight,80)+'px'" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendChat();}"></textarea>
+<button onclick="sendChat()" style="width:36px;height:36px;border-radius:50%;background:var(--accent2);border:none;color:#fff;cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg></button>
+</div>
+</div>
+</div>
+
+<!-- ESCALA SECTION -->
+<div class="louvor-section">
+<div class="louvor-section-header" onclick="toggleSection('escala')">
+<div class="louvor-section-title"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg> Escala</div>
+<span class="louvor-section-arrow" id="arrow-escala">&#9660;</span>
+</div>
+<div id="section-escala" style="display:none">
+<div id="screen-escala" style="display:flex;flex-direction:column;padding:0">
 <div class="escala-body" id="escala-body"></div>
 </div>
-
-<!-- CHAT (sub-aba dentro do Louvor) -->
-<div id="screen-chat" style="display:none;flex-direction:column;flex:1;overflow:hidden">
-<div id="chat-messages" style="flex:1;overflow-y:auto;padding:8px 12px;display:flex;flex-direction:column;gap:2px"></div>
-<div style="padding:8px 12px 12px;border-top:1px solid var(--border);display:flex;gap:8px;align-items:flex-end">
-<textarea id="chat-input" rows="1" placeholder="Mensagem..." style="flex:1;background:var(--card);border:1px solid var(--border);border-radius:16px;padding:10px 14px;color:var(--text);font-size:13px;font-family:var(--fb);resize:none;max-height:80px;line-height:1.4;outline:none" oninput="this.style.height='auto';this.style.height=Math.min(this.scrollHeight,80)+'px'" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendChat();}"></textarea>
-<button onclick="sendChat()" style="width:38px;height:38px;border-radius:50%;background:var(--accent2);border:none;color:#fff;font-size:16px;cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg></button>
 </div>
 </div>
 
+</div>
 </div><!-- /screen-ensaio -->
 
 <!-- ENSAIO OVERLAY PLAYER -->
@@ -2213,10 +2249,6 @@ document.getElementById('screen-list').style.display='none';
 document.getElementById('screen-ensaio').style.display='none';
 document.getElementById('screen-pads').style.display='none';
 var aoC=document.getElementById('screen-aovivo-cifras');if(aoC)aoC.style.display='none';
-var escalaScreen=document.getElementById('screen-escala');
-if(escalaScreen)escalaScreen.style.display='none';
-var chatScreen=document.getElementById('screen-chat');
-if(chatScreen)chatScreen.style.display='none';
 var adminScreen=document.getElementById('screen-admin');
 if(adminScreen)adminScreen.style.display='none';
 if(nav==='louvor'){switchLouvorSub(currentLouvorSub);}
@@ -2227,20 +2259,23 @@ else if(nav==='admin'){if(adminScreen)adminScreen.style.display='flex';renderAdm
 function switchLouvorSub(sub){
 currentLouvorSub=sub;
 document.getElementById('screen-list').style.display=sub==='musicas'?'flex':'none';
-document.getElementById('screen-ensaio').style.display=(sub==='ensaio'||sub==='escala'||sub==='chat')?'flex':'none';
-var ensaioContent=document.getElementById('ensaio-content-wrap');
-if(ensaioContent)ensaioContent.style.display=sub==='ensaio'?'flex':'none';
-var ensaioBody=document.getElementById('ensaio-body');
-if(ensaioBody)ensaioBody.style.display=sub==='ensaio'?'block':'none';
-var escalaScreen=document.getElementById('screen-escala');
-if(escalaScreen)escalaScreen.style.display=sub==='escala'?'flex':'none';
-var chatScreen=document.getElementById('screen-chat');
-if(chatScreen)chatScreen.style.display=sub==='chat'?'flex':'none';
-document.querySelectorAll('[data-louvor-sub]').forEach(function(btn){btn.classList.toggle('active',btn.getAttribute('data-louvor-sub')===sub);});
+document.getElementById('screen-ensaio').style.display=sub==='ensaio'?'flex':'none';
 if(sub==='musicas')renderList();
-if(sub==='ensaio')renderEnsaioList();
-if(sub==='escala')renderEscala();
-if(sub==='chat')loadChat();
+if(sub==='ensaio'){renderEnsaioList();renderEscala();loadChat();showAddMusicBtn();}
+}
+function showAddMusicBtn(){
+var btn=document.getElementById('btn-add-musica');
+if(btn)btn.style.display=authCanEdit()?'flex':'none';
+}
+function toggleSection(id){
+var el=document.getElementById('section-'+id);
+var arrow=document.getElementById('arrow-'+id);
+if(!el)return;
+var open=el.style.display!=='none';
+el.style.display=open?'none':'block';
+if(arrow)arrow.classList.toggle('open',!open);
+if(id==='escala'&&!open)renderEscala();
+if(id==='chat'&&!open)loadChat();
 }
 
 function switchAoVivoSub(sub){
