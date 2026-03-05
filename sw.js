@@ -11,35 +11,12 @@ firebase.initializeApp({
   appId: "1:599364196472:web:3fecfe67cfa7f38c81758d"
 });
 
+// Initialize messaging (required for FCM token registration)
 var messaging = firebase.messaging();
 
-// Flag to track if Firebase SDK handled the push
-var firebaseHandled = false;
-
-// Firebase SDK handler for background messages
-messaging.onBackgroundMessage(function(payload) {
-  console.log('[SW] onBackgroundMessage received:', JSON.stringify(payload));
-  firebaseHandled = true;
-  var title = (payload.notification && payload.notification.title) || (payload.data && payload.data.title) || 'Aos Pés da Cruz';
-  var body = (payload.notification && payload.notification.body) || (payload.data && payload.data.body) || '';
-  var tag = (payload.data && payload.data.tag) || ('msg-' + Date.now());
-  return self.registration.showNotification(title, {
-    body: body,
-    icon: './icon-192x192.png',
-    badge: './icon-192x192.png',
-    vibrate: [200, 100, 200],
-    tag: tag,
-    data: { url: './' }
-  });
-});
-
-// Direct push event listener as fallback (especially important for iOS)
+// Single push handler - no conflicts, works on iOS
 self.addEventListener('push', function(event) {
-  // Give Firebase SDK a chance to handle it first
-  if (firebaseHandled) {
-    firebaseHandled = false;
-    return;
-  }
+  console.log('[SW] push event received');
 
   var data = {};
   try {
@@ -52,14 +29,14 @@ self.addEventListener('push', function(event) {
     }
   }
 
-  console.log('[SW] push event received:', JSON.stringify(data));
+  console.log('[SW] push data:', JSON.stringify(data));
 
-  // Extract notification info from various possible locations
+  // Extract from FCM webpush format or data-only format
   var notif = data.notification || {};
-  var d = data.data || {};
+  var d = data.data || data;
   var title = notif.title || d.title || 'Aos Pés da Cruz';
   var body = notif.body || d.body || 'Nova atualização';
-  var tag = d.tag || ('push-' + Date.now() + '-' + Math.random().toString(36).substr(2, 5));
+  var tag = d.tag || ('push-' + Date.now());
 
   event.waitUntil(
     self.registration.showNotification(title, {
@@ -68,7 +45,8 @@ self.addEventListener('push', function(event) {
       badge: './icon-192x192.png',
       vibrate: [200, 100, 200],
       tag: tag,
-      data: { url: './' }
+      data: { url: './' },
+      renotify: true
     })
   );
 });
@@ -88,7 +66,7 @@ self.addEventListener('notificationclick', function(event) {
   );
 });
 
-var CACHE_NAME = 'aospesdacruz-v3';
+var CACHE_NAME = 'aospesdacruz-v4';
 var urlsToCache = [
   './',
   './index.html',
