@@ -1,3 +1,48 @@
+// Import Firebase Messaging SW (for background push)
+importScripts('https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js');
+importScripts('https://www.gstatic.com/firebasejs/10.8.0/firebase-messaging-compat.js');
+
+firebase.initializeApp({
+  apiKey: "AIzaSyAFmRh89lSPlI9h589w2z7_M0etFYhbQyM",
+  authDomain: "louvor-app-a7264.firebaseapp.com",
+  projectId: "louvor-app-a7264",
+  storageBucket: "louvor-app-a7264.firebasestorage.app",
+  messagingSenderId: "599364196472",
+  appId: "1:599364196472:web:3fecfe67cfa7f38c81758d"
+});
+
+var messaging = firebase.messaging();
+
+// Handle background push messages from FCM
+messaging.onBackgroundMessage(function(payload) {
+  var title = payload.notification ? payload.notification.title : (payload.data ? payload.data.title : 'Aos Pés da Cruz');
+  var body = payload.notification ? payload.notification.body : (payload.data ? payload.data.body : '');
+  var options = {
+    body: body,
+    icon: './icon-192x192.png',
+    badge: './icon-192x192.png',
+    vibrate: [200, 100, 200],
+    tag: payload.data ? payload.data.tag : 'general',
+    data: { url: './' }
+  };
+  return self.registration.showNotification(title, options);
+});
+
+// Handle notification click - open/focus the app
+self.addEventListener('notificationclick', function(event) {
+  event.notification.close();
+  event.waitUntil(
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(function(clientList) {
+      for (var i = 0; i < clientList.length; i++) {
+        if (clientList[i].url.indexOf('louvor-app') !== -1 || clientList[i].url.indexOf('aospesdacruz') !== -1) {
+          return clientList[i].focus();
+        }
+      }
+      return self.clients.openWindow(event.notification.data && event.notification.data.url ? event.notification.data.url : './');
+    })
+  );
+});
+
 var CACHE_NAME = 'aospesdacruz-v2';
 var urlsToCache = [
   './',

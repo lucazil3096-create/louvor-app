@@ -520,6 +520,8 @@ body.light .aovivo-sub.active{background:rgba(178,34,34,.1);border-color:var(--a
 .profile-action-btn{padding:13px;border-radius:14px;font-size:14px;font-weight:600;cursor:pointer;font-family:var(--fb);border:none;transition:all .2s;letter-spacing:.3px}
 .profile-action-btn.primary{background:var(--accent);color:#fff}
 .profile-action-btn.danger{background:transparent;color:var(--danger);border:1px solid var(--danger)}
+#notif-toggle:checked+span{background:var(--accent)}
+#notif-toggle:checked+span+#notif-toggle-dot{transform:translateX(20px);background:#fff}
 .profile-close-btn{position:fixed;top:14px;right:14px;width:36px;height:36px;border-radius:50%;background:rgba(255,255,255,.08);border:none;color:var(--text);font-size:20px;cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:701}
 
 /* ===== ADMIN PANEL ===== */
@@ -857,10 +859,13 @@ var _fbReady=false;
 _fbLoadScript('https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js',function(){
 _fbLoadScript('https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js',function(){
 _fbLoadScript('https://www.gstatic.com/firebasejs/10.8.0/firebase-storage-compat.js',function(){
+_fbLoadScript('https://www.gstatic.com/firebasejs/10.8.0/firebase-messaging-compat.js',function(){
+console.log('Firebase Messaging SDK loaded');
 _fbLoadScript('https://unpkg.com/tone@14.8.49/build/Tone.js',function(){
 console.log('Tone.js loaded:',typeof Tone);
 _fbReady=true;
 if(typeof _fbOnReady==='function')_fbOnReady();
+});
 });
 });
 });
@@ -1171,6 +1176,20 @@ Mudar Tom da Música (extensão gratuita)
 </div>
 <div style="width:100%;font-size:11px;color:var(--text-dim);text-transform:uppercase;letter-spacing:1px;font-weight:700;margin-top:4px">Trocar Grupo de Louvor</div>
 <div class="profile-grupo-switch" id="profile-grupo-switch"></div>
+<div style="width:100%;font-size:11px;color:var(--text-dim);text-transform:uppercase;letter-spacing:1px;font-weight:700;margin-top:12px">Notificações</div>
+<div class="profile-info-card" style="padding:12px 16px">
+<div style="display:flex;align-items:center;justify-content:space-between;gap:12px">
+<div style="flex:1">
+<div style="font-size:13px;font-weight:600;color:var(--text)">Receber notificações</div>
+<div style="font-size:11px;color:var(--text-dim);margin-top:2px" id="notif-status-text">Verificando...</div>
+</div>
+<label style="position:relative;display:inline-block;width:44px;height:24px;flex-shrink:0">
+<input type="checkbox" id="notif-toggle" onchange="toggleNotifications(this.checked)" style="opacity:0;width:0;height:0">
+<span style="position:absolute;cursor:pointer;top:0;left:0;right:0;bottom:0;background:rgba(255,255,255,.1);border-radius:24px;transition:.3s"></span>
+<span id="notif-toggle-dot" style="position:absolute;content:'';height:18px;width:18px;left:3px;bottom:3px;background:var(--text-dim);border-radius:50%;transition:.3s"></span>
+</label>
+</div>
+</div>
 <div class="profile-actions">
 <button class="profile-action-btn danger" onclick="authLogout()">Sair da Conta</button>
 </div>
@@ -1295,10 +1314,13 @@ if(typeof loadProfiles==='function'){loadProfiles();updateProfileUI();}
 if(data.escalaData){
 try{localStorage.setItem(ESCALA_KEY,data.escalaData);
 escalas=JSON.parse(data.escalaData);
+if(typeof notifCheckEscala==='function')notifCheckEscala(escalas);
 }catch(e){}
 }
 if(data.chatData){
-try{chatMessages=JSON.parse(data.chatData);renderChat();}catch(e){}
+try{var newChat=JSON.parse(data.chatData);
+if(typeof notifCheckChat==='function')notifCheckChat(newChat);
+chatMessages=newChat;renderChat();}catch(e){}
 }
 fbSynced=true;
 },function(e){console.log('Firebase listener error:',e);fbSynced=true;});
@@ -3461,6 +3483,9 @@ document.getElementById('profile-funcao-display').textContent=currentUser.funcao
 document.getElementById('profile-grupo-display').textContent=getUserGrupoLabel(currentUser.grupo);
 document.getElementById('profile-cargo-display').textContent=roleLabels[currentUser.role]||'Membro';
 
+// Notification toggle state
+if(typeof notifUpdateUI==='function')notifUpdateUI();
+
 // Grupo switch buttons
 var switchDiv=document.getElementById('profile-grupo-switch');
 var h='<button class="profile-grupo-btn'+(activeViewGrupo===0?' active':'')+'" onclick="profileSwitchGrupo(0)">Louvor</button>';
@@ -4222,11 +4247,183 @@ document.getElementById('auth-login-pass').addEventListener('keydown',function(e
 document.getElementById('auth-login-name').addEventListener('keydown',function(e){if(e.key==='Enter'){e.preventDefault();document.getElementById('auth-login-pass').focus();}});
 document.getElementById('auth-reg-pass2').addEventListener('keydown',function(e){if(e.key==='Enter'){e.preventDefault();authRegister();}});
 
-// Register Service Worker for PWA
+// ===== NOTIFICATION SYSTEM =====
+var notifEnabled=false;
+var notifFcmToken=null;
+var swRegistration=null;
+var lastChatCount=0;
+var lastEscalaHash='';
+
+function notifInit(){
+var saved=localStorage.getItem('notif-enabled');
+notifEnabled=saved==='true';
+lastChatCount=chatMessages.length;
+lastEscalaHash=JSON.stringify(escalas||[]);
+notifUpdateUI();
+}
+
+function notifUpdateUI(){
+var toggle=document.getElementById('notif-toggle');
+var statusEl=document.getElementById('notif-status-text');
+if(!toggle||!statusEl)return;
+if(!('Notification' in window)){
+statusEl.textContent='Navegador não suporta notificações';
+toggle.checked=false;toggle.disabled=true;return;
+}
+if(Notification.permission==='denied'){
+statusEl.textContent='Notificações bloqueadas no navegador';
+toggle.checked=false;toggle.disabled=true;return;
+}
+toggle.disabled=false;
+toggle.checked=notifEnabled&&Notification.permission==='granted';
+if(notifEnabled&&Notification.permission==='granted'){
+statusEl.textContent='Ativo — Chat e Escalas';
+}else if(Notification.permission==='default'){
+statusEl.textContent='Toque para ativar';
+}else{
+statusEl.textContent='Desativado';
+}
+}
+
+function toggleNotifications(on){
+if(on){
+Notification.requestPermission().then(function(perm){
+if(perm==='granted'){
+notifEnabled=true;
+localStorage.setItem('notif-enabled','true');
+notifGetFcmToken();
+notifUpdateUI();
+}else{
+notifEnabled=false;
+localStorage.setItem('notif-enabled','false');
+document.getElementById('notif-toggle').checked=false;
+notifUpdateUI();
+}
+});
+}else{
+notifEnabled=false;
+localStorage.setItem('notif-enabled','false');
+notifUpdateUI();
+// Remove FCM token from Firestore
+if(notifFcmToken&&db&&currentUser){
+db.collection('app').doc('fcm-tokens').get().then(function(doc){
+if(doc.exists){
+var tokens=doc.data().tokens||{};
+delete tokens[currentUser.name];
+db.collection('app').doc('fcm-tokens').set({tokens:tokens});
+}
+});
+notifFcmToken=null;
+}
+}
+}
+
+function notifGetFcmToken(){
+if(typeof firebase==='undefined'||!firebase.messaging)return;
+try{
+var messaging=firebase.messaging();
+messaging.getToken({vapidKey:null,serviceWorkerRegistration:swRegistration}).then(function(token){
+if(token){
+notifFcmToken=token;
+console.log('FCM token obtained');
+// Save token to Firestore for this user
+if(db&&currentUser){
+db.collection('app').doc('fcm-tokens').get().then(function(doc){
+var tokens={};
+if(doc.exists)tokens=doc.data().tokens||{};
+tokens[currentUser.name]={token:token,ts:Date.now(),platform:navigator.userAgent};
+db.collection('app').doc('fcm-tokens').set({tokens:tokens});
+console.log('FCM token saved for',currentUser.name);
+}).catch(function(e){
+// Doc may not exist yet - create it
+db.collection('app').doc('fcm-tokens').set({tokens:{}});
+});
+}
+}
+}).catch(function(e){
+console.log('FCM token error (expected if no VAPID key):',e.message||e);
+// Still works with local notifications
+});
+}catch(e){console.log('Messaging init error:',e);}
+}
+
+function notifShowLocal(title,body,tag){
+if(!notifEnabled||Notification.permission!=='granted')return;
+// Don't notify if page is visible/focused
+if(document.visibilityState==='visible'&&document.hasFocus())return;
+if(swRegistration){
+swRegistration.showNotification(title,{
+body:body,
+icon:'./icon-192x192.png',
+badge:'./icon-192x192.png',
+vibrate:[200,100,200],
+tag:tag||'general',
+data:{url:'./'},
+requireInteraction:false
+});
+}else{
+try{new Notification(title,{body:body,icon:'./icon-192x192.png',tag:tag||'general'});}catch(e){}
+}
+}
+
+// Called from Firestore snapshot when chat data changes
+function notifCheckChat(newMessages){
+if(!notifEnabled||!currentUser)return;
+if(lastChatCount===0){lastChatCount=newMessages.length;return;}
+if(newMessages.length>lastChatCount){
+// Check the newest messages that are from others
+for(var i=lastChatCount;i<newMessages.length;i++){
+var m=newMessages[i];
+if(m.name!==currentUser.name){
+var firstName=m.name.split(' ')[0];
+notifShowLocal(firstName+' no chat',m.text,'chat-'+m.ts);
+break; // Only one notification for batch
+}
+}
+}
+lastChatCount=newMessages.length;
+}
+
+// Called from Firestore snapshot when escala data changes
+function notifCheckEscala(newEscalas){
+if(!notifEnabled||!currentUser)return;
+var newHash=JSON.stringify(newEscalas||[]);
+if(lastEscalaHash===''||lastEscalaHash==='[]'){lastEscalaHash=newHash;return;}
+if(newHash!==lastEscalaHash){
+// Check if current user is in any new/changed escala
+var myName=currentUser.name.toLowerCase();
+var found=false;
+for(var i=0;i<newEscalas.length;i++){
+var e=newEscalas[i];
+if(e.membros){
+for(var j=0;j<e.membros.length;j++){
+if(e.membros[j].toLowerCase()===myName){found=true;break;}
+}
+}
+if(found)break;
+}
+if(found){
+notifShowLocal('Escala Atualizada','Sua escala foi alterada. Toque para ver.','escala-update');
+}
+lastEscalaHash=newHash;
+}
+}
+
+// Register Service Worker for PWA + notifications
 if('serviceWorker' in navigator){
 navigator.serviceWorker.register('./sw.js').then(function(reg){
 console.log('SW registered');
+swRegistration=reg;
+// Init notifications after SW is ready
+setTimeout(function(){
+notifInit();
+if(notifEnabled&&Notification.permission==='granted'){
+notifGetFcmToken();
+}
+},1000);
 }).catch(function(e){console.log('SW error:',e);});
+}else{
+notifInit();
 }
 
 </script>

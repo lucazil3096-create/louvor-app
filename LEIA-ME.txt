@@ -48,6 +48,48 @@ COMO ADICIONAR MAIS PADS:
 
 4. Sobe os arquivos novos pro GitHub
 
+COMO ATIVAR NOTIFICAÇÕES PUSH (CELULAR):
+==========================================
+
+As notificações funcionam em 2 níveis:
+
+NÍVEL 1 - NOTIFICAÇÕES LOCAIS (já funciona!):
+- O usuário abre o Perfil e ativa "Receber notificações"
+- Quando o app está em background (aba aberta mas não visível),
+  recebe notificações de chat e mudanças na escala
+- Funciona em Android (Chrome) e iPhone (Safari 16.4+ como PWA instalada)
+
+NÍVEL 2 - PUSH REMOTO (app completamente fechado):
+Requer deploy de Cloud Functions no Firebase (plano Blaze - pago por uso):
+
+1. Instala o Firebase CLI:
+   npm install -g firebase-tools
+
+2. Faz login no Firebase:
+   firebase login
+
+3. Entra na pasta do projeto:
+   cd louvor-app
+
+4. Instala as dependências das Cloud Functions:
+   cd functions && npm install && cd ..
+
+5. Faz deploy das Cloud Functions:
+   firebase deploy --only functions
+
+6. (Opcional) Para gerar a VAPID key para push do navegador:
+   - Acessa o console Firebase: https://console.firebase.google.com
+   - Projeto louvor-app-a7264 > Cloud Messaging > Web Push certificates
+   - Clica "Generate key pair"
+   - Copia a chave e coloca no index.html onde tem "vapidKey:null"
+
+7. Pronto! Agora push notifications funcionam mesmo com app fechado.
+
+IMPORTANTE PARA iPHONE:
+- O app DEVE ser instalado como PWA (Safari > Compartilhar > Adicionar à Tela de Início)
+- Só funciona no iOS 16.4 ou superior
+- Notificações NÃO funcionam no Safari normal, apenas na PWA instalada
+
 ESTRUTURA DE PASTAS:
 louvor-app/
   index.html
