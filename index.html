@@ -1156,6 +1156,10 @@ Mudar Tom da Música (extensão gratuita)
 <div class="admin-section-title">Membros do Ministério</div>
 <div id="admin-users-list"></div>
 </div>
+<div class="admin-section">
+<div class="admin-section-title">Chat</div>
+<button onclick="adminClearChat()" style="width:100%;padding:12px;background:rgba(212,86,75,.12);color:var(--danger);border:1px solid rgba(212,86,75,.25);border-radius:10px;font-size:13px;font-weight:600;cursor:pointer">Limpar Todo o Chat</button>
+</div>
 </div>
 </div>
 
@@ -2501,6 +2505,18 @@ console.log('Chat saved OK');
 console.error('Chat save error:',e);
 alert('Erro ao enviar mensagem. Verifique sua conexão.');
 });
+}
+}
+
+function adminClearChat(){
+if(!confirm('Tem certeza que deseja apagar todo o chat?'))return;
+chatMessages=[];
+lastChatCount=0;
+renderChat();
+if(db){
+db.collection('app').doc('data').update({chatData:'[]'}).then(function(){
+console.log('Chat limpo');
+}).catch(function(e){alert('Erro ao limpar chat.');});
 }
 }
 
@@ -4360,18 +4376,14 @@ console.log('FCM token error (expected if no VAPID key):',e.message||e);
 function notifShowLocal(title,body,tag){
 if(!notifEnabled||Notification.permission!=='granted')return;
 var uniqueTag=(tag||'general')+'-'+Date.now()+'-'+Math.random().toString(36).substr(2,5);
-if(swRegistration){
-swRegistration.showNotification(title,{
-body:body,
-icon:'./icon-192x192.png',
-badge:'./icon-192x192.png',
-vibrate:[200,100,200],
-tag:uniqueTag,
-data:{url:'./'},
-requireInteraction:false
-});
+var opts={body:body,icon:'./icon-192x192.png',badge:'./icon-192x192.png',vibrate:[200,100,200],tag:uniqueTag,data:{url:'./'},requireInteraction:false};
+// Use SW for background, direct Notification for foreground
+if(document.hidden&&swRegistration){
+swRegistration.showNotification(title,opts);
 }else{
-try{new Notification(title,{body:body,icon:'./icon-192x192.png',tag:uniqueTag});}catch(e){}
+try{new Notification(title,opts);}catch(e){
+if(swRegistration)swRegistration.showNotification(title,opts);
+}
 }
 }
 
