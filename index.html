@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
 <meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Aos Pés da Cruz">
 <meta name="theme-color" content="#09090b">
@@ -4322,7 +4323,7 @@ function notifGetFcmToken(){
 if(typeof firebase==='undefined'||!firebase.messaging)return;
 try{
 var messaging=firebase.messaging();
-messaging.getToken({vapidKey:null,serviceWorkerRegistration:swRegistration}).then(function(token){
+messaging.getToken({vapidKey:'BN9Gf0VRFdJH2HeJD81QvLzykEactmMypPiTRD68RUHyz9iZZurRlUfu_YSwfVgaALwcmdA468EyOZBW49pki_E',serviceWorkerRegistration:swRegistration}).then(function(token){
 if(token){
 notifFcmToken=token;
 console.log('FCM token obtained');
