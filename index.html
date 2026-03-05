@@ -4344,31 +4344,44 @@ notifFcmToken=null;
 }
 }
 
-function notifGetFcmToken(){
-if(typeof firebase==='undefined'||!firebase.messaging)return;
-try{
-var messaging=firebase.messaging();
-messaging.getToken({vapidKey:'BN9Gf0VRFdJH2HeJD81QvLzykEactmMypPiTRD68RUHyz9iZZurRlUfu_YSwfVgaALwcmdA468EyOZBW49pki_E',serviceWorkerRegistration:swRegistration}).then(function(token){
-if(token){
+function notifSaveToken(token){
+if(!token||!db||!currentUser)return;
 notifFcmToken=token;
-console.log('FCM token obtained');
-// Save token to Firestore for this user
-if(db&&currentUser){
+console.log('FCM token obtained:',token.substring(0,20)+'...');
 db.collection('app').doc('fcm-tokens').get().then(function(doc){
 var tokens={};
 if(doc.exists)tokens=doc.data().tokens||{};
+var existing=tokens[currentUser.name];
+// Always update - token may have changed
 tokens[currentUser.name]={token:token,ts:Date.now(),platform:navigator.userAgent};
 db.collection('app').doc('fcm-tokens').set({tokens:tokens});
 console.log('FCM token saved for',currentUser.name);
 }).catch(function(e){
-// Doc may not exist yet - create it
-db.collection('app').doc('fcm-tokens').set({tokens:{}});
+console.log('Token save error, creating doc:',e);
+var tokens={};
+tokens[currentUser.name]={token:token,ts:Date.now(),platform:navigator.userAgent};
+db.collection('app').doc('fcm-tokens').set({tokens:tokens});
 });
 }
-}
+
+function notifGetFcmToken(){
+if(typeof firebase==='undefined'||!firebase.messaging)return;
+try{
+var messaging=firebase.messaging();
+// Force delete old token and get new one for reliability
+messaging.deleteToken().then(function(){
+console.log('Old FCM token deleted, getting new one...');
+return messaging.getToken({vapidKey:'BN9Gf0VRFdJH2HeJD81QvLzykEactmMypPiTRD68RUHyz9iZZurRlUfu_YSwfVgaALwcmdA468EyOZBW49pki_E',serviceWorkerRegistration:swRegistration});
+}).then(function(token){
+if(token)notifSaveToken(token);
 }).catch(function(e){
-console.log('FCM token error (expected if no VAPID key):',e.message||e);
-// Still works with local notifications
+console.log('Token refresh failed, trying getToken directly:',e.message||e);
+// Fallback: just get token without deleting
+messaging.getToken({vapidKey:'BN9Gf0VRFdJH2HeJD81QvLzykEactmMypPiTRD68RUHyz9iZZurRlUfu_YSwfVgaALwcmdA468EyOZBW49pki_E',serviceWorkerRegistration:swRegistration}).then(function(token){
+if(token)notifSaveToken(token);
+}).catch(function(e2){
+console.log('FCM token error:',e2.message||e2);
+});
 });
 }catch(e){console.log('Messaging init error:',e);}
 }
@@ -4440,6 +4453,18 @@ notifInit();
 if(notifEnabled&&Notification.permission==='granted'){
 notifGetFcmToken();
 }
+// Listen for FCM messages when app is in foreground
+try{
+var msg=firebase.messaging();
+msg.onMessage(function(payload){
+console.log('FCM foreground message:',payload);
+if(!notifEnabled)return;
+var title=(payload.notification&&payload.notification.title)||(payload.data&&payload.data.title)||'Aos Pés da Cruz';
+var body=(payload.notification&&payload.notification.body)||(payload.data&&payload.data.body)||'';
+var tag=(payload.data&&payload.data.tag)||('fg-'+Date.now());
+notifShowLocal(title,body,tag);
+});
+}catch(e){console.log('onMessage setup error:',e);}
 },1000);
 }).catch(function(e){console.log('SW error:',e);});
 }else{

@@ -115,17 +115,19 @@ async function sendToTokens(tokens, data) {
   const uniqueTag = (data.tag || "general") + "-" + Date.now() + "-" +
       Math.random().toString(36).substr(2, 5);
   const message = {
-    notification: {
-      title: data.title,
-      body: data.body,
-    },
     data: {
       tag: uniqueTag,
       title: data.title,
       body: data.body,
     },
     webpush: {
+      headers: {
+        Urgency: "high",
+        TTL: "86400",
+      },
       notification: {
+        title: data.title,
+        body: data.body,
         icon: "/icon-192x192.png",
         badge: "/icon-192x192.png",
         vibrate: [200, 100, 200],
@@ -143,7 +145,20 @@ async function sendToTokens(tokens, data) {
     ...message,
   });
 
-  // Clean up invalid tokens
+  // Log all responses for debugging
+  response.responses.forEach((resp, idx) => {
+    if (!resp.success) {
+      console.error(
+          "Token", idx, "failed:",
+          resp.error ? resp.error.code : "unknown",
+          resp.error ? resp.error.message : "",
+      );
+    } else {
+      console.log("Token", idx, "sent OK, messageId:", resp.messageId);
+    }
+  });
+
+  // Only clean up tokens that are permanently invalid
   if (response.failureCount > 0) {
     const tokensDoc = await db.collection("app").doc("fcm-tokens").get();
     if (tokensDoc.exists) {
@@ -152,20 +167,18 @@ async function sendToTokens(tokens, data) {
       response.responses.forEach((resp, idx) => {
         if (!resp.success) {
           const code = resp.error ? resp.error.code : "";
-          if (
-            code === "messaging/invalid-registration-token" ||
-            code === "messaging/registration-token-not-registered"
-          ) {
-            // Find and remove this token
+          // Only remove on permanent errors, NOT temporary ones
+          if (code === "messaging/invalid-registration-token") {
             const badToken = tokens[idx];
             for (const [name, val] of Object.entries(tokensMap)) {
               if (val.token === badToken) {
                 delete tokensMap[name];
                 changed = true;
-                console.log("Removed invalid token for:", name);
+                console.log("Removed permanently invalid token for:", name);
               }
             }
           }
+          // Do NOT remove "not-registered" - token may just need refresh
         }
       });
       if (changed) {
@@ -182,3 +195,52 @@ async function sendToTokens(tokens, data) {
       "failed",
   );
 }
+
+/**
+ * HTTP function to test push notifications.
+ * Call: https://<region>-louvor-app-a7264.cloudfunctions.net/testNotification
+ */
+exports.testNotification = functions.https.onRequest(async (req, res) => {
+  try {
+    const tokensDoc = await db.collection("app").doc("fcm-tokens").get();
+    if (!tokensDoc.exists) {
+      res.json({error: "No fcm-tokens document found"});
+      return;
+    }
+    const tokensMap = tokensDoc.data().tokens || {};
+    const entries = Object.entries(tokensMap);
+    if (entries.length === 0) {
+      res.json({error: "No tokens registered", tokensMap});
+      return;
+    }
+
+    const allTokens = entries.map(([, v]) => v.token).filter(Boolean);
+    console.log("Test: sending to", allTokens.length, "tokens");
+    console.log("Registered users:", entries.map(([name]) => name));
+
+    await sendToTokens(allTokens, {
+      title: "Teste de Notificação",
+      body: "Se você viu isso, as notificações estão funcionando! " +
+        new Date().toLocaleTimeString("pt-BR"),
+      tag: "test-" + Date.now(),
+    });
+
+    // Re-read tokens to see if any were cleaned up
+    const afterDoc = await db.collection("app").doc("fcm-tokens").get();
+    const afterMap = afterDoc.exists ? afterDoc.data().tokens || {} : {};
+
+    res.json({
+      success: true,
+      tokensSentTo: allTokens.length,
+      registeredUsers: entries.map(([name, v]) => ({
+        name,
+        tokenPrefix: v.token ? v.token.substring(0, 20) + "..." : "null",
+        savedAt: v.ts ? new Date(v.ts).toISOString() : "unknown",
+      })),
+      usersAfterCleanup: Object.keys(afterMap),
+    });
+  } catch (e) {
+    console.error("Test notification error:", e);
+    res.status(500).json({error: e.message});
+  }
+});
