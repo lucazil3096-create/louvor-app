@@ -4323,7 +4323,7 @@ function notifGetFcmToken(){
 if(typeof firebase==='undefined'||!firebase.messaging)return;
 try{
 var messaging=firebase.messaging();
-messaging.getToken({vapidKey:null,serviceWorkerRegistration:swRegistration}).then(function(token){
+messaging.getToken({vapidKey:'BN9Gf0VRFdJH2HeJD81QvLzykEactmMypPiTRD68RUHyz9iZZurRlUfu_YSwfVgaALwcmdA468EyOZBW49pki_E',serviceWorkerRegistration:swRegistration}).then(function(token){
 if(token){
 notifFcmToken=token;
 console.log('FCM token obtained');
