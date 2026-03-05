@@ -112,13 +112,15 @@ exports.onDataChange = functions.firestore
 async function sendToTokens(tokens, data) {
   if (!tokens || tokens.length === 0) return;
 
+  const uniqueTag = (data.tag || "general") + "-" + Date.now() + "-" +
+      Math.random().toString(36).substr(2, 5);
   const message = {
     notification: {
       title: data.title,
       body: data.body,
     },
     data: {
-      tag: data.tag || "general",
+      tag: uniqueTag,
       title: data.title,
       body: data.body,
     },
@@ -127,7 +129,7 @@ async function sendToTokens(tokens, data) {
         icon: "/icon-192x192.png",
         badge: "/icon-192x192.png",
         vibrate: [200, 100, 200],
-        tag: data.tag || "general",
+        tag: uniqueTag,
         requireInteraction: false,
       },
       fcmOptions: {

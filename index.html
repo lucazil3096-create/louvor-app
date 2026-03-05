@@ -4350,20 +4350,19 @@ console.log('FCM token error (expected if no VAPID key):',e.message||e);
 
 function notifShowLocal(title,body,tag){
 if(!notifEnabled||Notification.permission!=='granted')return;
-// Don't notify if page is visible/focused
-if(document.visibilityState==='visible'&&document.hasFocus())return;
+var uniqueTag=(tag||'general')+'-'+Date.now()+'-'+Math.random().toString(36).substr(2,5);
 if(swRegistration){
 swRegistration.showNotification(title,{
 body:body,
 icon:'./icon-192x192.png',
 badge:'./icon-192x192.png',
 vibrate:[200,100,200],
-tag:tag||'general',
+tag:uniqueTag,
 data:{url:'./'},
 requireInteraction:false
 });
 }else{
-try{new Notification(title,{body:body,icon:'./icon-192x192.png',tag:tag||'general'});}catch(e){}
+try{new Notification(title,{body:body,icon:'./icon-192x192.png',tag:uniqueTag});}catch(e){}
 }
 }
 
@@ -4378,7 +4377,6 @@ var m=newMessages[i];
 if(m.name!==currentUser.name){
 var firstName=m.name.split(' ')[0];
 notifShowLocal(firstName+' no chat',m.text,'chat-'+m.ts);
-break; // Only one notification for batch
 }
 }
 }
