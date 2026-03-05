@@ -102,6 +102,64 @@ exports.onDataChange = functions.firestore
         console.error("Escala notification error:", e);
       }
 
+      // --- CHECK ENSAIO CHANGES ---
+      try {
+        const oldEnsaio = before.ensaioData ?
+          JSON.parse(before.ensaioData) : {g1: [], g2: []};
+        const newEnsaio = after.ensaioData ?
+          JSON.parse(after.ensaioData) : {g1: [], g2: []};
+
+        const oldG1 = oldEnsaio.g1 || [];
+        const newG1 = newEnsaio.g1 || [];
+        const oldG2 = oldEnsaio.g2 || [];
+        const newG2 = newEnsaio.g2 || [];
+
+        // Check if songs were added (not just reordered)
+        const oldCount = oldG1.length + oldG2.length;
+        const newCount = newG1.length + newG2.length;
+        const changed = JSON.stringify(oldEnsaio) !==
+            JSON.stringify(newEnsaio);
+
+        if (changed && newCount > 0) {
+          // Get names of new songs added
+          const oldNames1 = new Set(oldG1.map((s) => s.name || s.title || ""));
+          const oldNames2 = new Set(oldG2.map((s) => s.name || s.title || ""));
+          const newSongs1 = newG1.filter(
+              (s) => !oldNames1.has(s.name || s.title || ""));
+          const newSongs2 = newG2.filter(
+              (s) => !oldNames2.has(s.name || s.title || ""));
+          const allNew = [...newSongs1, ...newSongs2];
+
+          let body;
+          if (allNew.length > 0) {
+            const names = allNew.map(
+                (s) => s.name || s.title || "?").slice(0, 3);
+            body = names.join(", ");
+            if (allNew.length > 3) body += " +" + (allNew.length - 3);
+          } else if (newCount !== oldCount) {
+            body = "Músicas atualizadas no ensaio";
+          } else {
+            body = "Ensaio foi atualizado";
+          }
+
+          // Send to everyone
+          const tokens = allTokenEntries.map(
+              ([, v]) => v.token).filter(Boolean);
+          if (tokens.length > 0) {
+            notifications.push(
+                sendToTokens(tokens, {
+                  title: "Ensaio Atualizado",
+                  body: body,
+                  tag: "ensaio-" + Date.now() + "-" +
+                    Math.random().toString(36).substr(2, 6),
+                }),
+            );
+          }
+        }
+      } catch (e) {
+        console.error("Ensaio notification error:", e);
+      }
+
       return Promise.all(notifications);
     });
 
@@ -114,86 +172,56 @@ async function sendToTokens(tokens, data) {
 
   const uniqueTag = (data.tag || "general") + "-" + Date.now() + "-" +
       Math.random().toString(36).substr(2, 5);
-  const message = {
-    data: {
-      tag: uniqueTag,
-      title: data.title,
-      body: data.body,
-    },
-    webpush: {
-      headers: {
-        Urgency: "high",
-        TTL: "86400",
-      },
-      notification: {
-        title: data.title,
-        body: data.body,
-        icon: "/icon-192x192.png",
-        badge: "/icon-192x192.png",
-        vibrate: [200, 100, 200],
-        tag: uniqueTag,
-        requireInteraction: false,
-      },
-      fcmOptions: {
-        link: "/",
-      },
-    },
-  };
 
-  const response = await messaging.sendEachForMulticast({
-    tokens: tokens,
-    ...message,
-  });
+  // Send individually with send() - more reliable than sendEachForMulticast
+  const results = await Promise.allSettled(tokens.map((token) => {
+    return messaging.send({
+      token: token,
+      webpush: {
+        headers: {
+          Urgency: "high",
+          TTL: "86400",
+        },
+        notification: {
+          title: data.title,
+          body: data.body,
+          icon: "/icon-192x192.png",
+          badge: "/icon-192x192.png",
+          vibrate: [200, 100, 200],
+          tag: uniqueTag,
+          requireInteraction: false,
+        },
+        fcmOptions: {
+          link: "/",
+        },
+        data: {
+          tag: uniqueTag,
+          title: data.title,
+          body: data.body,
+        },
+      },
+    });
+  }));
 
-  // Log all responses for debugging
-  response.responses.forEach((resp, idx) => {
-    if (!resp.success) {
-      console.error(
-          "Token", idx, "failed:",
-          resp.error ? resp.error.code : "unknown",
-          resp.error ? resp.error.message : "",
-      );
+  let ok = 0;
+  let fail = 0;
+  results.forEach((r, idx) => {
+    if (r.status === "fulfilled") {
+      ok++;
+      console.log("Token", idx, "sent OK:", r.value);
     } else {
-      console.log("Token", idx, "sent OK, messageId:", resp.messageId);
-    }
-  });
-
-  // Only clean up tokens that are permanently invalid
-  if (response.failureCount > 0) {
-    const tokensDoc = await db.collection("app").doc("fcm-tokens").get();
-    if (tokensDoc.exists) {
-      const tokensMap = tokensDoc.data().tokens || {};
-      let changed = false;
-      response.responses.forEach((resp, idx) => {
-        if (!resp.success) {
-          const code = resp.error ? resp.error.code : "";
-          // Only remove on permanent errors, NOT temporary ones
-          if (code === "messaging/invalid-registration-token") {
-            const badToken = tokens[idx];
-            for (const [name, val] of Object.entries(tokensMap)) {
-              if (val.token === badToken) {
-                delete tokensMap[name];
-                changed = true;
-                console.log("Removed permanently invalid token for:", name);
-              }
-            }
-          }
-          // Do NOT remove "not-registered" - token may just need refresh
-        }
-      });
-      if (changed) {
-        await db.collection("app").doc("fcm-tokens").set({tokens: tokensMap});
+      fail++;
+      const err = r.reason;
+      console.error("Token", idx, "failed:",
+          err.code || "unknown", err.message || "");
+      // Only remove permanently invalid tokens
+      if (err.code === "messaging/invalid-registration-token") {
+        console.log("Token", idx, "is permanently invalid, will clean up");
       }
     }
-  }
+  });
 
-  console.log(
-      "Notifications sent:",
-      response.successCount,
-      "ok,",
-      response.failureCount,
-      "failed",
-  );
+  console.log("Notifications sent:", ok, "ok,", fail, "failed");
 }
 
 /**
