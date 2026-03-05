@@ -4442,6 +4442,36 @@ lastEscalaHash=newHash;
 }
 }
 
+// Keep notifications alive when minimized
+var _notifPollTimer=null;
+function notifPollCheck(){
+if(!notifEnabled||!fbDoc)return;
+fbDoc.get().then(function(doc){
+if(!doc.exists)return;
+var data=doc.data();
+if(data.chatData){
+try{var msgs=JSON.parse(data.chatData);
+if(typeof notifCheckChat==='function')notifCheckChat(msgs);
+}catch(e){}
+}
+if(data.escalaData){
+try{var esc=JSON.parse(data.escalaData);
+if(typeof notifCheckEscala==='function')notifCheckEscala(esc);
+}catch(e){}
+}
+}).catch(function(){});
+}
+document.addEventListener('visibilitychange',function(){
+if(document.hidden){
+// Poll every 15s when minimized to catch new messages
+if(!_notifPollTimer)_notifPollTimer=setInterval(notifPollCheck,15000);
+}else{
+// Stop polling when visible, do one final check
+if(_notifPollTimer){clearInterval(_notifPollTimer);_notifPollTimer=null;}
+notifPollCheck();
+}
+});
+
 // Register Service Worker for PWA + notifications
 if('serviceWorker' in navigator){
 navigator.serviceWorker.register('./sw.js').then(function(reg){
