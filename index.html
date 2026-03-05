@@ -523,11 +523,6 @@ body.light .aovivo-sub.active{background:rgba(178,34,34,.1);border-color:var(--a
 .profile-action-btn.danger{background:transparent;color:var(--danger);border:1px solid var(--danger)}
 #notif-toggle:checked+span{background:var(--accent)}
 #notif-toggle:checked+span+#notif-toggle-dot{transform:translateX(20px);background:#fff}
-/* Toast notification banner */
-.notif-toast{position:fixed;top:-80px;left:50%;transform:translateX(-50%);width:calc(100% - 32px);max-width:400px;background:var(--surface);border:1px solid var(--accent);border-radius:16px;padding:14px 18px;z-index:9999;transition:top .4s cubic-bezier(.4,0,.2,1);box-shadow:0 8px 32px rgba(0,0,0,.5)}
-.notif-toast.show{top:16px}
-.notif-toast-title{font-size:13px;font-weight:700;color:var(--accent2);font-family:var(--fb);margin-bottom:2px}
-.notif-toast-body{font-size:12px;color:var(--text-dim);line-height:1.3}
 .profile-close-btn{position:fixed;top:14px;right:14px;width:36px;height:36px;border-radius:50%;background:rgba(255,255,255,.08);border:none;color:var(--text);font-size:20px;cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:701}
 
 /* ===== ADMIN PANEL ===== */
@@ -879,11 +874,6 @@ if(typeof _fbOnReady==='function')_fbOnReady();
 </script>
 </head>
 <body>
-<!-- TOAST NOTIFICATION -->
-<div class="notif-toast" id="notif-toast" onclick="this.classList.remove('show')">
-<div class="notif-toast-title" id="notif-toast-title"></div>
-<div class="notif-toast-body" id="notif-toast-body"></div>
-</div>
 <!-- AUTH LOGIN/REGISTER SCREEN -->
 <div class="auth-screen" id="auth-screen">
 <img class="auth-logo" id="auth-logo" src="" alt="Logo">
@@ -4277,33 +4267,40 @@ function notifUpdateUI(){
 var toggle=document.getElementById('notif-toggle');
 var statusEl=document.getElementById('notif-status-text');
 if(!toggle||!statusEl)return;
+if(!('Notification' in window)){
+statusEl.textContent='Navegador não suporta notificações';
+toggle.checked=false;toggle.disabled=true;return;
+}
+if(Notification.permission==='denied'){
+statusEl.textContent='Notificações bloqueadas no navegador';
+toggle.checked=false;toggle.disabled=true;return;
+}
 toggle.disabled=false;
-toggle.checked=notifEnabled;
-if(notifEnabled){
-var hasSystem=('Notification' in window)&&Notification.permission==='granted';
-statusEl.textContent=hasSystem?'Ativo — Push + In-App':'Ativo — In-App (Chat e Escalas)';
-}else{
+toggle.checked=notifEnabled&&Notification.permission==='granted';
+if(notifEnabled&&Notification.permission==='granted'){
+statusEl.textContent='Ativo — Chat e Escalas';
+}else if(Notification.permission==='default'){
 statusEl.textContent='Toque para ativar';
+}else{
+statusEl.textContent='Desativado';
 }
 }
 
 function toggleNotifications(on){
 if(on){
+Notification.requestPermission().then(function(perm){
+if(perm==='granted'){
 notifEnabled=true;
 localStorage.setItem('notif-enabled','true');
-// Try to get system notification permission
-if('Notification' in window&&Notification.permission==='default'){
-Notification.requestPermission().then(function(perm){
-if(perm==='granted'){notifGetFcmToken();}
-notifUpdateUI();
-});
-}else if('Notification' in window&&Notification.permission==='granted'){
 notifGetFcmToken();
 notifUpdateUI();
 }else{
-// No system notifications available (iOS older, etc) - toast only
+notifEnabled=false;
+localStorage.setItem('notif-enabled','false');
+document.getElementById('notif-toggle').checked=false;
 notifUpdateUI();
 }
+});
 }else{
 notifEnabled=false;
 localStorage.setItem('notif-enabled','false');
@@ -4351,27 +4348,8 @@ console.log('FCM token error (expected if no VAPID key):',e.message||e);
 }catch(e){console.log('Messaging init error:',e);}
 }
 
-var notifToastTimer=null;
-function notifShowToast(title,body){
-var el=document.getElementById('notif-toast');
-var tEl=document.getElementById('notif-toast-title');
-var bEl=document.getElementById('notif-toast-body');
-if(!el||!tEl||!bEl)return;
-tEl.textContent=title;
-bEl.textContent=body;
-el.classList.add('show');
-if(notifToastTimer)clearTimeout(notifToastTimer);
-notifToastTimer=setTimeout(function(){el.classList.remove('show');},4000);
-// Vibrate if supported
-if(navigator.vibrate)try{navigator.vibrate([200,100,200]);}catch(e){}
-}
-
 function notifShowLocal(title,body,tag){
-if(!notifEnabled)return;
-// Always show in-app toast
-notifShowToast(title,body);
-// Also try system notification if permission granted and app is hidden
-if(Notification.permission==='granted'&&document.hidden){
+if(!notifEnabled||Notification.permission!=='granted')return;
 var uniqueTag=(tag||'general')+'-'+Date.now()+'-'+Math.random().toString(36).substr(2,5);
 if(swRegistration){
 swRegistration.showNotification(title,{
@@ -4385,7 +4363,6 @@ requireInteraction:false
 });
 }else{
 try{new Notification(title,{body:body,icon:'./icon-192x192.png',tag:uniqueTag});}catch(e){}
-}
 }
 }
 
