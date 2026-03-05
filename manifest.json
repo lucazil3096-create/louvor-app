@@ -4,7 +4,7 @@
   "description": "App de louvor - Letras, Pads e Ensaio",
   "start_url": ".",
   "scope": ".",
-  "display": "fullscreen",
+  "display": "standalone",
   "orientation": "any",
   "background_color": "#09090b",
   "theme_color": "#09090b",
