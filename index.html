@@ -1260,13 +1260,25 @@ function startFirebaseListener(){
 if(!fbDoc)return;
 fbDoc.onSnapshot(function(doc){
 fbReady=true;
-if(ignoreSnapshot){ignoreSnapshot=false;return;}
 if(!doc.exists){
 fbSynced=true;
 if(lyrics.length>0)fbSaveNow();
 return;
 }
 var data=doc.data();
+// Always check notifications, even on ignored snapshots
+if(data.escalaData){
+try{var snapEscalas=JSON.parse(data.escalaData);
+if(typeof notifCheckEscala==='function')notifCheckEscala(snapEscalas);
+}catch(e){}
+}
+if(data.chatData){
+try{var snapChat=JSON.parse(data.chatData);
+if(typeof notifCheckChat==='function')notifCheckChat(snapChat);
+}catch(e){}
+}
+// Skip data sync if this is our own save echo
+if(ignoreSnapshot){ignoreSnapshot=false;fbSynced=true;return;}
 if(data.lyrics){
 try{
 var remoteLyrics=JSON.parse(data.lyrics);
@@ -1315,13 +1327,10 @@ if(typeof loadProfiles==='function'){loadProfiles();updateProfileUI();}
 if(data.escalaData){
 try{localStorage.setItem(ESCALA_KEY,data.escalaData);
 escalas=JSON.parse(data.escalaData);
-if(typeof notifCheckEscala==='function')notifCheckEscala(escalas);
 }catch(e){}
 }
 if(data.chatData){
-try{var newChat=JSON.parse(data.chatData);
-if(typeof notifCheckChat==='function')notifCheckChat(newChat);
-chatMessages=newChat;renderChat();}catch(e){}
+try{chatMessages=JSON.parse(data.chatData);renderChat();}catch(e){}
 }
 fbSynced=true;
 },function(e){console.log('Firebase listener error:',e);fbSynced=true;});
