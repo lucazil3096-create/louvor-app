@@ -45,7 +45,7 @@ exports.onDataChange = functions.firestore
                     sendToTokens(tokens, {
                       title: senderName + " no chat",
                       body: lastMsg.text.substring(0, 100),
-                      tag: "chat-" + (lastMsg.ts || Date.now()),
+                      tag: "chat-" + Date.now() + "-" + Math.random().toString(36).substr(2, 6),
                     }),
                 );
               }
@@ -92,7 +92,7 @@ exports.onDataChange = functions.firestore
                   sendToTokens(tokens, {
                     title: "Escala Atualizada",
                     body: "Sua escala foi alterada. Toque para ver.",
-                    tag: "escala-" + Date.now(),
+                    tag: "escala-" + Date.now() + "-" + Math.random().toString(36).substr(2, 6),
                   }),
               );
             }

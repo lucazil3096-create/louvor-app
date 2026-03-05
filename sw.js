@@ -36,7 +36,7 @@ self.addEventListener('push', function(event) {
   var d = data.data || data;
   var title = notif.title || d.title || 'Aos Pés da Cruz';
   var body = notif.body || d.body || 'Nova atualização';
-  var tag = d.tag || ('push-' + Date.now());
+  var tag = d.tag || ('push-' + Date.now() + '-' + Math.random().toString(36).substr(2, 6));
 
   event.waitUntil(
     self.registration.showNotification(title, {
