@@ -1286,20 +1286,20 @@ if(ignoreSnapshot){ignoreSnapshot=false;fbSynced=true;return;}
 if(data.lyrics){
 try{
 var remoteLyrics=JSON.parse(data.lyrics);
+var merged=mergeSongLists(lyrics,remoteLyrics);
 var localStr=JSON.stringify(lyrics);
+var mergedStr=JSON.stringify(merged);
 var remoteStr=JSON.stringify(remoteLyrics);
-if(localStr!==remoteStr){
-if(remoteLyrics.length>=lyrics.length){
-lyrics=remoteLyrics;
+if(localStr!==mergedStr){
+lyrics=merged;
 try{localStorage.setItem(SK,JSON.stringify(lyrics));}catch(e){}
 renderList();
-console.log('Synced: '+lyrics.length+' songs from Firebase');
-}else{
-console.log('Local has MORE ('+lyrics.length+') than Firebase ('+remoteLyrics.length+') - pushing local');
+console.log('Synced/merged: '+lyrics.length+' songs');
+}
+if(mergedStr!==remoteStr){
 fbSynced=true;
 fbSaveNow();
 return;
-}
 }
 }catch(e){console.log('Parse error:',e);}
 }
@@ -1428,19 +1428,21 @@ if(lyrics.length===0){
 console.log('BLOCKED save - empty data');
 return;
 }
-// SAFETY 3: check what's in Firebase before overwriting
+// SAFETY 3: merge with Firebase state before overwriting
 fbDoc.get().then(function(doc){
 if(doc.exists){
 var data=doc.data();
 if(data.lyrics){
 try{
 var existing=JSON.parse(data.lyrics);
-// If Firebase has MORE songs than what we're about to save, CREATE BACKUP first
-if(existing.length>lyrics.length){
-console.log('WARNING: Firebase has '+existing.length+' but saving '+lyrics.length+' - creating backup first');
-fbCreateBackup(existing.length);
+// Merge local + remote (per-song by id + updatedAt, respects tombstones)
+var mergedLocal=mergeSongLists(lyrics,existing);
+if(JSON.stringify(mergedLocal)!==JSON.stringify(lyrics)){
+lyrics=mergedLocal;
+try{localStorage.setItem(SK,JSON.stringify(lyrics));}catch(e){}
+try{renderList();}catch(e){}
 }
-// If Firebase has data and we're saving, always backup
+// Backup if Firebase had songs
 if(existing.length>0){
 fbCreateBackup(existing.length);
 }
@@ -1526,8 +1528,8 @@ alert('✅ Restaurado! '+lyrics.length+' músicas recuperadas.');
 var SK='church-lyrics-v5';var TK='church-today-v2';
 var lyrics=[],currentId=null,editId=null,viewMode='single',fontSize=14,scrollSpeed=20,isScrolling=false,animId=null;
 var currentPage=0,totalPages=0,allLines=[],touchStartX=0,touchDX=0,isSwiping=false;
-var PREDEFINED_TAGS=['adoracao','celebracao','rapida','lenta','congregacional','avivamento','natal','pascoa'];
-var TAG_LABELS={'adoracao':'Adoração','celebracao':'Celebração','rapida':'Rápida','lenta':'Lenta','congregacional':'Congregacional','avivamento':'Avivamento','natal':'Natal','pascoa':'Páscoa'};
+var PREDEFINED_TAGS=['adoracao','animada','celebracao','rapida','lenta','congregacional','avivamento','natal','pascoa'];
+var TAG_LABELS={'adoracao':'Adoração','animada':'Animada','celebracao':'Celebração','rapida':'Rápida','lenta':'Lenta','congregacional':'Congregacional','avivamento':'Avivamento','natal':'Natal','pascoa':'Páscoa'};
 var activeTagFilter='';
 var editSelectedTags=[];
 var ESCALA_KEY='church-escala-v1';
@@ -1557,6 +1559,25 @@ else{todayAllData={g1:[],g2:[]};}
 loadTodayForGroup();
 }catch(e){lyrics=[];todayAllData={g1:[],g2:[]};todayList=[];}
 renderList();try{updateTodayCount();}catch(e){}
+}
+
+var DEL_KEY='church-deleted-ids';
+function getDeletedIds(){try{return JSON.parse(localStorage.getItem(DEL_KEY)||'[]');}catch(e){return[];}}
+function markDeletedId(id){var a=getDeletedIds();if(a.indexOf(id)<0){a.push(id);try{localStorage.setItem(DEL_KEY,JSON.stringify(a.slice(-200)));}catch(e){}}}
+function mergeSongLists(localList,remoteList){
+var byId={},del=getDeletedIds();
+(localList||[]).forEach(function(s){if(s&&s.id)byId[s.id]=s;});
+(remoteList||[]).forEach(function(s){
+if(!s||!s.id)return;
+if(!byId[s.id]){
+if(del.indexOf(s.id)>=0)return;
+byId[s.id]=s;
+}else{
+var lu=byId[s.id].updatedAt||0,ru=s.updatedAt||0;
+if(ru>lu)byId[s.id]=s;
+}
+});
+return Object.keys(byId).map(function(k){return byId[k];});
 }
 
 function save(){
@@ -2051,13 +2072,15 @@ document.getElementById('btn-save').disabled=!(t&&l);}
 function saveEdit(){var title=document.getElementById('edit-title').value.trim(),tom=document.getElementById('edit-tom').value.trim(),
 bpm=parseInt(document.getElementById('edit-bpm').value)||0,
 text=document.getElementById('edit-text').value.trim(),cifra=document.getElementById('edit-cifra').value.trim();if(!title||!text)return;
-if(editId){var i=lyrics.findIndex(function(l){return l.id===editId;});if(i>=0){lyrics[i].title=title;lyrics[i].tom=tom;lyrics[i].bpm=bpm;lyrics[i].lyrics=text;lyrics[i].cifra=cifra;lyrics[i].tags=editSelectedTags.slice();}}
-else lyrics.push({id:Date.now().toString(),title:title,tom:tom,bpm:bpm,lyrics:text,cifra:cifra,tags:editSelectedTags.slice()});save();goList();}
+var _now=Date.now();
+if(editId){var i=lyrics.findIndex(function(l){return l.id===editId;});if(i>=0){lyrics[i].title=title;lyrics[i].tom=tom;lyrics[i].bpm=bpm;lyrics[i].lyrics=text;lyrics[i].cifra=cifra;lyrics[i].tags=editSelectedTags.slice();lyrics[i].updatedAt=_now;}}
+else lyrics.push({id:_now.toString(),title:title,tom:tom,bpm:bpm,lyrics:text,cifra:cifra,tags:editSelectedTags.slice(),updatedAt:_now});save();goList();}
 function deleteLyric(id){if(!authCanEdit()){alert('Sem permissão para excluir músicas.');return;}
 var l=lyrics.find(function(x){return x.id===id;});if(!l||!confirm('Excluir "'+l.title+'"?'))return;
+markDeletedId(id);
 lyrics=lyrics.filter(function(x){return x.id!==id;});
 todayList=todayList.filter(function(x){return x!==id;});
-save();// Save immediately with new sync system
+save();
 if(currentId===id)goList();renderList();}
 document.addEventListener('keydown',function(e){if(viewMode!=='page')return;if(e.key==='ArrowLeft')pageGo(-1);if(e.key==='ArrowRight')pageGo(1);});
 var isLight=false;
