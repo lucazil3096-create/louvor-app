@@ -2499,7 +2499,7 @@ document.querySelectorAll('[data-aovivo-sub]').forEach(function(btn){btn.classLi
 if(sub==='musicas')renderList();
 if(sub==='pads'){renderPads();renderMetro();}
 if(sub==='cifras')renderCifras();
-if(sub==='multitrack')renderMultitrack();
+if(sub==='multitrack'){renderMultitrack();mtTryAutoLoad();}
 }
 
 // ===== CIFRAS =====
@@ -3464,6 +3464,7 @@ loadTodayBpm(withBpm[nextPos]);
 // ===== MULTITRACK PLAYER =====
 // Local multitrack playback: load a folder (or files) with .wav/.mp3,
 // play all tracks in sync, with per-track volume, mute, and L<->R invert.
+// Uses File System Access API to remember folder across sessions (Chrome/Edge/Android).
 var mtTracks=[];
 var mtMaster=null;
 var mtMasterVol=80;
@@ -3473,6 +3474,114 @@ var mtStartOffset=0;
 var mtDuration=0;
 var mtUiInterval=null;
 var mtRendered=false;
+var mtFolderName='';
+var mtPendingHandle=null; // handle waiting for permission on this session
+var mtAutoLoadTried=false;
+
+// --- IndexedDB helpers for FileSystemDirectoryHandle persistence ---
+var MT_DB='church-multitrack';
+var MT_STORE='handles';
+var MT_HANDLE_KEY='folder';
+
+function mtOpenDB(){
+return new Promise(function(resolve,reject){
+try{
+var req=indexedDB.open(MT_DB,1);
+req.onupgradeneeded=function(){req.result.createObjectStore(MT_STORE);};
+req.onsuccess=function(){resolve(req.result);};
+req.onerror=function(){reject(req.error);};
+}catch(e){reject(e);}
+});
+}
+function mtSaveHandle(handle){
+return mtOpenDB().then(function(db){
+return new Promise(function(resolve){
+var tx=db.transaction(MT_STORE,'readwrite');
+tx.objectStore(MT_STORE).put(handle,MT_HANDLE_KEY);
+tx.oncomplete=function(){resolve();};
+tx.onerror=function(){resolve();};
+});
+}).catch(function(){});
+}
+function mtGetHandle(){
+return mtOpenDB().then(function(db){
+return new Promise(function(resolve){
+var tx=db.transaction(MT_STORE,'readonly');
+var r=tx.objectStore(MT_STORE).get(MT_HANDLE_KEY);
+r.onsuccess=function(){resolve(r.result||null);};
+r.onerror=function(){resolve(null);};
+});
+}).catch(function(){return null;});
+}
+function mtClearHandle(){
+return mtOpenDB().then(function(db){
+return new Promise(function(resolve){
+var tx=db.transaction(MT_STORE,'readwrite');
+tx.objectStore(MT_STORE).delete(MT_HANDLE_KEY);
+tx.oncomplete=function(){resolve();};
+tx.onerror=function(){resolve();};
+});
+}).catch(function(){});
+}
+
+// Walk a directory handle and collect audio files (direct children only)
+function mtCollectFiles(handle){
+var files=[];
+var it=handle.values();
+function step(){
+return it.next().then(function(res){
+if(res.done)return files;
+var entry=res.value;
+if(entry.kind==='file'&&/\.(wav|mp3|m4a|flac|ogg|aac)$/i.test(entry.name)){
+return entry.getFile().then(function(f){files.push(f);return step();});
+}
+return step();
+});
+}
+return step();
+}
+
+function mtLoadFromHandle(handle){
+mtFolderName=handle.name||'';
+return mtCollectFiles(handle).then(function(files){
+if(!files.length){alert('A pasta selecionada nao contem arquivos de audio.');return;}
+mtLoadFiles(files);
+});
+}
+
+function mtTryAutoLoad(){
+if(mtAutoLoadTried)return Promise.resolve();
+mtAutoLoadTried=true;
+if(!('showDirectoryPicker' in window))return Promise.resolve();
+return mtGetHandle().then(function(handle){
+if(!handle)return;
+if(!handle.queryPermission)return;
+return handle.queryPermission({mode:'read'}).then(function(perm){
+if(perm==='granted'){return mtLoadFromHandle(handle);}
+// Need user gesture - show a restore button
+mtPendingHandle=handle;
+mtFolderName=handle.name||'';
+renderMultitrack();
+});
+}).catch(function(e){console.log('Auto-load error',e);});
+}
+
+function mtRestorePending(){
+if(!mtPendingHandle)return;
+var h=mtPendingHandle;
+h.requestPermission({mode:'read'}).then(function(perm){
+if(perm==='granted'){mtPendingHandle=null;mtLoadFromHandle(h);}
+else{alert('Permissao negada. Selecione a pasta manualmente.');mtPendingHandle=null;renderMultitrack();}
+}).catch(function(){mtPendingHandle=null;renderMultitrack();});
+}
+
+function mtForgetFolder(){
+if(!confirm('Esquecer essa pasta? Na proxima vez voce precisara selecionar de novo.'))return;
+mtClearHandle();
+mtPendingHandle=null;
+mtFolderName='';
+renderMultitrack();
+}
 
 function mtEnsureMaster(){
 var ctx=getCtx();
@@ -3480,11 +3589,20 @@ if(!mtMaster){mtMaster=ctx.createGain();mtMaster.gain.value=mtMasterVol/100;mtMa
 }
 
 function mtPickFolder(){
+// Prefer File System Access API (Chrome/Edge desktop + Android Chrome) - allows remembering folder
+if('showDirectoryPicker' in window){
+window.showDirectoryPicker({id:'louvor-multitrack',mode:'read'}).then(function(handle){
+mtSaveHandle(handle);
+return mtLoadFromHandle(handle);
+}).catch(function(e){if(e&&e.name!=='AbortError')console.log('Directory picker error',e);});
+return;
+}
+// Fallback: webkitdirectory input (no persistence)
 var inp=document.createElement('input');
 inp.type='file';inp.multiple=true;
 try{inp.webkitdirectory=true;}catch(e){}
 inp.accept='audio/*,.wav,.mp3,.m4a,.flac,.ogg,.aac';
-inp.onchange=function(){if(inp.files.length)mtLoadFiles(Array.from(inp.files));};
+inp.onchange=function(){if(inp.files.length){mtFolderName='';mtLoadFiles(Array.from(inp.files));}};
 inp.click();
 }
 function mtPickFiles(){
@@ -3678,10 +3796,27 @@ h+='<button class="mt-btn-primary" onclick="mtPickFolder()">&#128193; Carregar P
 h+='<button class="mt-btn" onclick="mtPickFiles()">Selecionar Arquivos</button>';
 if(mtTracks.length)h+='<button class="mt-btn-danger" onclick="mtClear()">Limpar</button>';
 h+='</div>';
-if(!mtTracks.length){
-h+='<div class="mt-empty">Selecione uma pasta ou arquivos <b>.wav / .mp3</b> do seu computador.<br><small>Cada arquivo vira uma pista independente com volume, mute e inversao L&#8596;R.</small></div>';
+// Show pending (remembered but waiting for permission) state
+if(mtPendingHandle&&!mtTracks.length){
+h+='<div class="mt-empty" style="background:var(--accent-glow);border-color:rgba(178,34,34,.35);border-style:solid">';
+h+='<div style="font-size:13px;color:var(--accent2);font-weight:700;margin-bottom:8px">&#128193; '+esc(mtFolderName||'Pasta salva')+'</div>';
+h+='<div style="font-size:12px;margin-bottom:12px">Voce ja usou essa pasta antes. Clique para reabrir:</div>';
+h+='<button class="mt-btn-primary" style="max-width:260px;margin:0 auto;flex:none;display:block" onclick="mtRestorePending()">&#128260; Recarregar pasta</button>';
+h+='<button class="mt-btn" style="margin-top:8px;max-width:200px;margin-left:auto;margin-right:auto;flex:none;display:block;font-size:11px" onclick="mtForgetFolder()">Esquecer essa pasta</button>';
+h+='</div>';
 h+='<div id="mt-status"></div>';
 area.innerHTML=h;return;
+}
+if(!mtTracks.length){
+h+='<div class="mt-empty">Selecione uma pasta ou arquivos <b>.wav / .mp3</b> do seu computador.<br><small>A pasta fica lembrada: da proxima vez, so precisa confirmar a permissao (1 clique).</small></div>';
+h+='<div id="mt-status"></div>';
+area.innerHTML=h;return;
+}
+if(mtFolderName){
+h+='<div style="font-size:11px;color:var(--text-dim);margin-bottom:10px;padding:6px 10px;background:var(--card-bg);border-radius:8px;display:flex;align-items:center;justify-content:space-between;gap:8px">';
+h+='<span>&#128193; <b>'+esc(mtFolderName)+'</b> &middot; '+mtTracks.length+' pista'+(mtTracks.length!==1?'s':'')+'</span>';
+if('showDirectoryPicker' in window)h+='<button onclick="mtForgetFolder()" style="background:none;border:none;color:var(--text-dim);font-size:10px;cursor:pointer;text-decoration:underline">esquecer</button>';
+h+='</div>';
 }
 h+='<div class="mt-transport">';
 h+='<div class="mt-time" id="mt-time">'+mtFormatTime(mtStartOffset)+' / '+mtFormatTime(mtDuration)+'</div>';
