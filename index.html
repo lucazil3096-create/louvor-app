@@ -2550,7 +2550,7 @@ document.querySelectorAll('[data-aovivo-sub]').forEach(function(btn){btn.classLi
 if(sub==='musicas')renderList();
 if(sub==='pads'){renderPads();renderMetro();}
 if(sub==='cifras')renderCifras();
-if(sub==='multitrack'){renderMultitrack();mtTryAutoLoad();}
+if(sub==='multitrack')renderMultitrack();
 }
 
 // ===== CIFRAS =====
@@ -4053,6 +4053,8 @@ loadMetroSettings();
 if(metroSound==='woodreal')try{loadWoodSamples();}catch(e){}
 
 load();loadPV();renderList();initSwipe();loadTheme();renderPads();renderMetro();
+// Preload multitrack library silently on app start (no visual flash when tab opens later)
+if(typeof mtTryAutoLoad==='function')mtTryAutoLoad();
 window.addEventListener('resize',function(){
 if(viewMode==='fit')requestAnimationFrame(function(){buildFit();});
 if(viewMode==='page')requestAnimationFrame(function(){buildPages();});
