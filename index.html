@@ -3690,6 +3690,9 @@ h+='<div class="admin-user-info">';
 h+='<div class="admin-user-name">'+esc(u.name)+'</div>';
 h+='<div class="admin-user-funcao">'+esc(u.funcao||'—')+' · '+ICO.mic+' '+grupoLabel+'</div>';
 h+='<span class="admin-user-role '+u.role+'">'+roleLabel+'</span>';
+if(!isAdmin){
+h+='<div class="admin-user-pass" style="font-size:12px;color:var(--text-dim);margin-top:6px">Senha: <span class="pass-hidden" data-pass="'+esc(u.password||'')+'" style="font-family:monospace;letter-spacing:2px">••••••</span> <button type="button" onclick="adminTogglePass(this)" style="background:transparent;border:none;cursor:pointer;color:var(--text-dim);font-size:14px;padding:0 4px;vertical-align:middle" title="Mostrar/ocultar">👁</button></div>';
+}
 h+='</div>';
 
 if(!isAdmin){
@@ -3699,6 +3702,7 @@ h+='<button class="admin-action-btn demote" onclick="adminSetRole(\''+esc(u.name
 }else{
 h+='<button class="admin-action-btn promote" onclick="adminSetRole(\''+esc(u.name)+'\',\'lider\')">'+ICO.lider+' Dar Líder</button>';
 }
+h+='<button class="admin-action-btn demote" onclick="adminChangePassword(\''+esc(u.name)+'\')">Trocar Senha</button>';
 h+='<button class="admin-action-btn expel" onclick="adminExpel(\''+esc(u.name)+'\')">Expulsar</button>';
 h+='</div>';
 }
@@ -3730,6 +3734,43 @@ function adminExpel(name){
 if(!confirm('⚠️ Expulsar "'+name+'" do ministério?\n\nEssa pessoa não poderá mais acessar o app.'))return;
 allUsers=allUsers.filter(function(u){return u.name!==name;});
 authSaveUsers(function(){renderAdminPanel();});
+}
+
+function adminTogglePass(btn){
+var span=btn.previousElementSibling;
+if(!span)return;
+if(span.classList.contains('pass-hidden')){
+var p=span.getAttribute('data-pass')||'';
+span.textContent=p?p:'(vazia)';
+span.style.letterSpacing='normal';
+span.classList.remove('pass-hidden');
+span.classList.add('pass-shown');
+btn.textContent='🙈';
+}else{
+span.textContent='••••••';
+span.style.letterSpacing='2px';
+span.classList.remove('pass-shown');
+span.classList.add('pass-hidden');
+btn.textContent='👁';
+}
+}
+
+function adminChangePassword(name){
+var u=allUsers.find(function(x){return x.name===name;});
+if(!u)return;
+var newPass=prompt('Nova senha para '+name+':\n(mínimo 4 caracteres)',u.password||'');
+if(newPass===null)return;
+newPass=newPass.trim();
+if(newPass.length<4){alert('Senha deve ter pelo menos 4 caracteres.');return;}
+u.password=newPass;
+authSaveUsers(function(){
+renderAdminPanel();
+if(currentUser&&currentUser.name.toLowerCase()===name.toLowerCase()){
+currentUser.password=newPass;
+try{localStorage.setItem(AUTH_KEY,JSON.stringify(currentUser));}catch(e){}
+}
+alert('Senha de '+name+' atualizada.');
+});
 }
 
 var PK='church-profiles-v1';
