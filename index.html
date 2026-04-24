@@ -3936,20 +3936,15 @@ if(tEl)tEl.textContent=mtFormatTime(cur)+' / '+mtFormatTime(mtDuration);
 
 function mtPlayNextStarred(){
 if(!mtSetlist.length)return;
-// Use library order for alphabetical auto-advance, filtered by setlist membership
-var starred=mtLibrary.filter(function(s){return mtSetlist.indexOf(s.id)>=0;});
-if(!starred.length)return;
-var idx=starred.findIndex(function(s){return s.id===mtCurrentSongId;});
-if(idx<0||idx>=starred.length-1)return;
-mtPlaySongById(starred[idx+1].id,true);
+var idx=mtSetlist.indexOf(mtCurrentSongId);
+if(idx<0||idx>=mtSetlist.length-1)return;
+mtPlaySongById(mtSetlist[idx+1],true);
 }
 function mtPlayPrevStarred(){
 if(!mtSetlist.length)return;
-var starred=mtLibrary.filter(function(s){return mtSetlist.indexOf(s.id)>=0;});
-if(!starred.length)return;
-var idx=starred.findIndex(function(s){return s.id===mtCurrentSongId;});
+var idx=mtSetlist.indexOf(mtCurrentSongId);
 if(idx<=0)return;
-mtPlaySongById(starred[idx-1].id,true);
+mtPlaySongById(mtSetlist[idx-1],true);
 }
 function mtFormatTime(s){s=Math.max(0,s||0);var m=Math.floor(s/60);var ss=Math.floor(s%60);return m+':'+(ss<10?'0':'')+ss;}
 function mtUpdatePlayBtn(){var b=document.getElementById('mt-pb-play');if(b)b.innerHTML=mtPlaying?'&#9208;':'&#9654;';}
@@ -3966,14 +3961,13 @@ h+='<button class="mt-btn-primary" onclick="mtPickLibrary()">&#128193; '+(mtLibr
 if(mtLibraryName||mtPendingHandle)h+='<button class="mt-btn-danger" onclick="mtForgetLibrary()">Esquecer</button>';
 h+='</div>';
 
-// Pending permission state
+// Pending permission state (compact inline bar)
 if(mtPendingHandle&&!mtLibrary.length){
-h+='<div class="mt-empty" style="background:var(--accent-glow);border-color:rgba(178,34,34,.35);border-style:solid">';
-h+='<div style="font-size:13px;color:var(--accent2);font-weight:700;margin-bottom:8px">&#128193; '+esc(mtLibraryName||'Biblioteca salva')+'</div>';
-h+='<div style="font-size:12px;margin-bottom:12px">Clique para liberar o acesso e ler as musicas:</div>';
-h+='<button class="mt-btn-primary" style="max-width:260px;margin:0 auto;flex:none;display:block" onclick="mtRestorePending()">&#128260; Reabrir biblioteca</button>';
+h+='<div class="mt-libbar" style="background:var(--accent-glow);border-color:rgba(178,34,34,.35);cursor:pointer" onclick="mtRestorePending()">';
+h+='<span>&#128193; <b>'+esc(mtLibraryName||'Biblioteca salva')+'</b></span>';
+h+='<span style="color:var(--accent2);font-weight:700">&#128260; Tocar em '+esc(mtLibraryName||'...')+' &rarr;</span>';
 h+='</div>';
-h+='<div id="mt-status"></div>';
+h+='<div id="mt-status" style="text-align:center;font-size:11px;color:var(--text-dim);margin-top:20px">Clique acima para liberar o acesso.</div>';
 area.innerHTML=h;
 renderPlayerBar();return;
 }
@@ -3993,7 +3987,27 @@ h+='<span>&#128193; <b>'+esc(mtLibraryName)+'</b> &middot; '+mtLibrary.length+' 
 h+='<span>'+(nSet?('<span style="color:var(--gold)">&#9733; '+nSet+' no dia</span>'):'')+'</span>';
 h+='</div>';
 
+// HOJE (setlist)
+if(mtSetlist.length){
+h+='<div class="mt-section-title">&#9733; Hoje ('+mtSetlist.length+') <button class="mt-mini-btn" onclick="mtClearSetlist()">limpar</button></div>';
+h+='<div class="mt-setlist">';
+mtSetlist.forEach(function(id,idx){
+var song=mtLibrary.find(function(s){return s.id===id;});
+if(!song)return;
+var isCurrent=mtCurrentSongId===id;
+h+='<div class="mt-sl-item'+(isCurrent?' current':'')+'">';
+h+='<div class="mt-sl-num">'+(idx+1)+'</div>';
+h+='<div class="mt-sl-name" onclick="mtPlaySongById(\''+mtIdAttr(id)+'\',true)">'+esc(song.name)+(isCurrent?' <span class="mt-sl-current">&#9654;</span>':'')+'</div>';
+h+='<button class="mt-sl-btn" onclick="mtMoveSetlist(\''+mtIdAttr(id)+'\',-1)" '+(idx===0?'disabled':'')+' title="Subir">&#9650;</button>';
+h+='<button class="mt-sl-btn" onclick="mtMoveSetlist(\''+mtIdAttr(id)+'\',1)" '+(idx===mtSetlist.length-1?'disabled':'')+' title="Descer">&#9660;</button>';
+h+='<button class="mt-sl-btn danger" onclick="mtRemoveSetlist(\''+mtIdAttr(id)+'\')" title="Remover">&#10005;</button>';
+h+='</div>';
+});
+h+='</div>';
+}
+
 // Library list (all songs)
+h+='<div class="mt-section-title">&#128218; Biblioteca</div>';
 h+='<div class="mt-library">';
 mtLibrary.forEach(function(song){
 var inSet=mtSetlist.indexOf(song.id)>=0;
