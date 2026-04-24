@@ -430,7 +430,29 @@ body.light .aovivo-sub.active{background:rgba(178,34,34,.1);border-color:var(--a
 .escala-stat:hover{border-color:rgba(178,34,34,.25);transform:translateY(-1px)}
 .escala-stat-name{font-size:9.5px;color:var(--text-dim);font-weight:700;text-transform:uppercase;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;letter-spacing:.3px;margin-top:2px}
 .escala-stat-count{font-family:var(--fd);font-size:22px;color:var(--accent2);letter-spacing:.5px;line-height:1;font-weight:400}
-.multitrack-screen{display:none;flex-direction:column;height:100%;padding:14px 14px 90px;overflow-y:auto}
+.multitrack-screen{display:none;flex-direction:column;height:100%}
+#multitrack-area{flex:1;overflow-y:auto;padding:14px}
+.mt-player-bar{flex-shrink:0;background:var(--surface);border-top:1px solid var(--card-border);padding:10px 12px calc(68px + env(safe-area-inset-bottom,0));backdrop-filter:blur(20px)}
+.mt-player-bar:empty{display:none}
+.mt-pb-row1{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:12px;color:var(--text);margin-bottom:6px;min-height:16px}
+.mt-pb-name{font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mt-pb-time{font-family:var(--fd);color:var(--accent2);letter-spacing:1px;flex-shrink:0;font-size:13px}
+.mt-pb-wave-wrap{position:relative;height:46px;background:rgba(255,255,255,.02);border-radius:6px;margin-bottom:8px;cursor:pointer;overflow:hidden}
+.mt-pb-wave{width:100%;height:100%;display:block}
+.mt-pb-wave-empty{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:var(--text-dim);font-size:11px;font-style:italic}
+.mt-pb-controls{display:flex;align-items:center;gap:6px}
+.mt-pb-btn{width:38px;height:38px;border-radius:10px;border:1px solid var(--card-border);background:rgba(255,255,255,.03);color:var(--text);cursor:pointer;font-size:13px;transition:all .15s;padding:0;flex-shrink:0;display:flex;align-items:center;justify-content:center}
+.mt-pb-btn:hover:not(:disabled){border-color:var(--accent);color:var(--accent2)}
+.mt-pb-btn:disabled{opacity:.3;cursor:not-allowed}
+.mt-pb-btn.play{background:var(--accent);color:#fff;border-color:var(--accent);width:50px;height:44px;font-size:14px;font-weight:700}
+.mt-pb-btn.play:hover{filter:brightness(1.1);box-shadow:0 2px 10px rgba(178,34,34,.35)}
+.mt-pb-btn.invert.active{background:var(--gold);border-color:var(--gold);color:#000}
+.mt-pb-btn.mute.active{background:var(--accent);border-color:var(--accent);color:#fff}
+.mt-pb-spacer{flex:1}
+.mt-pb-master{display:flex;align-items:center;gap:6px;flex:1;min-width:0;max-width:180px}
+.mt-pb-master label{font-size:9px;color:var(--text-dim);font-weight:700;text-transform:uppercase;letter-spacing:.5px;flex-shrink:0}
+.mt-pb-master input{flex:1;min-width:40px;accent-color:var(--accent)}
+.mt-pb-master span{font-size:10px;color:var(--text-dim);font-weight:600;flex-shrink:0;min-width:32px;text-align:right}
 .mt-topbar{display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap}
 .mt-btn,.mt-btn-primary,.mt-btn-danger{padding:10px 14px;border-radius:10px;font-size:12px;font-family:var(--fb);font-weight:700;cursor:pointer;transition:all .15s;border:1px solid var(--card-border);background:var(--card-bg);color:var(--text);letter-spacing:.3px;flex:1;min-width:110px}
 .mt-btn:hover{border-color:var(--accent);color:var(--accent2)}
@@ -1242,6 +1264,7 @@ Mudar Tom da Música (extensão gratuita)
 <div class="subtab-bar"><button class="subtab" data-aovivo-sub="musicas" onclick="switchAoVivoSub('musicas')">Músicas</button><button class="subtab" data-aovivo-sub="pads" onclick="switchAoVivoSub('pads')">Pad e Metrônomo</button><button class="subtab" data-aovivo-sub="cifras" onclick="switchAoVivoSub('cifras')">Cifras</button><button class="subtab active" data-aovivo-sub="multitrack" onclick="switchAoVivoSub('multitrack')">Multitrack</button></div>
 </div>
 <div id="multitrack-area"></div>
+<div id="mt-player-bar" class="mt-player-bar"></div>
 </div>
 
 <!-- ADMIN SCREEN -->
@@ -3505,6 +3528,8 @@ var mtStartTime=0;
 var mtStartOffset=0;
 var mtDuration=0;
 var mtUiInterval=null;
+var mtUiRaf=null;
+var mtPeaks=null; // Float32Array of waveform peaks for current song
 var mtLibraryHandle=null;   // FileSystemDirectoryHandle for library root
 var mtLibraryName='';
 var mtPendingHandle=null;   // library handle waiting for permission
@@ -3652,6 +3677,7 @@ mtStop();
 mtTracks.forEach(mtDisposeTrack);
 mtTracks=[];mtDuration=0;mtStartOffset=0;
 mtCurrentSongId=null;mtCurrentSongName='';
+mtPeaks=null;
 }
 
 function mtLoadSong(song,autoPlay){
@@ -3680,6 +3706,7 @@ reader.readAsArrayBuffer(f);
 if(mtCurrentSongId!==song.id)return; // user switched mid-load
 mtTracks=[{name:song.name,buffer:buffer,gain:0.9,inverted:false,muted:false,source:null,gainNode:null,splitter:null,merger:null}];
 mtDuration=buffer.duration;
+try{mtPeaks=mtGenPeaks(buffer);}catch(e){mtPeaks=null;}
 renderMultitrack();
 if(status)status.textContent='';
 if(autoPlay)mtPlay();
@@ -3750,6 +3777,18 @@ t.source=null;t.splitter=null;t.merger=null;t.gainNode=null;
 }
 
 // --- Transport ---
+function mtStartUiLoop(){
+if(mtUiRaf)cancelAnimationFrame(mtUiRaf);
+function tick(){
+if(!mtPlaying){mtUiRaf=null;return;}
+mtUpdateTime();
+mtDrawWaveform();
+mtUiRaf=requestAnimationFrame(tick);
+}
+mtUiRaf=requestAnimationFrame(tick);
+}
+function mtStopUiLoop(){if(mtUiRaf){cancelAnimationFrame(mtUiRaf);mtUiRaf=null;}}
+
 function mtPlay(){
 if(!mtTracks.length||mtPlaying)return;
 mtEnsureMaster();
@@ -3760,8 +3799,7 @@ var startAt=ctx.currentTime+0.08;
 mtStartTime=startAt;
 mtTracks.forEach(function(t){mtBuildTrackNodes(t);try{t.source.start(startAt,mtStartOffset);}catch(e){console.log('start error',e);}});
 mtPlaying=true;
-if(mtUiInterval)clearInterval(mtUiInterval);
-mtUiInterval=setInterval(mtUpdateTime,150);
+mtStartUiLoop();
 mtUpdatePlayBtn();
 }
 function mtPause(){
@@ -3772,21 +3810,80 @@ if(mtStartOffset<0)mtStartOffset=0;
 if(mtStartOffset>mtDuration)mtStartOffset=0;
 mtTracks.forEach(mtDisposeTrack);
 mtPlaying=false;
-if(mtUiInterval){clearInterval(mtUiInterval);mtUiInterval=null;}
-mtUpdatePlayBtn();mtUpdateTime();
+mtStopUiLoop();
+mtUpdatePlayBtn();mtUpdateTime();mtDrawWaveform();
 }
 function mtStop(){
 if(mtPlaying){mtTracks.forEach(mtDisposeTrack);mtPlaying=false;}
-if(mtUiInterval){clearInterval(mtUiInterval);mtUiInterval=null;}
+mtStopUiLoop();
 mtStartOffset=0;
-mtUpdatePlayBtn();mtUpdateTime();
+mtUpdatePlayBtn();mtUpdateTime();mtDrawWaveform();
 }
 function mtTogglePlayPause(){if(mtPlaying)mtPause();else mtPlay();}
 function mtSeek(pos){
 var wasPlaying=mtPlaying;
-if(mtPlaying){mtTracks.forEach(mtDisposeTrack);mtPlaying=false;if(mtUiInterval){clearInterval(mtUiInterval);mtUiInterval=null;}}
+if(mtPlaying){mtTracks.forEach(mtDisposeTrack);mtPlaying=false;mtStopUiLoop();}
 mtStartOffset=Math.max(0,Math.min(+pos,mtDuration));
-if(wasPlaying)mtPlay();else{mtUpdatePlayBtn();mtUpdateTime();}
+if(wasPlaying)mtPlay();else{mtUpdatePlayBtn();mtUpdateTime();mtDrawWaveform();}
+}
+
+// --- Waveform ---
+function mtGenPeaks(buffer){
+var ch=buffer.getChannelData(0);
+var N=600;
+var step=Math.max(1,Math.floor(ch.length/N));
+var peaks=new Float32Array(N);
+var maxPeak=0;
+for(var i=0;i<N;i++){
+var start=i*step;
+var end=Math.min(start+step,ch.length);
+var mx=0;
+for(var j=start;j<end;j++){var v=Math.abs(ch[j]);if(v>mx)mx=v;}
+peaks[i]=mx;
+if(mx>maxPeak)maxPeak=mx;
+}
+// Normalize so the tallest bar fills the canvas nicely
+if(maxPeak>0)for(var i=0;i<N;i++)peaks[i]=peaks[i]/maxPeak;
+return peaks;
+}
+function mtGetCurrentTime(){
+if(mtPlaying){var c=getCtx();return mtStartOffset+(c.currentTime-mtStartTime);}
+return mtStartOffset;
+}
+function mtDrawWaveform(){
+var canvas=document.getElementById('mt-wave');
+if(!canvas)return;
+var dpr=window.devicePixelRatio||1;
+var dw=Math.max(1,canvas.clientWidth*dpr);
+var dh=Math.max(1,canvas.clientHeight*dpr);
+if(canvas.width!==dw)canvas.width=dw;
+if(canvas.height!==dh)canvas.height=dh;
+var cx=canvas.getContext('2d');
+cx.clearRect(0,0,dw,dh);
+if(!mtPeaks||!mtPeaks.length)return;
+var N=mtPeaks.length;
+var barW=dw/N;
+var cur=mtGetCurrentTime();
+var progress=mtDuration?cur/mtDuration:0;
+var progressX=progress*dw;
+var mid=dh/2;
+for(var i=0;i<N;i++){
+var x=i*barW;
+var barH=Math.max(2*dpr,mtPeaks[i]*dh*0.9);
+var played=x<progressX;
+cx.fillStyle=played?'rgba(178,34,34,0.88)':'rgba(255,255,255,0.18)';
+cx.fillRect(x,mid-barH/2,Math.max(1,barW*0.75),barH);
+}
+// Progress line
+cx.fillStyle='rgba(217,59,59,1)';
+cx.fillRect(progressX-1*dpr,0,2*dpr,dh);
+}
+function mtWaveClick(ev){
+var canvas=document.getElementById('mt-wave');
+if(!canvas||!mtDuration)return;
+var rect=canvas.getBoundingClientRect();
+var x=(ev.clientX-rect.left)/rect.width;
+mtSeek(x*mtDuration);
 }
 function mtToggleInvert(idx){
 var t=mtTracks[idx];if(!t)return;
@@ -3826,19 +3923,40 @@ var ctx=getCtx();
 cur=mtStartOffset+(ctx.currentTime-mtStartTime);
 if(cur>=mtDuration){
 mtStop();cur=0;
-// Auto-advance to next in setlist
-setTimeout(function(){if(mtSetlist.indexOf(mtCurrentSongId)>=0)mtNextInSetlist();},50);
+// Auto-advance to next starred song in library order
+setTimeout(function(){
+var inSet=mtSetlist.indexOf(mtCurrentSongId)>=0;
+if(inSet)mtPlayNextStarred();
+},50);
 }
 }else{cur=mtStartOffset;}
-var tEl=document.getElementById('mt-time');
+var tEl=document.getElementById('mt-pb-time');
 if(tEl)tEl.textContent=mtFormatTime(cur)+' / '+mtFormatTime(mtDuration);
-var sk=document.getElementById('mt-seek');
-if(sk&&document.activeElement!==sk)sk.value=mtDuration?(cur/mtDuration)*1000:0;
+}
+
+function mtPlayNextStarred(){
+if(!mtSetlist.length)return;
+// Use library order for alphabetical auto-advance, filtered by setlist membership
+var starred=mtLibrary.filter(function(s){return mtSetlist.indexOf(s.id)>=0;});
+if(!starred.length)return;
+var idx=starred.findIndex(function(s){return s.id===mtCurrentSongId;});
+if(idx<0||idx>=starred.length-1)return;
+mtPlaySongById(starred[idx+1].id,true);
+}
+function mtPlayPrevStarred(){
+if(!mtSetlist.length)return;
+var starred=mtLibrary.filter(function(s){return mtSetlist.indexOf(s.id)>=0;});
+if(!starred.length)return;
+var idx=starred.findIndex(function(s){return s.id===mtCurrentSongId;});
+if(idx<=0)return;
+mtPlaySongById(starred[idx-1].id,true);
 }
 function mtFormatTime(s){s=Math.max(0,s||0);var m=Math.floor(s/60);var ss=Math.floor(s%60);return m+':'+(ss<10?'0':'')+ss;}
-function mtUpdatePlayBtn(){var b=document.getElementById('mt-play-btn');if(b)b.innerHTML=mtPlaying?'&#9208; Pausar':'&#9654; Tocar';}
+function mtUpdatePlayBtn(){var b=document.getElementById('mt-pb-play');if(b)b.innerHTML=mtPlaying?'&#9208;':'&#9654;';}
 
 // --- Render UI ---
+function mtIdAttr(id){return esc(String(id)).replace(/\x27/g,'&apos;');}
+
 function renderMultitrack(){
 var area=document.getElementById('multitrack-area');if(!area)return;
 var h='';
@@ -3856,87 +3974,64 @@ h+='<div style="font-size:12px;margin-bottom:12px">Clique para liberar o acesso 
 h+='<button class="mt-btn-primary" style="max-width:260px;margin:0 auto;flex:none;display:block" onclick="mtRestorePending()">&#128260; Reabrir biblioteca</button>';
 h+='</div>';
 h+='<div id="mt-status"></div>';
-area.innerHTML=h;return;
+area.innerHTML=h;
+renderPlayerBar();return;
 }
 
 // Empty state (no library loaded)
 if(!mtLibrary.length){
 h+='<div class="mt-empty">Selecione uma pasta com seus <b>arquivos .wav / .mp3</b>.<br>Cada arquivo vira uma musica na biblioteca, com o nome do arquivo.<br><small>A pasta fica lembrada entre sessoes.</small></div>';
 h+='<div id="mt-status"></div>';
-area.innerHTML=h;return;
+area.innerHTML=h;
+renderPlayerBar();return;
 }
 
 // Library name bar
-h+='<div class="mt-libbar"><span>&#128193; <b>'+esc(mtLibraryName)+'</b></span><span>'+mtLibrary.length+' musica'+(mtLibrary.length!==1?'s':'')+'</span></div>';
+var nSet=mtSetlist.length;
+h+='<div class="mt-libbar">';
+h+='<span>&#128193; <b>'+esc(mtLibraryName)+'</b> &middot; '+mtLibrary.length+' musica'+(mtLibrary.length!==1?'s':'')+'</span>';
+h+='<span>'+(nSet?('<span style="color:var(--gold)">&#9733; '+nSet+' no dia</span>'):'')+'</span>';
+h+='</div>';
 
-// Setlist (if any)
-if(mtSetlist.length){
-h+='<div class="mt-section-title">&#127925; Setlist de hoje ('+mtSetlist.length+') <button class="mt-mini-btn" onclick="mtClearSetlist()">limpar</button></div>';
-h+='<div class="mt-setlist">';
-mtSetlist.forEach(function(id,idx){
-var song=mtLibrary.find(function(s){return s.id===id;});
-if(!song)return;
-var isCurrent=mtCurrentSongId===id;
-h+='<div class="mt-sl-item'+(isCurrent?' current':'')+'">';
-h+='<div class="mt-sl-num">'+(idx+1)+'</div>';
-h+='<div class="mt-sl-name" onclick="mtPlaySongById(\''+esc(id).replace(/\x27/g,'&apos;')+'\',true)">'+esc(song.name)+(isCurrent?' <span class="mt-sl-current">&#9654;</span>':'')+'</div>';
-h+='<button class="mt-sl-btn" onclick="mtMoveSetlist(\''+esc(id).replace(/\x27/g,'&apos;')+'\',-1)" '+(idx===0?'disabled':'')+'>&#9650;</button>';
-h+='<button class="mt-sl-btn" onclick="mtMoveSetlist(\''+esc(id).replace(/\x27/g,'&apos;')+'\',1)" '+(idx===mtSetlist.length-1?'disabled':'')+'>&#9660;</button>';
-h+='<button class="mt-sl-btn danger" onclick="mtRemoveSetlist(\''+esc(id).replace(/\x27/g,'&apos;')+'\')">&#10005;</button>';
-h+='</div>';
-});
-h+='</div>';
-}
-
-// Current song player (if loaded)
-if(mtTracks.length){
-h+='<div class="mt-section-title">&#127926; Tocando: '+esc(mtCurrentSongName||'-')+'</div>';
-h+='<div class="mt-transport">';
-h+='<div class="mt-time" id="mt-time">'+mtFormatTime(mtStartOffset)+' / '+mtFormatTime(mtDuration)+'</div>';
-h+='<input type="range" class="mt-seek" id="mt-seek" min="0" max="1000" value="0" oninput="mtSeek(this.value/1000*'+mtDuration+')">';
-h+='<div class="mt-controls">';
-h+='<button class="mt-stop" onclick="mtPrevInSetlist()" title="Anterior no setlist">&#9198;</button>';
-h+='<button class="mt-play" id="mt-play-btn" onclick="mtTogglePlayPause()">'+(mtPlaying?'&#9208; Pausar':'&#9654; Tocar')+'</button>';
-h+='<button class="mt-stop" onclick="mtStop()" title="Parar">&#9209;</button>';
-h+='<button class="mt-stop" onclick="mtNextInSetlist()" title="Proxima do setlist">&#9197;</button>';
-h+='</div>';
-h+='<div class="mt-master-row">';
-h+='<label>Master</label>';
-h+='<input type="range" min="0" max="100" value="'+mtMasterVol+'" oninput="mtSetMaster(this.value)">';
-h+='<span id="mt-master-val">'+mtMasterVol+'%</span>';
-h+='</div>';
-h+='</div>';
-h+='<div class="mt-tracks">';
-mtTracks.forEach(function(t,idx){
-h+='<div class="mt-track'+(t.muted?' muted':'')+(t.inverted?' inverted':'')+'" id="mt-track-'+idx+'">';
-h+='<div class="mt-track-name">'+esc(t.name)+'</div>';
-h+='<div class="mt-track-controls">';
-h+='<button class="mt-track-btn'+(t.muted?' active':'')+'" id="mt-mute-'+idx+'" onclick="mtToggleMute('+idx+')" title="Mute">M</button>';
-h+='<button class="mt-track-btn invert'+(t.inverted?' active':'')+'" id="mt-invert-'+idx+'" onclick="mtToggleInvert('+idx+')" title="Inverter L&#8596;R">L&#8596;R</button>';
-h+='<input type="range" class="mt-track-slider" min="0" max="100" value="'+Math.round(t.gain*100)+'" oninput="mtSetGain('+idx+',this.value)">';
-h+='<span class="mt-track-val" id="mt-gain-val-'+idx+'">'+Math.round(t.gain*100)+'%</span>';
-h+='</div></div>';
-});
-h+='</div>';
-}
-
-// Library list
-h+='<div class="mt-section-title">&#128218; Biblioteca</div>';
+// Library list (all songs)
 h+='<div class="mt-library">';
 mtLibrary.forEach(function(song){
 var inSet=mtSetlist.indexOf(song.id)>=0;
 var isCurrent=mtCurrentSongId===song.id;
-var nFiles=(song.fileHandles||song.files||[]).length;
 h+='<div class="mt-lib-item'+(isCurrent?' current':'')+'">';
-h+='<button class="mt-lib-star'+(inSet?' on':'')+'" onclick="mtToggleSetlist(\''+esc(song.id).replace(/\x27/g,'&apos;')+'\')" title="'+(inSet?'Remover do setlist':'Adicionar ao setlist')+'">'+(inSet?'&#9733;':'&#9734;')+'</button>';
-h+='<div class="mt-lib-name" onclick="mtPlaySongById(\''+esc(song.id).replace(/\x27/g,'&apos;')+'\',true)">'+esc(song.name)+'</div>';
-h+='<span class="mt-lib-count">'+nFiles+'</span>';
-h+='<button class="mt-lib-play" onclick="mtPlaySongById(\''+esc(song.id).replace(/\x27/g,'&apos;')+'\',true)" title="Tocar">&#9654;</button>';
+h+='<button class="mt-lib-star'+(inSet?' on':'')+'" onclick="mtToggleSetlist(\''+mtIdAttr(song.id)+'\')" title="'+(inSet?'Remover do setlist':'Vai tocar hoje')+'">'+(inSet?'&#9733;':'&#9734;')+'</button>';
+h+='<div class="mt-lib-name" onclick="mtPlaySongById(\''+mtIdAttr(song.id)+'\',true)">'+esc(song.name)+'</div>';
+h+='<button class="mt-lib-play" onclick="mtPlaySongById(\''+mtIdAttr(song.id)+'\',true)" title="Tocar">&#9654;</button>';
 h+='</div>';
 });
 h+='</div>';
 h+='<div id="mt-status"></div>';
 area.innerHTML=h;
+renderPlayerBar();
+}
+
+function renderPlayerBar(){
+var bar=document.getElementById('mt-player-bar');if(!bar)return;
+if(!mtTracks.length){bar.innerHTML='';return;}
+var t=mtTracks[0];
+var h='';
+h+='<div class="mt-pb-row1">';
+h+='<div class="mt-pb-name">'+esc(mtCurrentSongName||'-')+'</div>';
+h+='<div class="mt-pb-time" id="mt-pb-time">'+mtFormatTime(mtStartOffset)+' / '+mtFormatTime(mtDuration)+'</div>';
+h+='</div>';
+h+='<div class="mt-pb-wave-wrap" onclick="mtWaveClick(event)"><canvas class="mt-pb-wave" id="mt-wave"></canvas></div>';
+h+='<div class="mt-pb-controls">';
+h+='<button class="mt-pb-btn" onclick="mtPlayPrevStarred()" title="Anterior">&#9198;</button>';
+h+='<button class="mt-pb-btn play" id="mt-pb-play" onclick="mtTogglePlayPause()" title="Tocar/Pausar">'+(mtPlaying?'&#9208;':'&#9654;')+'</button>';
+h+='<button class="mt-pb-btn" onclick="mtStop()" title="Parar">&#9632;</button>';
+h+='<button class="mt-pb-btn" onclick="mtPlayNextStarred()" title="Proxima">&#9197;</button>';
+h+='<button class="mt-pb-btn invert'+(t.inverted?' active':'')+'" id="mt-pb-invert" onclick="mtToggleInvert(0)" title="Inverter L&#8596;R"><span style="font-size:10px;font-weight:700">L&#8596;R</span></button>';
+h+='<button class="mt-pb-btn mute'+(t.muted?' active':'')+'" id="mt-pb-mute" onclick="mtToggleMute(0)" title="Mute"><span style="font-size:11px;font-weight:700">M</span></button>';
+h+='<div class="mt-pb-spacer"></div>';
+h+='<div class="mt-pb-master"><label>Vol</label><input type="range" min="0" max="100" value="'+mtMasterVol+'" oninput="mtSetMaster(this.value)"><span id="mt-master-val">'+mtMasterVol+'%</span></div>';
+h+='</div>';
+bar.innerHTML=h;
+setTimeout(mtDrawWaveform,30);
 }
 // ===== END MULTITRACK =====
 
@@ -3948,6 +4043,7 @@ window.addEventListener('resize',function(){
 if(viewMode==='fit')requestAnimationFrame(function(){buildFit();});
 if(viewMode==='page')requestAnimationFrame(function(){buildPages();});
 if(document.getElementById('presentation').style.display==='flex'){var l=lyrics.find(function(x){return x.id===currentId;});if(l)enterPresentation();}
+if(typeof mtDrawWaveform==='function')mtDrawWaveform();
 });
 window.addEventListener('orientationchange',function(){
 setTimeout(function(){
