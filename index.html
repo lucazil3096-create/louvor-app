@@ -504,6 +504,13 @@ body.light .aovivo-sub.active{background:rgba(178,34,34,.1);border-color:var(--a
 .mt-sl-btn:hover:not(:disabled){border-color:var(--accent);color:var(--text)}
 .mt-sl-btn:disabled{opacity:.3;cursor:not-allowed}
 .mt-sl-btn.danger:hover{border-color:var(--danger);color:var(--danger)}
+.mt-search-wrap{position:relative;margin-bottom:8px;display:flex;align-items:center}
+.mt-search-icon{position:absolute;left:12px;font-size:13px;pointer-events:none;opacity:.55}
+.mt-search-input{width:100%;background:var(--card-bg);color:var(--text);border:1px solid var(--card-border);border-radius:10px;padding:10px 34px;font-size:13px;font-family:var(--fb);box-sizing:border-box;transition:border-color .15s}
+.mt-search-input:focus{outline:none;border-color:var(--accent)}
+.mt-search-input::placeholder{color:var(--text-dim)}
+.mt-search-clear{position:absolute;right:6px;background:transparent;border:none;color:var(--text-dim);cursor:pointer;font-size:14px;padding:6px 10px;border-radius:6px}
+.mt-search-clear:hover{color:var(--danger);background:rgba(212,86,75,.08)}
 .mt-library{display:flex;flex-direction:column;gap:4px}
 .mt-lib-item{display:flex;align-items:center;gap:10px;background:var(--card-bg);border:1px solid var(--card-border);border-radius:10px;padding:8px 10px;transition:all .15s}
 .mt-lib-item:hover{border-color:rgba(178,34,34,.2);background:rgba(255,255,255,.03)}
@@ -3530,6 +3537,7 @@ var mtDuration=0;
 var mtUiInterval=null;
 var mtUiRaf=null;
 var mtPeaks=null; // Float32Array of waveform peaks for current song
+var mtSearchTerm='';
 var mtLibraryHandle=null;   // FileSystemDirectoryHandle for library root
 var mtLibraryName='';
 var mtPendingHandle=null;   // library handle waiting for permission
@@ -4006,10 +4014,16 @@ h+='</div>';
 h+='</div>';
 }
 
-// Library list (all songs)
+// Library list (all songs) with search
 h+='<div class="mt-section-title">&#128218; Biblioteca</div>';
+h+='<div class="mt-search-wrap"><span class="mt-search-icon">&#128269;</span><input class="mt-search-input" id="mt-search" type="text" placeholder="Buscar musica..." value="'+esc(mtSearchTerm)+'" oninput="mtSetSearch(this.value)">'+(mtSearchTerm?'<button class="mt-search-clear" onclick="mtSetSearch(\'\')" title="Limpar">&#10005;</button>':'')+'</div>';
 h+='<div class="mt-library">';
-mtLibrary.forEach(function(song){
+var term=(mtSearchTerm||'').toLowerCase().trim();
+var filtered=term?mtLibrary.filter(function(s){return s.name.toLowerCase().indexOf(term)>=0;}):mtLibrary;
+if(!filtered.length){
+h+='<div class="mt-empty" style="padding:20px">Nenhuma musica encontrada.</div>';
+}else{
+filtered.forEach(function(song){
 var inSet=mtSetlist.indexOf(song.id)>=0;
 var isCurrent=mtCurrentSongId===song.id;
 h+='<div class="mt-lib-item'+(isCurrent?' current':'')+'">';
@@ -4018,10 +4032,24 @@ h+='<div class="mt-lib-name" onclick="mtPlaySongById(\''+mtIdAttr(song.id)+'\',t
 h+='<button class="mt-lib-play" onclick="mtPlaySongById(\''+mtIdAttr(song.id)+'\',true)" title="Tocar">&#9654;</button>';
 h+='</div>';
 });
+}
 h+='</div>';
 h+='<div id="mt-status"></div>';
 area.innerHTML=h;
 renderPlayerBar();
+}
+
+function mtSetSearch(v){
+mtSearchTerm=v||'';
+// Re-render only the library area — keep input focus/selection
+var input=document.getElementById('mt-search');
+var wasFocused=input&&document.activeElement===input;
+var caret=input?input.selectionStart:0;
+renderMultitrack();
+if(wasFocused){
+var nInp=document.getElementById('mt-search');
+if(nInp){nInp.focus();try{nInp.setSelectionRange(caret,caret);}catch(e){}}
+}
 }
 
 function renderPlayerBar(){
