@@ -3065,28 +3065,51 @@ PAD_MAP[t].forEach(function(s){playPad(t,s);});
 
 function trimBuffer(ctx,buf){
 var ch=buf.numberOfChannels,sr=buf.sampleRate,len=buf.length;
-var thresh=0.005;
 var data=buf.getChannelData(0);
-var start=0,end=len-1;
-for(var i=0;i<len;i++){if(Math.abs(data[i])>thresh){start=i;break;}}
-for(var i=len-1;i>=start;i--){if(Math.abs(data[i])>thresh){end=i;break;}}
-var fade=Math.min(Math.floor(sr*0.05),2205);
-start=Math.max(0,start-fade);
-end=Math.min(len-1,end+fade);
+// 1. Detect where audio is "loud enough" using 50ms windows of max amplitude.
+//    This skips BOTH fade-in at the start AND fade-out at the end, leaving
+//    only the sustained body that loops cleanly.
+var winSize=Math.max(1,Math.floor(sr*0.05));
+var nWins=Math.floor(len/winSize);
+if(nWins<4)return buf;
+var winMax=new Float32Array(nWins);
+var peak=0;
+for(var w=0;w<nWins;w++){
+var off=w*winSize;
+var mx=0;
+for(var j=0;j<winSize;j++){var v=Math.abs(data[off+j]);if(v>mx)mx=v;}
+winMax[w]=mx;
+if(mx>peak)peak=mx;
+}
+if(peak<0.01)return buf;
+var thresh=peak*0.6;
+var startWin=0,endWin=nWins-1;
+for(var w=0;w<nWins;w++)if(winMax[w]>=thresh){startWin=w;break;}
+for(var w=nWins-1;w>=startWin;w--)if(winMax[w]>=thresh){endWin=w;break;}
+var start=startWin*winSize;
+var end=Math.min((endWin+1)*winSize-1,len-1);
 var newLen=end-start+1;
+// Bail out if we'd end up too short (bad sample or mis-detection)
 if(newLen<sr*0.5)return buf;
+
+// 2. Create trimmed buffer with a short equal-power crossfade at the seam
+//    so loop transitions are inaudible.
 var trimmed=ctx.createBuffer(ch,newLen,sr);
+var cf=Math.min(Math.floor(sr*0.08),Math.floor(newLen/4)); // up to 80ms crossfade
 for(var c=0;c<ch;c++){
 var src=buf.getChannelData(c);
 var dst=trimmed.getChannelData(c);
 for(var i=0;i<newLen;i++)dst[i]=src[start+i];
-var cf=Math.min(fade,Math.floor(newLen/4));
 for(var i=0;i<cf;i++){
-var mix=i/cf;
+var m=i/cf;
 var endIdx=newLen-cf+i;
-var avg=(dst[i]+dst[endIdx])*0.5;
-dst[i]=dst[i]*mix+avg*(1-mix);
-dst[endIdx]=dst[endIdx]*(1-mix)+avg*mix;
+// Equal-power crossfade between start and end segments for a seamless loop seam.
+var a=Math.cos((1-m)*0.5*Math.PI);
+var b=Math.cos(m*0.5*Math.PI);
+var startVal=dst[i];
+var endVal=dst[endIdx];
+dst[i]=endVal*b+startVal*a;
+dst[endIdx]=startVal*b+endVal*a;
 }
 }
 return trimmed;
