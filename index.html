@@ -3197,8 +3197,9 @@ metroPan=+v;saveMetroSettings();
 if(metroPanNode){var ctx=getCtx();metroPanNode.pan.setTargetAtTime(v/100,ctx.currentTime,0.05);}
 }
 
-function playClick(accent){
+function playClick(accent,when){
 var ctx=getCtx();
+if(when===undefined||when<ctx.currentTime)when=ctx.currentTime;
 if(!metroGain){
 metroGain=ctx.createGain();
 metroGain.gain.value=metroVol/100;
@@ -3217,15 +3218,15 @@ if(buf){
 var src=ctx.createBufferSource();
 src.buffer=buf;
 src.connect(metroGain);
-src.start(ctx.currentTime);
+src.start(when);
 }
 return;
 }
 
 var cfg=accent?snd.accent:snd.normal;
 var env=ctx.createGain();
-env.gain.value=1;
-env.gain.setTargetAtTime(0,ctx.currentTime,cfg.decay);
+env.gain.setValueAtTime(1,when);
+env.gain.setTargetAtTime(0,when,cfg.decay);
 
 if(cfg.noise||cfg.hf){
 // Noise-based sounds (rim, hihat)
@@ -3245,15 +3246,15 @@ var osc=ctx.createOscillator();
 osc.type=cfg.type;
 osc.frequency.value=cfg.freq;
 var oscEnv=ctx.createGain();
-oscEnv.gain.value=0.5;
-oscEnv.gain.setTargetAtTime(0,ctx.currentTime,cfg.decay*0.5);
+oscEnv.gain.setValueAtTime(0.5,when);
+oscEnv.gain.setTargetAtTime(0,when,cfg.decay*0.5);
 osc.connect(oscEnv);
 oscEnv.connect(env);
 env.connect(metroGain);
-noise.start(ctx.currentTime);
-noise.stop(ctx.currentTime+cfg.dur);
-osc.start(ctx.currentTime);
-osc.stop(ctx.currentTime+cfg.dur);
+noise.start(when);
+noise.stop(when+cfg.dur);
+osc.start(when);
+osc.stop(when+cfg.dur);
 } else if(cfg.harm){
 // Dual oscillator (cowbell)
 var osc1=ctx.createOscillator();
@@ -3262,8 +3263,8 @@ var osc2=ctx.createOscillator();
 osc2.type=cfg.type;osc2.frequency.value=cfg.harm;
 osc1.connect(env);osc2.connect(env);
 env.connect(metroGain);
-osc1.start(ctx.currentTime);osc1.stop(ctx.currentTime+cfg.dur);
-osc2.start(ctx.currentTime);osc2.stop(ctx.currentTime+cfg.dur);
+osc1.start(when);osc1.stop(when+cfg.dur);
+osc2.start(when);osc2.stop(when+cfg.dur);
 } else {
 // Simple oscillator (click, wood, digital)
 var osc=ctx.createOscillator();
@@ -3271,29 +3272,60 @@ osc.type=cfg.type;
 osc.frequency.value=cfg.freq;
 osc.connect(env);
 env.connect(metroGain);
-osc.start(ctx.currentTime);
-osc.stop(ctx.currentTime+cfg.dur);
+osc.start(when);
+osc.stop(when+cfg.dur);
 }
 }
 
-function metroBeatTick(){
-playClick(metroBeat===0);
+// ===== Web Audio scheduler (precise timing) =====
+// Schedules clicks ahead using AudioContext.currentTime clock (sample-accurate).
+// UI dots are animated via rAF reading from the queue, so DOM work never delays audio.
+var metroNextTime=0;
+var metroUiQueue=[];
+var metroSchedLookahead=0.1; // seconds to schedule ahead
+var metroSchedInterval=25;   // ms between scheduler runs
+
+function metroScheduler(){
+if(!metroRunning)return;
+var ctx=getCtx();
+var horizon=ctx.currentTime+metroSchedLookahead;
+while(metroNextTime<horizon){
+playClick(metroBeat===0,metroNextTime);
+metroUiQueue.push({beat:metroBeat,time:metroNextTime});
+metroBeat=(metroBeat+1)%metroBeats;
+metroNextTime+=60/metroBPM;
+}
+metroInterval=setTimeout(metroScheduler,metroSchedInterval);
+}
+
+function metroAnimateUI(){
+if(!metroRunning)return;
+var ctx=getCtx();
+var now=ctx.currentTime;
+var current=-1;
+while(metroUiQueue.length&&metroUiQueue[0].time<=now){
+current=metroUiQueue.shift().beat;
+}
+if(current>=0){
 for(var i=0;i<metroBeats;i++){
 var dot=document.getElementById('metro-dot-'+i);
-if(dot){dot.classList.toggle('active',i===metroBeat);}
+if(dot)dot.classList.toggle('active',i===current);
 }
-metroBeat=(metroBeat+1)%metroBeats;
+}
+requestAnimationFrame(metroAnimateUI);
 }
 
 function startMetro(){
-metroRunning=true;metroBeat=0;
-metroBeatTick();
-metroInterval=setInterval(metroBeatTick,60000/metroBPM);
+metroRunning=true;metroBeat=0;metroUiQueue=[];
+var ctx=getCtx();
+metroNextTime=ctx.currentTime+0.05; // kick off ~50ms in the future
+metroScheduler();
+requestAnimationFrame(metroAnimateUI);
 }
 
 function stopMetro(){
-metroRunning=false;metroBeat=0;
-if(metroInterval){clearInterval(metroInterval);metroInterval=null;}
+metroRunning=false;metroBeat=0;metroUiQueue=[];
+if(metroInterval){clearTimeout(metroInterval);metroInterval=null;}
 for(var i=0;i<metroBeats;i++){var dot=document.getElementById('metro-dot-'+i);if(dot)dot.classList.remove('active');}
 }
 
