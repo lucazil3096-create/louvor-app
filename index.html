@@ -354,55 +354,82 @@ body.light .aovivo-sub.active{background:rgba(178,34,34,.1);border-color:var(--a
 .cifra-back{background:none;border:none;color:var(--accent);font-size:13px;font-family:var(--fb);cursor:pointer;padding:8px 0;display:flex;align-items:center;gap:4px}
 .escala-screen{display:none;flex-direction:column;height:100%;padding-bottom:80px}
 .escala-body{flex:1;overflow-y:auto;padding:0 16px 16px}
-.cal-nav{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;margin-top:8px}
-.cal-nav-btn{background:none;border:1px solid var(--card-border);color:var(--text-dim);border-radius:8px;width:34px;height:34px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:16px;transition:all .2s;font-family:var(--fb)}
-.cal-nav-btn:active{background:var(--accent-glow);border-color:var(--accent)}
-.cal-month{font-family:var(--fd);font-size:20px;color:var(--text);letter-spacing:1.5px;text-transform:uppercase}
-.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:3px;margin-bottom:14px}
-.cal-hdr{font-size:9px;color:var(--text-dim);text-align:center;padding:4px 0;font-weight:700;text-transform:uppercase;font-family:var(--fb)}
-.cal-day{aspect-ratio:1;border-radius:8px;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:12px;font-family:var(--fb);cursor:pointer;transition:all .15s;border:1px solid transparent;position:relative;gap:1px;padding:2px;min-width:0}
-.cal-day.empty{cursor:default}
-.cal-day.today{border-color:var(--accent);background:var(--accent-glow)}
-.cal-day.has-event{background:rgba(178,34,34,.12);border-color:rgba(178,34,34,.3)}
-.cal-day.has-event.manual{background:rgba(201,169,110,.1);border-color:rgba(201,169,110,.3)}
+.cal-nav{display:flex;align-items:center;justify-content:space-between;margin:10px 0 18px;padding:10px 14px;background:var(--card-bg);border:1px solid var(--card-border);border-radius:14px}
+.cal-nav-btn{background:transparent;border:1px solid var(--card-border);color:var(--text);border-radius:10px;width:38px;height:38px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:14px;transition:all .2s;font-family:var(--fb)}
+.cal-nav-btn:hover{background:var(--accent-glow);border-color:var(--accent);color:var(--accent2)}
+.cal-nav-btn:active{transform:scale(.94)}
+.cal-month{font-family:var(--fd);font-size:22px;color:var(--text);letter-spacing:2px;text-transform:uppercase;font-weight:400}
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:5px;margin-bottom:22px}
+.cal-hdr{font-size:10px;color:var(--text-dim);text-align:center;padding:6px 0;font-weight:700;text-transform:uppercase;font-family:var(--fb);letter-spacing:.5px;opacity:.7}
+.cal-day{aspect-ratio:1;border-radius:10px;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:13px;font-family:var(--fb);cursor:pointer;transition:all .15s;border:1px solid transparent;position:relative;gap:3px;padding:4px;min-width:0;background:rgba(255,255,255,.015)}
+.cal-day.empty{cursor:default;background:transparent}
+.cal-day:hover:not(.empty){background:rgba(255,255,255,.05)}
+.cal-day.today{border:2px solid var(--accent);background:var(--accent-glow);padding:3px}
+.cal-day.today .cal-day-num{color:var(--accent2)}
+.cal-day.has-event{background:linear-gradient(135deg,rgba(178,34,34,.2),rgba(178,34,34,.06));border-color:rgba(178,34,34,.35)}
+.cal-day.has-event.manual{background:linear-gradient(135deg,rgba(201,169,110,.18),rgba(201,169,110,.05));border-color:rgba(201,169,110,.4)}
 .cal-day.selected{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent)}
-.cal-day-num{font-weight:700;color:var(--text);font-size:11px;line-height:1}
-.cal-day.empty .cal-day-num{color:var(--text-dim);opacity:.3}
-.cal-day-dot{width:4px;height:4px;border-radius:50%;background:var(--accent)}
-.cal-day.has-event.manual .cal-day-dot{background:var(--gold)}
-.cal-day-label{font-size:5.5px;color:var(--text-dim);text-transform:uppercase;font-weight:700;letter-spacing:.2px;line-height:1;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.escala-cfg{background:var(--card-bg);border:1px solid var(--card-border);border-radius:12px;padding:14px;margin-bottom:14px}
-.escala-cfg-title{font-size:11px;color:var(--text-dim);text-transform:uppercase;letter-spacing:1px;font-weight:700;margin-bottom:10px;display:flex;align-items:center;gap:6px}
-.escala-cfg-row{display:flex;align-items:center;gap:6px;margin-bottom:8px;flex-wrap:wrap}
-.escala-cfg-label{font-size:12px;color:var(--text);font-weight:600;width:100%;margin-bottom:2px}
-.escala-member-chips{display:flex;flex-wrap:wrap;gap:6px;margin:4px 0}
-.escala-member-chip{font-size:11px;padding:4px 10px;border-radius:12px;background:rgba(255,255,255,.06);color:var(--text-dim);border:1px solid rgba(255,255,255,.08);cursor:pointer;font-family:var(--fb);transition:all .15s}
-.escala-member-chip.selected{background:var(--accent-glow);color:var(--accent2);border-color:var(--accent)}
-.escala-gen-btn{background:var(--accent);color:#fff;border:none;border-radius:10px;padding:10px 16px;font-size:13px;font-family:var(--fb);cursor:pointer;width:100%;font-weight:600;transition:all .2s;margin-top:6px}
-.escala-gen-btn:active{opacity:.8}
+.cal-day-num{font-weight:700;color:var(--text);font-size:14px;line-height:1}
+.cal-day.empty .cal-day-num{color:var(--text-dim);opacity:.25}
+.cal-day-dot{width:5px;height:5px;border-radius:50%;background:var(--accent);box-shadow:0 0 6px var(--accent)}
+.cal-day.has-event.manual .cal-day-dot{background:var(--gold);box-shadow:0 0 6px var(--gold)}
+.cal-day-label{display:none}
+.escala-cfg{background:var(--card-bg);border:1px solid var(--card-border);border-radius:14px;padding:16px;margin-bottom:14px}
+.escala-cfg-title{font-size:11px;color:var(--text-dim);text-transform:uppercase;letter-spacing:1.2px;font-weight:700;margin-bottom:12px;display:flex;align-items:center;gap:6px}
+.escala-cfg-row{display:flex;align-items:center;gap:6px;margin-bottom:10px;flex-wrap:wrap}
+.escala-cfg-label{font-size:12px;color:var(--text);font-weight:600;width:100%;margin-bottom:4px;margin-top:4px;opacity:.85}
+.escala-cfg-btn{background:rgba(255,255,255,.04);color:var(--text-dim);border:1px solid var(--card-border);border-radius:10px;padding:8px 12px;font-size:11px;font-family:var(--fb);cursor:pointer;font-weight:700;text-transform:uppercase;letter-spacing:.5px;transition:all .15s;min-width:42px}
+.escala-cfg-btn.active{background:var(--accent-glow);color:var(--accent2);border-color:var(--accent)}
+.escala-cfg-btn:hover{transform:translateY(-1px)}
+.escala-member-chips{display:flex;flex-wrap:wrap;gap:6px;margin:4px 0 8px}
+.escala-member-chip{font-size:11px;padding:5px 12px;border-radius:14px;background:rgba(255,255,255,.04);color:var(--text-dim);border:1px solid var(--card-border);cursor:pointer;font-family:var(--fb);transition:all .15s;font-weight:600}
+.escala-member-chip.selected{background:var(--accent-glow);color:var(--accent2);border-color:var(--accent);box-shadow:0 0 0 1px rgba(178,34,34,.1)}
+.escala-gen-btn{background:var(--accent);color:#fff;border:none;border-radius:10px;padding:11px 16px;font-size:13px;font-family:var(--fb);cursor:pointer;width:100%;font-weight:700;transition:all .2s;margin-top:8px;letter-spacing:.3px}
+.escala-gen-btn:hover{filter:brightness(1.1);box-shadow:0 4px 14px rgba(178,34,34,.3)}
+.escala-gen-btn:active{transform:scale(.98)}
 .escala-gen-btn.secondary{background:var(--card-bg);color:var(--text-dim);border:1px solid var(--card-border)}
-.escala-section-label{font-size:11px;color:var(--text-dim);text-transform:uppercase;letter-spacing:1px;font-weight:700;margin:14px 0 8px;display:flex;align-items:center;gap:6px}
-.escala-detail{background:var(--card-bg);border:1px solid var(--card-border);border-radius:12px;padding:14px;margin-bottom:10px}
-.escala-detail-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px}
-.escala-detail-date{font-family:var(--fd);font-size:18px;color:var(--accent2);letter-spacing:1px}
-.escala-detail-tipo{font-size:11px;color:var(--text-dim);font-weight:700;text-transform:uppercase;letter-spacing:.5px}
-.escala-detail-membros{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
-.escala-detail-membro{font-size:12px;padding:4px 10px;border-radius:10px;background:var(--accent-glow);color:var(--accent2);font-family:var(--fb);font-weight:600}
+.escala-gen-btn.secondary:hover{background:rgba(255,255,255,.05);box-shadow:none}
+.escala-section-label{font-size:11px;color:var(--text-dim);text-transform:uppercase;letter-spacing:1.5px;font-weight:700;margin:22px 0 10px;display:flex;align-items:center;gap:6px;padding-left:2px}
+.escala-section-label::after{content:'';flex:1;height:1px;background:var(--card-border);margin-left:10px}
+.escala-detail{background:var(--card-bg);border:1px solid var(--card-border);border-radius:14px;padding:14px;margin-bottom:10px;display:flex;gap:14px;align-items:flex-start;transition:all .15s}
+.escala-detail:hover{border-color:rgba(178,34,34,.25);transform:translateY(-1px);box-shadow:0 4px 14px rgba(0,0,0,.2)}
+.escala-detail-datebox{flex:0 0 52px;background:var(--accent-glow);border:1px solid rgba(178,34,34,.25);border-radius:10px;padding:8px 4px;text-align:center;display:flex;flex-direction:column;gap:2px}
+.escala-detail.manual .escala-detail-datebox{background:var(--gold-bg);border-color:var(--gold-border)}
+.escala-detail-day{font-family:var(--fd);font-size:24px;color:var(--accent2);letter-spacing:1px;line-height:1;font-weight:400}
+.escala-detail.manual .escala-detail-day{color:var(--gold)}
+.escala-detail-month{font-size:9px;color:var(--text-dim);text-transform:uppercase;letter-spacing:1px;font-weight:700}
+.escala-detail-dow{font-size:9px;color:var(--text-dim);text-transform:uppercase;letter-spacing:.5px;font-weight:700;margin-top:1px;opacity:.8}
+.escala-detail-body{flex:1;min-width:0}
+.escala-detail-header{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:10px;gap:8px}
+.escala-detail-tipo{font-size:12px;color:var(--text);font-weight:700;text-transform:uppercase;letter-spacing:.5px;line-height:1.3}
+.escala-detail-tipo-sub{font-size:10px;color:var(--text-dim);font-weight:600;margin-top:2px;text-transform:none;letter-spacing:normal}
+.escala-detail-membros{display:flex;flex-wrap:wrap;gap:6px;margin-top:4px}
+.escala-detail-membro{font-size:11px;padding:4px 10px 4px 4px;border-radius:14px;background:rgba(178,34,34,.08);color:var(--text);border:1px solid rgba(178,34,34,.15);font-family:var(--fb);font-weight:600;display:flex;align-items:center;gap:6px}
+.escala-detail-membro-avatar{width:22px;height:22px;border-radius:50%;background:var(--accent-glow);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:var(--accent2);overflow:hidden;flex-shrink:0}
+.escala-detail-membro-avatar img{width:100%;height:100%;object-fit:cover}
+.escala-detail.manual .escala-detail-membro{background:var(--gold-bg);border-color:var(--gold-border)}
+.escala-detail.manual .escala-detail-membro-avatar{background:var(--gold-bg);color:var(--gold)}
+.escala-detail-badge{font-size:8px;padding:1px 5px;border-radius:4px;font-weight:700;letter-spacing:.3px;color:#fff;text-transform:uppercase}
+.escala-detail-badge.lider{background:var(--gold)}
+.escala-detail-badge.admin{background:var(--accent2)}
+.escala-detail-funcao{font-size:9px;color:var(--text-dim);font-weight:600;margin-left:2px}
 .escala-detail.manual{border-color:var(--gold-border)}
-.escala-detail.manual .escala-detail-date{color:var(--gold)}
-.escala-detail.manual .escala-detail-membro{background:var(--gold-bg);color:var(--gold)}
-.escala-detail-del{background:none;border:none;color:var(--text-dim);cursor:pointer;font-size:16px;padding:4px;opacity:.5}
-.escala-detail-del:active{color:var(--danger);opacity:1}
-.escala-manual-btn{background:var(--gold-bg);color:var(--gold);border:1px solid var(--gold-border);border-radius:10px;padding:8px 14px;font-size:12px;font-family:var(--fb);cursor:pointer;width:100%;font-weight:600;transition:all .2s;margin-bottom:8px}
-.escala-manual-btn:active{opacity:.8}
-.escala-form{background:var(--card-bg);border-radius:12px;padding:14px;margin-bottom:12px;border:1px solid var(--gold-border)}
-.escala-form input,.escala-form select,.escala-form textarea{width:100%;background:var(--bg);color:var(--text);border:1px solid var(--card-border);border-radius:8px;padding:8px;font-size:13px;font-family:var(--fb);margin-bottom:8px;box-sizing:border-box}
+.escala-detail-obs{font-size:11px;color:var(--text-dim);margin-top:8px;font-style:italic;padding:6px 10px;background:rgba(255,255,255,.02);border-radius:8px;border-left:2px solid var(--card-border)}
+.escala-detail-del{background:rgba(255,255,255,.02);border:1px solid var(--card-border);color:var(--text-dim);cursor:pointer;font-size:13px;padding:6px 8px;border-radius:8px;transition:all .15s;flex-shrink:0}
+.escala-detail-del:hover{color:var(--danger);border-color:rgba(212,86,75,.3);background:rgba(212,86,75,.06)}
+.escala-manual-btn{background:var(--gold-bg);color:var(--gold);border:1px solid var(--gold-border);border-radius:10px;padding:10px 14px;font-size:12px;font-family:var(--fb);cursor:pointer;width:100%;font-weight:700;transition:all .2s;margin-bottom:10px;letter-spacing:.3px}
+.escala-manual-btn:hover{background:rgba(201,169,110,.1);border-color:var(--gold)}
+.escala-manual-btn:active{transform:scale(.98)}
+.escala-form{background:var(--card-bg);border-radius:14px;padding:16px;margin-bottom:12px;border:1px solid var(--gold-border)}
+.escala-form input,.escala-form select,.escala-form textarea{width:100%;background:var(--bg);color:var(--text);border:1px solid var(--card-border);border-radius:10px;padding:10px;font-size:13px;font-family:var(--fb);margin-bottom:8px;box-sizing:border-box;transition:border-color .15s}
+.escala-form input:focus,.escala-form select:focus,.escala-form textarea:focus{outline:none;border-color:var(--accent)}
 .escala-form-row{display:flex;gap:8px}.escala-form-row>*{flex:1}
-.escala-empty{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:30px;color:var(--text-dim);text-align:center;gap:10px;opacity:.5;font-size:13px}
-.escala-stats{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px}
-.escala-stat{flex:1;min-width:60px;padding:8px 6px;background:var(--card-bg);border:1px solid var(--card-border);border-radius:8px;text-align:center}
-.escala-stat-name{font-size:9px;color:var(--text-dim);font-weight:700;text-transform:uppercase;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.escala-stat-count{font-family:var(--fd);font-size:18px;color:var(--accent2);letter-spacing:.5px}
+.escala-empty{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:40px 20px;color:var(--text-dim);text-align:center;gap:10px;font-size:13px;background:var(--card-bg);border:1px dashed var(--card-border);border-radius:14px;margin-top:10px}
+.escala-stats{display:grid;grid-template-columns:repeat(auto-fill,minmax(76px,1fr));gap:8px;margin-bottom:18px}
+.escala-stat{padding:10px 8px;background:var(--card-bg);border:1px solid var(--card-border);border-radius:12px;text-align:center;transition:all .15s}
+.escala-stat:hover{border-color:rgba(178,34,34,.25);transform:translateY(-1px)}
+.escala-stat-name{font-size:9.5px;color:var(--text-dim);font-weight:700;text-transform:uppercase;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;letter-spacing:.3px;margin-top:2px}
+.escala-stat-count{font-family:var(--fd);font-size:22px;color:var(--accent2);letter-spacing:.5px;line-height:1;font-weight:400}
 
 .ensaio-screen{display:none;flex-direction:column;height:calc(100vh - 52px);height:calc(100dvh - 52px)}
 .ensaio-screen.active{display:flex}
@@ -2735,28 +2762,39 @@ return h;
 }
 
 function escalaDetailHtml(e){
-var d=e.date.split('-');var dateStr=d[2]+'/'+d[1];
+var d=e.date.split('-');
 var dow=new Date(parseInt(d[0]),parseInt(d[1])-1,parseInt(d[2])).getDay();
+var monthAbbrev=MONTH_NAMES[parseInt(d[1])-1].substring(0,3).toUpperCase();
 var h='<div class="escala-detail'+(e.manual?' manual':'')+'">';
-h+='<div class="escala-detail-header"><div><div class="escala-detail-date">'+dateStr+' - '+DAY_FULL[dow]+'</div>';
-h+='<div class="escala-detail-tipo">'+esc(e.tipo||'')+(e.manual?' (manual)':'')+'</div></div>';
+// Date block (left)
+h+='<div class="escala-detail-datebox">';
+h+='<div class="escala-detail-day">'+d[2]+'</div>';
+h+='<div class="escala-detail-month">'+monthAbbrev+'</div>';
+h+='<div class="escala-detail-dow">'+DAY_NAMES[dow]+'</div>';
+h+='</div>';
+// Body (right)
+h+='<div class="escala-detail-body">';
+h+='<div class="escala-detail-header"><div><div class="escala-detail-tipo">'+esc(e.tipo||'')+'</div>';
+if(e.manual)h+='<div class="escala-detail-tipo-sub">Evento manual</div>';
+h+='</div>';
 if(authCanEdit())h+='<button class="escala-detail-del" onclick="deleteEscala(\''+e.id+'\')" title="Excluir">&#10005;</button>';
 h+='</div>';
 h+='<div class="escala-detail-membros">';
 (e.membros||[]).forEach(function(m){
 var firstName=m.split(' ')[0];
+var initial=(m||'?').charAt(0).toUpperCase();
 var photo=getUserPhoto(m);
 var user=allUsers.find(function(u){return u.name===m;});
 var role=user?user.role:'membro';
 var funcao=user?user.funcao:'';
-var avatarHtml=photo?'<img src="'+photo+'" style="width:20px;height:20px;border-radius:50%;object-fit:cover;vertical-align:middle;margin-right:4px">':'';
-var badgeHtml=role==='lider'?'<span style="font-size:7px;background:var(--gold);color:#fff;padding:1px 4px;border-radius:4px;margin-left:3px;vertical-align:middle;font-weight:700">L</span>':role==='admin'?'<span style="font-size:7px;background:var(--accent2);color:#fff;padding:1px 4px;border-radius:4px;margin-left:3px;vertical-align:middle;font-weight:700">A</span>':'';
-var funcaoHtml=funcao?'<span style="font-size:9px;opacity:.6;margin-left:2px">'+esc(funcao)+'</span>':'';
-h+='<div class="escala-detail-membro'+(e.manual?' manual':'')+'" style="display:flex;align-items:center;gap:2px">'+avatarHtml+esc(firstName)+badgeHtml+funcaoHtml+'</div>';
+var avatarHtml=photo?'<span class="escala-detail-membro-avatar"><img src="'+photo+'" alt=""></span>':'<span class="escala-detail-membro-avatar">'+esc(initial)+'</span>';
+var badgeHtml=role==='lider'?'<span class="escala-detail-badge lider">L</span>':role==='admin'?'<span class="escala-detail-badge admin">A</span>':'';
+var funcaoHtml=funcao?'<span class="escala-detail-funcao">· '+esc(funcao)+'</span>':'';
+h+='<div class="escala-detail-membro">'+avatarHtml+esc(firstName)+badgeHtml+funcaoHtml+'</div>';
 });
 h+='</div>';
-if(e.obs)h+='<div style="font-size:11px;color:var(--text-dim);margin-top:6px;font-style:italic">'+esc(e.obs)+'</div>';
-h+='</div>';
+if(e.obs)h+='<div class="escala-detail-obs">'+esc(e.obs)+'</div>';
+h+='</div></div>';
 return h;
 }
 
