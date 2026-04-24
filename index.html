@@ -1272,29 +1272,36 @@ return;
 var data=doc.data();
 // Always check notifications, even on ignored snapshots
 if(data.escalaData){
-try{var snapEscalas=JSON.parse(data.escalaData);
-if(typeof notifCheckEscala==='function')notifCheckEscala(snapEscalas);
+try{var snapEscalasAll=groupDataFrom(JSON.parse(data.escalaData));
+var _gkE=(typeof getMyGrupoKey==='function')?getMyGrupoKey():'g1';
+if(typeof notifCheckEscala==='function')notifCheckEscala(snapEscalasAll[_gkE]||[]);
 }catch(e){}
 }
 if(data.chatData){
-try{var snapChat=JSON.parse(data.chatData);
-if(typeof notifCheckChat==='function')notifCheckChat(snapChat);
+try{var snapChatAll=groupDataFrom(JSON.parse(data.chatData));
+var _gkC=(typeof getMyGrupoKey==='function')?getMyGrupoKey():'g1';
+if(typeof notifCheckChat==='function')notifCheckChat(snapChatAll[_gkC]||[]);
 }catch(e){}
 }
 // Skip data sync if this is our own save echo
 if(ignoreSnapshot){ignoreSnapshot=false;fbSynced=true;return;}
 if(data.lyrics){
 try{
-var remoteLyrics=JSON.parse(data.lyrics);
-var merged=mergeSongLists(lyrics,remoteLyrics);
-var localStr=JSON.stringify(lyrics);
-var mergedStr=JSON.stringify(merged);
-var remoteStr=JSON.stringify(remoteLyrics);
+var remoteParsed=JSON.parse(data.lyrics);
+var remoteAll=groupDataFrom(remoteParsed);
+var mergedAll={
+g1:mergeSongLists(lyricsAllData.g1||[],remoteAll.g1||[]),
+g2:mergeSongLists(lyricsAllData.g2||[],remoteAll.g2||[])
+};
+var localStr=JSON.stringify(lyricsAllData);
+var mergedStr=JSON.stringify(mergedAll);
+var remoteStr=JSON.stringify(remoteAll);
 if(localStr!==mergedStr){
-lyrics=merged;
-try{localStorage.setItem(SK,JSON.stringify(lyrics));}catch(e){}
+lyricsAllData=mergedAll;
+loadLyricsForGroup();
+try{localStorage.setItem(SK,JSON.stringify(lyricsAllData));}catch(e){}
 renderList();
-console.log('Synced/merged: '+lyrics.length+' songs');
+console.log('Synced/merged: g1='+(lyricsAllData.g1||[]).length+' g2='+(lyricsAllData.g2||[]).length);
 }
 if(mergedStr!==remoteStr){
 fbSynced=true;
@@ -1330,11 +1337,15 @@ if(typeof loadProfiles==='function'){loadProfiles();updateProfileUI();}
 }
 if(data.escalaData){
 try{localStorage.setItem(ESCALA_KEY,data.escalaData);
-escalas=JSON.parse(data.escalaData);
+escalasAllData=groupDataFrom(JSON.parse(data.escalaData));
+loadEscalasForGroup();
 }catch(e){}
 }
 if(data.chatData){
-try{chatMessages=JSON.parse(data.chatData);renderChat();}catch(e){}
+try{chatAllData=groupDataFrom(JSON.parse(data.chatData));
+loadChatForGroup();
+renderChat();
+}catch(e){}
 }
 fbSynced=true;
 },function(e){console.log('Firebase listener error:',e);fbSynced=true;});
@@ -1392,8 +1403,9 @@ if(typeof updateHeaderAvatar==='function')updateHeaderAvatar();
 function fbCreateBackup(songCount){
 if(!db)return;
 try{
+syncLyricsToAllData();
 var backupData={
-lyrics:JSON.stringify(lyrics),
+lyrics:JSON.stringify(lyricsAllData),
 todayList:JSON.stringify(todayAllData),
 songCount:songCount,
 timestamp:firebase.firestore.FieldValue.serverTimestamp(),
@@ -1418,13 +1430,17 @@ if(count>MAX_BACKUPS)d.ref.delete();
 function fbSaveNow(){
 if(!fbDoc)return;
 syncTodayToData();
+syncLyricsToAllData();
+syncEscalasToAllData();
+syncChatToAllData();
 // SAFETY 1: never save before first sync
 if(!fbSynced){
 console.log('BLOCKED save - waiting for first sync');
 return;
 }
+var totalSongs=(lyricsAllData.g1||[]).length+(lyricsAllData.g2||[]).length;
 // SAFETY 2: never overwrite with empty
-if(lyrics.length===0){
+if(totalSongs===0){
 console.log('BLOCKED save - empty data');
 return;
 }
@@ -1434,54 +1450,58 @@ if(doc.exists){
 var data=doc.data();
 if(data.lyrics){
 try{
-var existing=JSON.parse(data.lyrics);
-// Merge local + remote (per-song by id + updatedAt, respects tombstones)
-var mergedLocal=mergeSongLists(lyrics,existing);
-if(JSON.stringify(mergedLocal)!==JSON.stringify(lyrics)){
-lyrics=mergedLocal;
-try{localStorage.setItem(SK,JSON.stringify(lyrics));}catch(e){}
+var existingAll=groupDataFrom(JSON.parse(data.lyrics));
+// Merge local + remote per group
+var mergedAll={
+g1:mergeSongLists(lyricsAllData.g1||[],existingAll.g1||[]),
+g2:mergeSongLists(lyricsAllData.g2||[],existingAll.g2||[])
+};
+if(JSON.stringify(mergedAll)!==JSON.stringify(lyricsAllData)){
+lyricsAllData=mergedAll;
+loadLyricsForGroup();
+try{localStorage.setItem(SK,JSON.stringify(lyricsAllData));}catch(e){}
 try{renderList();}catch(e){}
 }
-// Backup if Firebase had songs
-if(existing.length>0){
-fbCreateBackup(existing.length);
-}
+var totalExisting=(existingAll.g1||[]).length+(existingAll.g2||[]).length;
+if(totalExisting>0){fbCreateBackup(totalExisting);}
 }catch(e){}
 }
 }
 // Now save
 var saveData={
-lyrics:JSON.stringify(lyrics),
+lyrics:JSON.stringify(lyricsAllData),
 todayList:JSON.stringify(todayAllData),
-songCount:lyrics.length,
+songCount:(lyricsAllData.g1||[]).length+(lyricsAllData.g2||[]).length,
 updatedAt:firebase.firestore.FieldValue.serverTimestamp()
 };
 try{var ed=localStorage.getItem('church-ensaio-v2');if(ed)saveData.ensaioData=ed;}catch(e){}
 try{var pd=localStorage.getItem('church-profiles-v1');if(pd)saveData.profileData=pd;}catch(e){}
 try{var ud=localStorage.getItem('church-users-local');if(ud)saveData.userData=ud;}catch(e){}
-try{var ek=localStorage.getItem(ESCALA_KEY);if(ek)saveData.escalaData=ek;}catch(e){}
-if(chatMessages.length)saveData.chatData=JSON.stringify(chatMessages.slice(-200));
+saveData.escalaData=JSON.stringify(escalasAllData);
+var chatTotal=(chatAllData.g1||[]).length+(chatAllData.g2||[]).length;
+if(chatTotal)saveData.chatData=JSON.stringify(chatAllData);
 ignoreSnapshot=true;
 fbDoc.set(saveData).then(function(){
-console.log('Saved OK ('+lyrics.length+' songs)');
+console.log('Saved OK ('+saveData.songCount+' songs)');
 }).catch(function(e){console.log('Save error:',e);ignoreSnapshot=false;});
 }).catch(function(e){
 // Can't check - save anyway with protection
 console.log('Check failed, saving:',e);
 var saveData={
-lyrics:JSON.stringify(lyrics),
+lyrics:JSON.stringify(lyricsAllData),
 todayList:JSON.stringify(todayAllData),
-songCount:lyrics.length,
+songCount:(lyricsAllData.g1||[]).length+(lyricsAllData.g2||[]).length,
 updatedAt:firebase.firestore.FieldValue.serverTimestamp()
 };
 try{var ed=localStorage.getItem('church-ensaio-v2');if(ed)saveData.ensaioData=ed;}catch(e2){}
 try{var pd=localStorage.getItem('church-profiles-v1');if(pd)saveData.profileData=pd;}catch(e2){}
 try{var ud=localStorage.getItem('church-users-local');if(ud)saveData.userData=ud;}catch(e2){}
-try{var ek=localStorage.getItem(ESCALA_KEY);if(ek)saveData.escalaData=ek;}catch(e2){}
-if(chatMessages.length)saveData.chatData=JSON.stringify(chatMessages.slice(-200));
+saveData.escalaData=JSON.stringify(escalasAllData);
+var chatTotal2=(chatAllData.g1||[]).length+(chatAllData.g2||[]).length;
+if(chatTotal2)saveData.chatData=JSON.stringify(chatAllData);
 ignoreSnapshot=true;
 fbDoc.set(saveData).then(function(){
-console.log('Saved OK ('+lyrics.length+' songs)');
+console.log('Saved OK ('+saveData.songCount+' songs)');
 }).catch(function(e2){console.log('Save error:',e2);ignoreSnapshot=false;});
 });
 }
@@ -1514,13 +1534,16 @@ if(!choice||choice==='0')return;
 var idx=parseInt(choice)-1;
 if(idx<0||idx>=items.length){alert('Opção inválida');return;}
 var sel=items[idx];
-if(!confirm('Restaurar backup de '+sel.count+' músicas?\n\nIsso vai SUBSTITUIR os dados atuais ('+lyrics.length+' músicas).\n\nTem certeza?'))return;
+var curTotal=(lyricsAllData.g1||[]).length+(lyricsAllData.g2||[]).length;
+if(!confirm('Restaurar backup de '+sel.count+' músicas?\n\nIsso vai SUBSTITUIR os dados atuais ('+curTotal+' músicas).\n\nTem certeza?'))return;
 try{
-lyrics=JSON.parse(sel.lyrics);
+lyricsAllData=groupDataFrom(JSON.parse(sel.lyrics));
+loadLyricsForGroup();
 if(sel.todayList){var rtd=JSON.parse(sel.todayList);if(Array.isArray(rtd)){todayAllData.g1=rtd;}else if(rtd.g1){todayAllData=rtd;}loadTodayForGroup();}
 if(sel.ensaioData)try{localStorage.setItem('church-ensaio-v2',sel.ensaioData);}catch(e){}
 save();saveToday();renderList();
-alert('✅ Restaurado! '+lyrics.length+' músicas recuperadas.');
+var newTotal=(lyricsAllData.g1||[]).length+(lyricsAllData.g2||[]).length;
+alert('✅ Restaurado! '+newTotal+' músicas recuperadas.');
 }catch(e){alert('Erro ao restaurar: '+e.message);}
 }).catch(function(e){alert('Erro ao buscar backups: '+e.message);});
 }
@@ -1547,23 +1570,63 @@ todayAllData[gk]=todayList;
 }
 
 function load(){
-try{var d=localStorage.getItem(SK);if(d)lyrics=JSON.parse(d);
+try{var d=localStorage.getItem(SK);
+if(d){var parsedL=JSON.parse(d);lyricsAllData=groupDataFrom(parsedL);}
 var td=localStorage.getItem(TK);
 if(td){todayAllData=JSON.parse(td);if(!todayAllData.g1)todayAllData.g1=[];if(!todayAllData.g2)todayAllData.g2=[];}
 else{
-// Migration from old single todayList
 var oldTd=localStorage.getItem('church-today-v1');
 if(oldTd){todayAllData.g1=JSON.parse(oldTd);todayAllData.g2=[];}
 else{todayAllData={g1:[],g2:[]};}
 }
+loadLyricsForGroup();
 loadTodayForGroup();
-}catch(e){lyrics=[];todayAllData={g1:[],g2:[]};todayList=[];}
+}catch(e){lyrics=[];lyricsAllData={g1:[],g2:[]};todayAllData={g1:[],g2:[]};todayList=[];}
 renderList();try{updateTodayCount();}catch(e){}
 }
 
 var DEL_KEY='church-deleted-ids';
 function getDeletedIds(){try{return JSON.parse(localStorage.getItem(DEL_KEY)||'[]');}catch(e){return[];}}
 function markDeletedId(id){var a=getDeletedIds();if(a.indexOf(id)<0){a.push(id);try{localStorage.setItem(DEL_KEY,JSON.stringify(a.slice(-200)));}catch(e){}}}
+
+function groupDataFrom(raw){
+if(Array.isArray(raw))return{g1:raw.slice(),g2:[]};
+if(raw&&typeof raw==='object'){return{g1:Array.isArray(raw.g1)?raw.g1:[],g2:Array.isArray(raw.g2)?raw.g2:[]};}
+return{g1:[],g2:[]};
+}
+
+var lyricsAllData={g1:[],g2:[]};
+var escalasAllData={g1:[],g2:[]};
+var chatAllData={g1:[],g2:[]};
+
+function loadLyricsForGroup(){
+var gk=(typeof getMyGrupoKey==='function')?getMyGrupoKey():'g1';
+if(!Array.isArray(lyricsAllData[gk]))lyricsAllData[gk]=[];
+lyrics=lyricsAllData[gk];
+}
+function syncLyricsToAllData(){
+var gk=(typeof getMyGrupoKey==='function')?getMyGrupoKey():'g1';
+lyricsAllData[gk]=lyrics;
+}
+function loadEscalasForGroup(){
+var gk=(typeof getMyGrupoKey==='function')?getMyGrupoKey():'g1';
+if(!Array.isArray(escalasAllData[gk]))escalasAllData[gk]=[];
+escalas=escalasAllData[gk];
+}
+function syncEscalasToAllData(){
+var gk=(typeof getMyGrupoKey==='function')?getMyGrupoKey():'g1';
+escalasAllData[gk]=escalas;
+}
+function loadChatForGroup(){
+var gk=(typeof getMyGrupoKey==='function')?getMyGrupoKey():'g1';
+if(!Array.isArray(chatAllData[gk]))chatAllData[gk]=[];
+chatMessages=chatAllData[gk];
+}
+function syncChatToAllData(){
+var gk=(typeof getMyGrupoKey==='function')?getMyGrupoKey():'g1';
+chatAllData[gk]=chatMessages;
+}
+
 function mergeSongLists(localList,remoteList){
 var byId={},del=getDeletedIds();
 (localList||[]).forEach(function(s){if(s&&s.id)byId[s.id]=s;});
@@ -1581,7 +1644,8 @@ return Object.keys(byId).map(function(k){return byId[k];});
 }
 
 function save(){
-try{localStorage.setItem(SK,JSON.stringify(lyrics));}catch(e){}
+syncLyricsToAllData();
+try{localStorage.setItem(SK,JSON.stringify(lyricsAllData));}catch(e){}
 fbSave();
 }
 function saveToday(){
@@ -2088,16 +2152,18 @@ function toggleTheme(){isLight=!isLight;document.body.classList.toggle('light',i
 function loadTheme(){try{var t=localStorage.getItem('church-theme');if(t==='light'){isLight=true;document.body.classList.add('light');document.getElementById('btn-theme').innerHTML=ICO.sun;}}catch(e){}}
 
 function backupData(){
-var choice=prompt('BACKUP / RESTAURAR\n\nDigite:\n1 = Exportar backup (salvar arquivo)\n2 = Importar backup (de arquivo)\n3 = Restaurar backup automático (Firebase)\n\nVocê tem '+lyrics.length+' música(s)');
+syncLyricsToAllData();
+var curTotal=(lyricsAllData.g1||[]).length+(lyricsAllData.g2||[]).length;
+var choice=prompt('BACKUP / RESTAURAR\n\nDigite:\n1 = Exportar backup (salvar arquivo)\n2 = Importar backup (de arquivo)\n3 = Restaurar backup automático (Firebase)\n\nVocê tem '+curTotal+' música(s)');
 if(choice==='1'){
-var data={lyrics:lyrics,todayList:todayAllData,date:new Date().toISOString()};
+var data={lyricsAllData:lyricsAllData,todayList:todayAllData,escalasAllData:escalasAllData,date:new Date().toISOString()};
 try{var ed=localStorage.getItem('church-ensaio-v2');if(ed)data.ensaio=JSON.parse(ed);}catch(e){}
 var blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
 var a=document.createElement('a');
 a.href=URL.createObjectURL(blob);
 a.download='louvor-backup-'+new Date().toISOString().slice(0,10)+'.json';
 a.click();
-alert('✅ Backup salvo! '+lyrics.length+' músicas exportadas.');
+alert('✅ Backup salvo! '+curTotal+' músicas exportadas.');
 }else if(choice==='2'){
 var inp=document.createElement('input');
 inp.type='file';inp.accept='.json';
@@ -2107,17 +2173,21 @@ var reader=new FileReader();
 reader.onload=function(e){
 try{
 var data=JSON.parse(e.target.result);
-if(!data.lyrics||!Array.isArray(data.lyrics)){alert('❌ Arquivo inválido');return;}
-if(!confirm('Restaurar '+data.lyrics.length+' músicas?\nIsso vai SUBSTITUIR os dados atuais ('+lyrics.length+' músicas).\n\nContinuar?'))return;
-lyrics=data.lyrics;
+var incoming=data.lyricsAllData?groupDataFrom(data.lyricsAllData):(Array.isArray(data.lyrics)?groupDataFrom(data.lyrics):null);
+if(!incoming){alert('❌ Arquivo inválido');return;}
+var inTotal=(incoming.g1||[]).length+(incoming.g2||[]).length;
+if(!confirm('Restaurar '+inTotal+' músicas?\nIsso vai SUBSTITUIR os dados atuais.\n\nContinuar?'))return;
+lyricsAllData=incoming;
+loadLyricsForGroup();
 if(data.todayList){
 if(Array.isArray(data.todayList)){todayAllData.g1=data.todayList;}
 else if(data.todayList.g1){todayAllData=data.todayList;}
 loadTodayForGroup();
 }
+if(data.escalasAllData){escalasAllData=groupDataFrom(data.escalasAllData);loadEscalasForGroup();}
 if(data.ensaio)try{localStorage.setItem('church-ensaio-v2',JSON.stringify(data.ensaio));}catch(e){}
 save();saveToday();renderList();
-alert('✅ Restaurado! '+lyrics.length+' músicas.');
+alert('✅ Restaurado! '+inTotal+' músicas.');
 }catch(ex){alert('❌ Erro ao ler arquivo: '+ex.message);}
 };
 reader.readAsText(f);
@@ -2520,9 +2590,11 @@ chatMessages.push(msg);
 renderChat();
 // Save to Firebase
 if(db){
-// Keep last 200 messages
-var toSave=chatMessages.slice(-200);
-db.collection('app').doc('data').update({chatData:JSON.stringify(toSave)}).then(function(){
+// Keep last 200 messages per group
+var _gk=getMyGrupoKey();
+chatAllData[_gk]=chatMessages.slice(-200);
+chatMessages=chatAllData[_gk];
+db.collection('app').doc('data').update({chatData:JSON.stringify(chatAllData)}).then(function(){
 console.log('Chat saved OK');
 }).catch(function(e){
 console.error('Chat save error:',e);
@@ -2532,21 +2604,23 @@ alert('Erro ao enviar mensagem. Verifique sua conexão.');
 }
 
 function adminClearChat(){
-if(!confirm('Tem certeza que deseja apagar todo o chat?'))return;
-chatMessages=[];
+if(!confirm('Tem certeza que deseja apagar todo o chat desse grupo?'))return;
+var _gk=getMyGrupoKey();
+chatAllData[_gk]=[];
+chatMessages=chatAllData[_gk];
 lastChatCount=0;
 renderChat();
 if(db){
-db.collection('app').doc('data').update({chatData:'[]'}).then(function(){
-console.log('Chat limpo');
+db.collection('app').doc('data').update({chatData:JSON.stringify(chatAllData)}).then(function(){
+console.log('Chat limpo (grupo '+_gk+')');
 }).catch(function(e){alert('Erro ao limpar chat.');});
 }
 }
 
 // ===== ESCALA DE MINISTROS - CALENDARIO =====
-function loadEscalas(){try{var d=localStorage.getItem(ESCALA_KEY);if(d)escalas=JSON.parse(d);else escalas=[];}catch(e){escalas=[];}}
-function saveEscalas(){try{localStorage.setItem(ESCALA_KEY,JSON.stringify(escalas));}catch(e){}fbSaveEscala();}
-function fbSaveEscala(){if(typeof db!=='undefined'&&db){try{db.collection('app').doc('data').update({escalaData:JSON.stringify(escalas)});}catch(e){}}}
+function loadEscalas(){try{var d=localStorage.getItem(ESCALA_KEY);if(d){var p=JSON.parse(d);escalasAllData=groupDataFrom(p);}}catch(e){escalasAllData={g1:[],g2:[]};}loadEscalasForGroup();}
+function saveEscalas(){syncEscalasToAllData();try{localStorage.setItem(ESCALA_KEY,JSON.stringify(escalasAllData));}catch(e){}fbSaveEscala();}
+function fbSaveEscala(){if(typeof db!=='undefined'&&db){try{db.collection('app').doc('data').update({escalaData:JSON.stringify(escalasAllData)});}catch(e){}}}
 
 var ESCALA_CFG_KEY='church-escala-cfg-v1';
 var escalaCfg={members:[],days:[0,2]}; // 0=domingo, 2=terça
@@ -3616,22 +3690,38 @@ if(currentUser.grupo===2)activeViewGrupo=0; // "Ambos" starts on Louvor
 else activeViewGrupo=currentUser.grupo||0;
 profileData.active=activeViewGrupo;
 saveProfiles();
+loadLyricsForGroup();
+loadEscalasForGroup();
+loadChatForGroup();
 loadTodayForGroup();
 applyPermissions();
 updateProfileUI();
+try{renderList();}catch(e){}
+try{renderChat();}catch(e){}
 switchNav('louvor');
 }
 
 function adminSwitchGrupo(){
 if(!canSwitchGrupo())return;
+// Sync current group state back before switching
+syncLyricsToAllData();
+syncEscalasToAllData();
+syncChatToAllData();
+syncTodayToData();
 activeViewGrupo=activeViewGrupo===0?1:0;
 profileData.active=activeViewGrupo;
 saveProfiles();
+loadLyricsForGroup();
+loadEscalasForGroup();
+loadChatForGroup();
 loadTodayForGroup();
 applyPermissions();
 updateProfileUI();
 renderList();
-renderEnsaioList();
+try{renderChat();}catch(e){}
+try{renderEscala();}catch(e){}
+try{renderEnsaioList();}catch(e){}
+lastChatCount=(chatMessages||[]).length;
 }
 
 function authCanEdit(){return currentUser&&(currentUser.role==='admin'||currentUser.role==='lider');}
@@ -4514,13 +4604,15 @@ fbDoc.get().then(function(doc){
 if(!doc.exists)return;
 var data=doc.data();
 if(data.chatData){
-try{var msgs=JSON.parse(data.chatData);
-if(typeof notifCheckChat==='function')notifCheckChat(msgs);
+try{var pollChatAll=groupDataFrom(JSON.parse(data.chatData));
+var _gkPC=(typeof getMyGrupoKey==='function')?getMyGrupoKey():'g1';
+if(typeof notifCheckChat==='function')notifCheckChat(pollChatAll[_gkPC]||[]);
 }catch(e){}
 }
 if(data.escalaData){
-try{var esc=JSON.parse(data.escalaData);
-if(typeof notifCheckEscala==='function')notifCheckEscala(esc);
+try{var pollEscAll=groupDataFrom(JSON.parse(data.escalaData));
+var _gkPE=(typeof getMyGrupoKey==='function')?getMyGrupoKey():'g1';
+if(typeof notifCheckEscala==='function')notifCheckEscala(pollEscAll[_gkPE]||[]);
 }catch(e){}
 }
 }).catch(function(){});
