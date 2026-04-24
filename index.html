@@ -4023,23 +4023,38 @@ if(cur>=visStart&&cur<=visEnd){
 cx.fillStyle='rgba(217,59,59,1)';
 cx.fillRect(progressX-1*dpr,0,2*dpr,dh);
 }
-// Markers (with per-marker color)
+// Markers (with per-marker color + label on top)
 var markers=mtGetMarkers();
 if(markers&&markers.length){
+cx.font='bold '+(10*dpr)+'px system-ui,sans-serif';
+cx.textAlign='left';
+cx.textBaseline='top';
 markers.forEach(function(m,idx){
 if(m.time<visStart||m.time>visEnd)return;
 var mx=((m.time-visStart)/visDur)*dw;
 var color=m.color||'#c9a96e';
 var isDragging=mtDragState&&mtDragState.type==='marker'&&mtDragState.idx===idx;
 cx.fillStyle=isDragging?'#ffeb3b':color;
+// Vertical line
 cx.fillRect(mx-1*dpr,0,2*dpr,dh);
-// Flag on top
+// Label with bg on top
+var lbl=m.label||'';
+if(lbl){
+var textW=cx.measureText(lbl).width;
+var pad=4*dpr;
+var bgH=14*dpr;
+var bgW=textW+pad*2;
+var bgX=mx+2*dpr;
+if(bgX+bgW>dw)bgX=mx-bgW-2*dpr;
+cx.fillRect(bgX,0,bgW,bgH);
+cx.fillStyle='#1a1a1a';
+cx.fillText(lbl,bgX+pad,2*dpr);
+}else{
+// If no label, draw a small triangular flag
 cx.beginPath();
-cx.moveTo(mx,0);
-cx.lineTo(mx+12*dpr,0);
-cx.lineTo(mx,10*dpr);
-cx.closePath();
-cx.fill();
+cx.moveTo(mx,0);cx.lineTo(mx+10*dpr,0);cx.lineTo(mx,9*dpr);
+cx.closePath();cx.fill();
+}
 });
 }
 // Zoom indicator
