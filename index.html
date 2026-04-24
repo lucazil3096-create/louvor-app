@@ -457,6 +457,9 @@ body.light .aovivo-sub.active{background:rgba(178,34,34,.1);border-color:var(--a
 .mt-marker{display:flex;align-items:center;background:var(--gold-bg);border:1px solid var(--gold-border);border-radius:18px;padding:3px 4px 3px 8px;font-size:11px;color:var(--text);gap:4px;transition:all .15s}
 .mt-marker:hover{border-color:var(--gold)}
 .mt-marker-key{background:var(--gold);color:#1a1a1a;font-weight:700;font-size:10px;padding:2px 6px;border-radius:6px;font-family:monospace;letter-spacing:.5px;min-width:14px;text-align:center}
+.mt-marker-dot{width:14px;height:14px;border-radius:50%;border:1px solid rgba(0,0,0,.3);padding:0;cursor:pointer;flex-shrink:0;transition:transform .15s}
+.mt-marker-dot:hover{transform:scale(1.2)}
+.mt-pb-wave-wrap{touch-action:none;user-select:none;-webkit-user-select:none}
 .mt-marker-label{font-weight:600;cursor:pointer;padding:2px 4px;white-space:nowrap}
 .mt-marker-label:hover{color:var(--gold)}
 .mt-marker-btn{width:22px;height:22px;border-radius:50%;border:none;background:transparent;color:var(--text-dim);cursor:pointer;font-size:10px;padding:0;display:flex;align-items:center;justify-content:center;transition:all .15s}
@@ -3549,7 +3552,13 @@ var mtUiInterval=null;
 var mtUiRaf=null;
 var mtPeaks=null; // Float32Array of waveform peaks for current song
 var mtSearchTerm='';
-// Markers: {songId: [{label, time, key}]}
+// Zoom + drag state
+var mtZoom=1;
+var mtScroll=0; // seconds from start
+var mtDragState=null; // {type:'marker', idx, moved} or {type:'seek', time}
+var MT_MARKER_COLORS=['#c9a96e','#d93b3b','#4ec990','#5aa1ff','#b183ff','#ff9142','#ff6ba8','#4dd0d6'];
+
+// Markers: {songId: [{label, time, key, color}]}
 var mtMarkersAll={};
 var MT_MARKERS_KEY='church-mt-markers-v1';
 function mtLoadMarkers(){try{var d=localStorage.getItem(MT_MARKERS_KEY);if(d)mtMarkersAll=JSON.parse(d)||{};}catch(e){mtMarkersAll={};}}
@@ -3565,7 +3574,8 @@ if(!label||!label.trim())return;
 label=label.trim();
 var key=prompt('Atalho de teclado (1 tecla, ex: 1, 2, r, s - vazio pra nenhum):','');
 key=(key||'').trim().slice(0,1).toLowerCase();
-markers.push({label:label,time:time,key:key});
+var color=MT_MARKER_COLORS[markers.length%MT_MARKER_COLORS.length];
+markers.push({label:label,time:time,key:key,color:color});
 markers.sort(function(a,b){return a.time-b.time;});
 mtMarkersAll[mtCurrentSongId]=markers;
 mtSaveMarkers();
@@ -3600,6 +3610,23 @@ function mtJumpToMarker(idx){
 var markers=mtGetMarkers();
 if(!markers||!markers[idx])return;
 mtSeek(markers[idx].time);
+}
+function mtPickColor(idx){
+var markers=mtGetMarkers();if(!markers[idx])return;
+var input=document.createElement('input');
+input.type='color';
+input.value=markers[idx].color||'#c9a96e';
+input.style.position='fixed';input.style.left='-9999px';
+document.body.appendChild(input);
+input.addEventListener('input',function(){
+markers[idx].color=input.value;
+mtSaveMarkers();
+renderPlayerBar();
+mtDrawWaveform();
+});
+input.addEventListener('change',function(){setTimeout(function(){if(input.parentNode)input.parentNode.removeChild(input);},100);});
+input.click();
+setTimeout(function(){if(input.parentNode)input.parentNode.removeChild(input);},30000);
 }
 var mtLibraryHandle=null;   // FileSystemDirectoryHandle for library root
 var mtLibraryName='';
@@ -3921,6 +3948,36 @@ function mtGetCurrentTime(){
 if(mtPlaying){var c=getCtx();return mtStartOffset+(c.currentTime-mtStartTime);}
 return mtStartOffset;
 }
+
+// --- Zoom helpers ---
+function mtVisibleDur(){return mtDuration/mtZoom;}
+function mtClampScroll(){
+var visDur=mtVisibleDur();
+var maxScroll=Math.max(0,mtDuration-visDur);
+if(mtScroll<0)mtScroll=0;
+if(mtScroll>maxScroll)mtScroll=maxScroll;
+}
+function mtPixelToTime(px,totalW){return mtScroll+(px/totalW)*mtVisibleDur();}
+function mtTimeToPixel(t,totalW){return((t-mtScroll)/mtVisibleDur())*totalW;}
+
+function mtZoomIn(){if(mtZoom>=16)return;mtCenterZoom(mtZoom*2);}
+function mtZoomOut(){if(mtZoom<=1){mtZoom=1;mtScroll=0;mtDrawWaveform();return;}mtCenterZoom(mtZoom/2);}
+function mtZoomReset(){mtZoom=1;mtScroll=0;mtDrawWaveform();}
+function mtCenterZoom(newZoom){
+var cur=mtGetCurrentTime();
+mtZoom=newZoom;
+mtScroll=cur-mtVisibleDur()/2;
+mtClampScroll();
+mtDrawWaveform();
+}
+function mtMaybeAutoScroll(){
+if(mtZoom===1)return;
+var cur=mtGetCurrentTime();
+var visDur=mtVisibleDur();
+var visEnd=mtScroll+visDur;
+if(cur>visEnd-visDur*0.1){mtScroll=Math.min(cur-visDur*0.1,mtDuration-visDur);mtClampScroll();}
+else if(cur<mtScroll+visDur*0.1){mtScroll=Math.max(0,cur-visDur*0.1);mtClampScroll();}
+}
 function mtDrawWaveform(){
 var canvas=document.getElementById('mt-wave');
 if(!canvas)return;
@@ -3931,46 +3988,134 @@ if(canvas.width!==dw)canvas.width=dw;
 if(canvas.height!==dh)canvas.height=dh;
 var cx=canvas.getContext('2d');
 cx.clearRect(0,0,dw,dh);
-if(!mtPeaks||!mtPeaks.length)return;
+if(!mtPeaks||!mtPeaks.length||!mtDuration)return;
+
+// Auto-scroll if playing and zoomed
+if(mtPlaying)mtMaybeAutoScroll();
+
+var visDur=mtVisibleDur();
+var visStart=mtScroll;
+var visEnd=Math.min(mtDuration,visStart+visDur);
+// Map peaks to visible window
 var N=mtPeaks.length;
-var barW=dw/N;
-var cur=mtGetCurrentTime();
-var progress=mtDuration?cur/mtDuration:0;
-var progressX=progress*dw;
+var peakStart=Math.floor((visStart/mtDuration)*N);
+var peakEnd=Math.ceil((visEnd/mtDuration)*N);
+var visPeaks=peakEnd-peakStart;
+if(visPeaks<1)visPeaks=1;
+var barW=dw/visPeaks;
 var mid=dh/2;
-for(var i=0;i<N;i++){
+var cur=mtGetCurrentTime();
+var progressX=((cur-visStart)/visDur)*dw;
+for(var i=0;i<visPeaks;i++){
+var idx=peakStart+i;
+if(idx>=N)break;
 var x=i*barW;
-var barH=Math.max(2*dpr,mtPeaks[i]*dh*0.9);
+var barH=Math.max(2*dpr,mtPeaks[idx]*dh*0.9);
 var played=x<progressX;
 cx.fillStyle=played?'rgba(178,34,34,0.88)':'rgba(255,255,255,0.18)';
-cx.fillRect(x,mid-barH/2,Math.max(1,barW*0.75),barH);
+cx.fillRect(x,mid-barH/2,Math.max(1,barW*0.8),barH);
 }
-// Progress line
+// Progress line (only if within visible range)
+if(cur>=visStart&&cur<=visEnd){
 cx.fillStyle='rgba(217,59,59,1)';
 cx.fillRect(progressX-1*dpr,0,2*dpr,dh);
-// Markers
+}
+// Markers (with per-marker color)
 var markers=mtGetMarkers();
-if(markers&&markers.length&&mtDuration){
-markers.forEach(function(m){
-var mx=(m.time/mtDuration)*dw;
-cx.fillStyle='rgba(201,169,110,0.9)';
+if(markers&&markers.length){
+markers.forEach(function(m,idx){
+if(m.time<visStart||m.time>visEnd)return;
+var mx=((m.time-visStart)/visDur)*dw;
+var color=m.color||'#c9a96e';
+var isDragging=mtDragState&&mtDragState.type==='marker'&&mtDragState.idx===idx;
+cx.fillStyle=isDragging?'#ffeb3b':color;
 cx.fillRect(mx-1*dpr,0,2*dpr,dh);
 // Flag on top
 cx.beginPath();
 cx.moveTo(mx,0);
-cx.lineTo(mx+10*dpr,0);
-cx.lineTo(mx,9*dpr);
+cx.lineTo(mx+12*dpr,0);
+cx.lineTo(mx,10*dpr);
 cx.closePath();
 cx.fill();
 });
 }
+// Zoom indicator
+if(mtZoom>1){
+cx.font=(10*dpr)+'px system-ui,sans-serif';
+cx.fillStyle='rgba(255,255,255,0.5)';
+cx.textAlign='right';
+cx.fillText(mtZoom+'x',dw-6*dpr,dh-5*dpr);
 }
-function mtWaveClick(ev){
-var canvas=document.getElementById('mt-wave');
-if(!canvas||!mtDuration)return;
+}
+function mtWaveClientX(ev){
+if(ev.clientX!==undefined)return ev.clientX;
+if(ev.touches&&ev.touches[0])return ev.touches[0].clientX;
+if(ev.changedTouches&&ev.changedTouches[0])return ev.changedTouches[0].clientX;
+return null;
+}
+function mtOnWaveDown(ev){
+if(!mtDuration)return;
+var canvas=document.getElementById('mt-wave');if(!canvas)return;
 var rect=canvas.getBoundingClientRect();
-var x=(ev.clientX-rect.left)/rect.width;
-mtSeek(x*mtDuration);
+var cx=mtWaveClientX(ev);if(cx===null)return;
+var x=cx-rect.left;
+var t=mtPixelToTime(x,rect.width);
+// Nearest marker?
+var markers=mtGetMarkers();
+var closestIdx=-1,closestDist=12;
+for(var i=0;i<markers.length;i++){
+var mx=mtTimeToPixel(markers[i].time,rect.width);
+var d=Math.abs(mx-x);
+if(d<closestDist){closestDist=d;closestIdx=i;}
+}
+if(closestIdx>=0){
+mtDragState={type:'marker',idx:closestIdx,moved:false};
+if(ev.preventDefault)ev.preventDefault();
+}else{
+mtDragState={type:'seek',time:t,startX:x};
+}
+mtDrawWaveform();
+}
+function mtOnWaveMove(ev){
+if(!mtDragState)return;
+var canvas=document.getElementById('mt-wave');if(!canvas)return;
+var rect=canvas.getBoundingClientRect();
+var cx=mtWaveClientX(ev);if(cx===null)return;
+var x=cx-rect.left;
+var t=mtPixelToTime(x,rect.width);
+t=Math.max(0,Math.min(t,mtDuration));
+if(mtDragState.type==='marker'){
+var markers=mtGetMarkers();
+if(markers[mtDragState.idx]){
+markers[mtDragState.idx].time=t;
+mtDragState.moved=true;
+mtDrawWaveform();
+}
+if(ev.preventDefault)ev.preventDefault();
+}else if(mtDragState.type==='seek'){
+// Pan only if zoomed AND moved significantly
+if(mtZoom>1&&Math.abs(x-mtDragState.startX)>3){
+var dt=mtPixelToTime(mtDragState.startX,rect.width)-mtPixelToTime(x,rect.width);
+mtScroll+=dt;mtClampScroll();
+mtDragState.startX=x;
+mtDragState.moved=true;
+mtDrawWaveform();
+if(ev.preventDefault)ev.preventDefault();
+}
+}
+}
+function mtOnWaveUp(ev){
+if(!mtDragState)return;
+if(mtDragState.type==='marker'){
+if(mtDragState.moved){
+var markers=mtGetMarkers();
+if(markers){markers.sort(function(a,b){return a.time-b.time;});mtSaveMarkers();renderPlayerBar();}
+}
+}else if(mtDragState.type==='seek'){
+if(!mtDragState.moved)mtSeek(mtDragState.time);
+}
+mtDragState=null;
+mtDrawWaveform();
 }
 function mtToggleInvert(idx){
 var t=mtTracks[idx];if(!t)return;
@@ -4140,7 +4285,7 @@ h+='<div class="mt-pb-row1">';
 h+='<div class="mt-pb-name">'+esc(mtCurrentSongName||'-')+'</div>';
 h+='<div class="mt-pb-time" id="mt-pb-time">'+mtFormatTime(mtStartOffset)+' / '+mtFormatTime(mtDuration)+'</div>';
 h+='</div>';
-h+='<div class="mt-pb-wave-wrap" onclick="mtWaveClick(event)"><canvas class="mt-pb-wave" id="mt-wave"></canvas></div>';
+h+='<div class="mt-pb-wave-wrap" onmousedown="mtOnWaveDown(event)" onmousemove="mtOnWaveMove(event)" onmouseup="mtOnWaveUp(event)" onmouseleave="mtOnWaveUp(event)" ontouchstart="mtOnWaveDown(event)" ontouchmove="mtOnWaveMove(event)" ontouchend="mtOnWaveUp(event)"><canvas class="mt-pb-wave" id="mt-wave"></canvas></div>';
 h+='<div class="mt-pb-controls">';
 h+='<button class="mt-pb-btn" onclick="mtPlayPrevStarred()" title="Anterior">&#9198;</button>';
 h+='<button class="mt-pb-btn play" id="mt-pb-play" onclick="mtTogglePlayPause()" title="Tocar/Pausar">'+(mtPlaying?'&#9208;':'&#9654;')+'</button>';
@@ -4148,6 +4293,9 @@ h+='<button class="mt-pb-btn" onclick="mtStop()" title="Parar">&#9632;</button>'
 h+='<button class="mt-pb-btn" onclick="mtPlayNextStarred()" title="Proxima">&#9197;</button>';
 h+='<button class="mt-pb-btn invert'+(t.inverted?' active':'')+'" id="mt-pb-invert" onclick="mtToggleInvert(0)" title="Inverter L&#8596;R"><span style="font-size:10px;font-weight:700">L&#8596;R</span></button>';
 h+='<button class="mt-pb-btn mute'+(t.muted?' active':'')+'" id="mt-pb-mute" onclick="mtToggleMute(0)" title="Mute"><span style="font-size:11px;font-weight:700">M</span></button>';
+h+='<button class="mt-pb-btn" onclick="mtZoomOut()" title="Menos zoom"'+(mtZoom<=1?' disabled':'')+'><span style="font-size:13px;font-weight:700">-</span></button>';
+h+='<button class="mt-pb-btn" onclick="mtZoomReset()" title="Ver tudo" style="font-size:9px;font-weight:700">1:1</button>';
+h+='<button class="mt-pb-btn" onclick="mtZoomIn()" title="Mais zoom"'+(mtZoom>=16?' disabled':'')+'><span style="font-size:13px;font-weight:700">+</span></button>';
 h+='<div class="mt-pb-spacer"></div>';
 h+='<div class="mt-pb-master"><label>Vol</label><input type="range" min="0" max="100" value="'+mtMasterVol+'" oninput="mtSetMaster(this.value)"><span id="mt-master-val">'+mtMasterVol+'%</span></div>';
 h+='</div>';
@@ -4156,8 +4304,10 @@ var markers=mtGetMarkers();
 h+='<div class="mt-markers">';
 h+='<button class="mt-marker-add" onclick="mtAddMarker()" title="Adicionar marcador na posicao atual">+ Marcador</button>';
 markers.forEach(function(m,idx){
-h+='<div class="mt-marker">';
-if(m.key)h+='<span class="mt-marker-key">'+esc(m.key.toUpperCase())+'</span>';
+var col=m.color||'#c9a96e';
+h+='<div class="mt-marker" style="border-color:'+col+'40;background:'+col+'18">';
+h+='<button class="mt-marker-dot" onclick="mtPickColor('+idx+')" style="background:'+col+'" title="Mudar cor"></button>';
+if(m.key)h+='<span class="mt-marker-key" style="background:'+col+';color:#1a1a1a">'+esc(m.key.toUpperCase())+'</span>';
 h+='<span class="mt-marker-label" onclick="mtJumpToMarker('+idx+')" title="'+mtFormatTime(m.time)+' - clique para pular">'+esc(m.label)+'</span>';
 h+='<button class="mt-marker-btn" onclick="mtEditMarker('+idx+')" title="Editar">&#9998;</button>';
 h+='<button class="mt-marker-btn del" onclick="mtRemoveMarker('+idx+')" title="Remover">&#10005;</button>';
