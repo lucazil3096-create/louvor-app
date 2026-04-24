@@ -466,6 +466,34 @@ body.light .aovivo-sub.active{background:rgba(178,34,34,.1);border-color:var(--a
 .mt-track-slider{flex:1;accent-color:var(--accent);min-width:0}
 .mt-track-val{flex:0 0 42px;text-align:right;font-size:11px;color:var(--text-dim);font-weight:600}
 #mt-status{text-align:center;color:var(--text-dim);font-size:11px;margin-top:10px;min-height:14px}
+.mt-libbar{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:11px;color:var(--text-dim);background:var(--card-bg);border:1px solid var(--card-border);border-radius:10px;padding:8px 12px;margin-bottom:14px}
+.mt-libbar b{color:var(--text)}
+.mt-section-title{font-size:11px;color:var(--text-dim);text-transform:uppercase;letter-spacing:1.2px;font-weight:700;margin:16px 0 8px;display:flex;align-items:center;gap:6px}
+.mt-mini-btn{margin-left:auto;background:none;border:none;color:var(--danger);font-size:10px;cursor:pointer;font-family:var(--fb);text-decoration:underline;padding:0;letter-spacing:0;text-transform:none}
+.mt-setlist{display:flex;flex-direction:column;gap:4px;margin-bottom:8px}
+.mt-sl-item{display:flex;align-items:center;gap:8px;background:var(--card-bg);border:1px solid var(--card-border);border-radius:10px;padding:8px 10px;transition:all .15s}
+.mt-sl-item.current{border-color:var(--accent);background:var(--accent-glow)}
+.mt-sl-num{flex:0 0 22px;height:22px;background:rgba(178,34,34,.12);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:var(--accent2)}
+.mt-sl-item.current .mt-sl-num{background:var(--accent);color:#fff}
+.mt-sl-name{flex:1;font-size:13px;color:var(--text);cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:600}
+.mt-sl-name:hover{color:var(--accent2)}
+.mt-sl-current{color:var(--accent2);margin-left:4px}
+.mt-sl-btn{width:28px;height:28px;border-radius:6px;border:1px solid var(--card-border);background:transparent;color:var(--text-dim);cursor:pointer;font-size:11px;flex-shrink:0;transition:all .15s;padding:0;font-family:var(--fb)}
+.mt-sl-btn:hover:not(:disabled){border-color:var(--accent);color:var(--text)}
+.mt-sl-btn:disabled{opacity:.3;cursor:not-allowed}
+.mt-sl-btn.danger:hover{border-color:var(--danger);color:var(--danger)}
+.mt-library{display:flex;flex-direction:column;gap:4px}
+.mt-lib-item{display:flex;align-items:center;gap:10px;background:var(--card-bg);border:1px solid var(--card-border);border-radius:10px;padding:8px 10px;transition:all .15s}
+.mt-lib-item:hover{border-color:rgba(178,34,34,.2);background:rgba(255,255,255,.03)}
+.mt-lib-item.current{border-color:var(--accent);background:var(--accent-glow)}
+.mt-lib-star{width:32px;height:32px;border-radius:50%;border:none;background:transparent;color:var(--text-dim);cursor:pointer;font-size:18px;flex-shrink:0;transition:all .15s;padding:0}
+.mt-lib-star:hover{color:var(--gold);transform:scale(1.15)}
+.mt-lib-star.on{color:var(--gold)}
+.mt-lib-name{flex:1;font-size:13px;color:var(--text);cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:600}
+.mt-lib-name:hover{color:var(--accent2)}
+.mt-lib-count{font-size:10px;color:var(--text-dim);font-weight:600;padding:2px 7px;background:rgba(255,255,255,.04);border-radius:10px;flex-shrink:0}
+.mt-lib-play{width:32px;height:32px;border-radius:50%;border:1px solid var(--card-border);background:var(--card-bg);color:var(--accent2);cursor:pointer;font-size:11px;flex-shrink:0;transition:all .15s;padding:0}
+.mt-lib-play:hover{background:var(--accent);color:#fff;border-color:var(--accent)}
 
 .ensaio-screen{display:none;flex-direction:column;height:calc(100vh - 52px);height:calc(100dvh - 52px)}
 .ensaio-screen.active{display:flex}
@@ -3461,11 +3489,15 @@ var nextPos=(curPos+1)%withBpm.length;
 loadTodayBpm(withBpm[nextPos]);
 }
 
-// ===== MULTITRACK PLAYER =====
-// Local multitrack playback: load a folder (or files) with .wav/.mp3,
-// play all tracks in sync, with per-track volume, mute, and L<->R invert.
-// Uses File System Access API to remember folder across sessions (Chrome/Edge/Android).
-var mtTracks=[];
+// ===== MULTITRACK PLAYER (LIBRARY + SETLIST) =====
+// Pick a library folder with subfolders (each subfolder = one multitrack song).
+// Build a setlist, play one after another. Per-track mute/volume/LR-invert.
+// Uses File System Access API for persistent library access across sessions.
+var mtLibrary=[];           // [{id, name, fileHandles:[]?, files:[]?}]
+var mtSetlist=[];           // array of song ids (order matters)
+var mtCurrentSongId=null;   // currently loaded song id
+var mtCurrentSongName='';
+var mtTracks=[];            // decoded tracks of current song
 var mtMaster=null;
 var mtMasterVol=80;
 var mtPlaying=false;
@@ -3473,15 +3505,16 @@ var mtStartTime=0;
 var mtStartOffset=0;
 var mtDuration=0;
 var mtUiInterval=null;
-var mtRendered=false;
-var mtFolderName='';
-var mtPendingHandle=null; // handle waiting for permission on this session
+var mtLibraryHandle=null;   // FileSystemDirectoryHandle for library root
+var mtLibraryName='';
+var mtPendingHandle=null;   // library handle waiting for permission
 var mtAutoLoadTried=false;
+var MT_SETLIST_KEY='church-mt-setlist-v1';
 
-// --- IndexedDB helpers for FileSystemDirectoryHandle persistence ---
+// --- IndexedDB helpers for persistent FileSystemDirectoryHandle ---
 var MT_DB='church-multitrack';
 var MT_STORE='handles';
-var MT_HANDLE_KEY='folder';
+var MT_HANDLE_KEY='library';
 
 function mtOpenDB(){
 return new Promise(function(resolve,reject){
@@ -3493,74 +3526,124 @@ req.onerror=function(){reject(req.error);};
 }catch(e){reject(e);}
 });
 }
-function mtSaveHandle(handle){
-return mtOpenDB().then(function(db){
-return new Promise(function(resolve){
-var tx=db.transaction(MT_STORE,'readwrite');
-tx.objectStore(MT_STORE).put(handle,MT_HANDLE_KEY);
-tx.oncomplete=function(){resolve();};
-tx.onerror=function(){resolve();};
-});
-}).catch(function(){});
-}
-function mtGetHandle(){
-return mtOpenDB().then(function(db){
-return new Promise(function(resolve){
-var tx=db.transaction(MT_STORE,'readonly');
-var r=tx.objectStore(MT_STORE).get(MT_HANDLE_KEY);
-r.onsuccess=function(){resolve(r.result||null);};
-r.onerror=function(){resolve(null);};
-});
-}).catch(function(){return null;});
-}
-function mtClearHandle(){
-return mtOpenDB().then(function(db){
-return new Promise(function(resolve){
-var tx=db.transaction(MT_STORE,'readwrite');
-tx.objectStore(MT_STORE).delete(MT_HANDLE_KEY);
-tx.oncomplete=function(){resolve();};
-tx.onerror=function(){resolve();};
-});
-}).catch(function(){});
-}
+function mtSaveHandle(handle){return mtOpenDB().then(function(db){return new Promise(function(resolve){var tx=db.transaction(MT_STORE,'readwrite');tx.objectStore(MT_STORE).put(handle,MT_HANDLE_KEY);tx.oncomplete=function(){resolve();};tx.onerror=function(){resolve();};});}).catch(function(){});}
+function mtGetHandle(){return mtOpenDB().then(function(db){return new Promise(function(resolve){var tx=db.transaction(MT_STORE,'readonly');var r=tx.objectStore(MT_STORE).get(MT_HANDLE_KEY);r.onsuccess=function(){resolve(r.result||null);};r.onerror=function(){resolve(null);};});}).catch(function(){return null;});}
+function mtClearHandleDB(){return mtOpenDB().then(function(db){return new Promise(function(resolve){var tx=db.transaction(MT_STORE,'readwrite');tx.objectStore(MT_STORE).delete(MT_HANDLE_KEY);tx.oncomplete=function(){resolve();};tx.onerror=function(){resolve();};});}).catch(function(){});}
 
-// Walk a directory handle and collect audio files (direct children only)
-function mtCollectFiles(handle){
-var files=[];
-var it=handle.values();
-function step(){
+// --- Setlist persistence ---
+function mtLoadSetlistFromStorage(){try{var d=localStorage.getItem(MT_SETLIST_KEY);if(d){var a=JSON.parse(d);if(Array.isArray(a))mtSetlist=a;}}catch(e){}}
+function mtSaveSetlist(){try{localStorage.setItem(MT_SETLIST_KEY,JSON.stringify(mtSetlist));}catch(e){}}
+
+// --- Library scanning ---
+// Scan a directory handle: each sub-directory with audio files becomes a "song".
+function mtScanLibraryHandle(rootHandle){
+var songs=[];
+var it=rootHandle.values();
+function next(){
 return it.next().then(function(res){
-if(res.done)return files;
+if(res.done)return songs;
 var entry=res.value;
-if(entry.kind==='file'&&/\.(wav|mp3|m4a|flac|ogg|aac)$/i.test(entry.name)){
-return entry.getFile().then(function(f){files.push(f);return step();});
+if(entry.kind==='directory'){
+// List audio files inside
+var fileHandles=[];
+var sit=entry.values();
+function nextFile(){
+return sit.next().then(function(fres){
+if(fres.done){
+if(fileHandles.length){
+fileHandles.sort(function(a,b){return a.name.localeCompare(b.name,'pt-BR',{numeric:true});});
+songs.push({id:entry.name,name:entry.name,fileHandles:fileHandles});
 }
-return step();
+return next();
+}
+var fe=fres.value;
+if(fe.kind==='file'&&/\.(wav|mp3|m4a|flac|ogg|aac)$/i.test(fe.name))fileHandles.push(fe);
+return nextFile();
 });
 }
-return step();
+return nextFile();
+}
+return next();
+});
+}
+return next().then(function(){
+songs.sort(function(a,b){return a.name.localeCompare(b.name,'pt-BR',{numeric:true});});
+return songs;
+});
 }
 
-function mtLoadFromHandle(handle){
-mtFolderName=handle.name||'';
-return mtCollectFiles(handle).then(function(files){
-if(!files.length){alert('A pasta selecionada nao contem arquivos de audio.');return;}
-mtLoadFiles(files);
+function mtLoadLibraryFromHandle(handle){
+mtLibraryHandle=handle;
+mtLibraryName=handle.name||'';
+var statusEl=document.getElementById('mt-status');
+if(statusEl)statusEl.textContent='Lendo biblioteca...';
+return mtScanLibraryHandle(handle).then(function(songs){
+mtLibrary=songs;
+// Filter setlist to only include existing songs (match by name/id)
+mtSetlist=mtSetlist.filter(function(id){return songs.some(function(s){return s.id===id;});});
+mtSaveSetlist();
+renderMultitrack();
+if(statusEl)statusEl.textContent=songs.length+' musica'+(songs.length!==1?'s':'')+' na biblioteca';
+}).catch(function(e){
+console.log('Library scan error',e);
+alert('Erro ao ler biblioteca: '+e.message);
 });
+}
+
+function mtPickLibrary(){
+if('showDirectoryPicker' in window){
+window.showDirectoryPicker({id:'louvor-multitrack',mode:'read'}).then(function(handle){
+mtSaveHandle(handle);
+return mtLoadLibraryFromHandle(handle);
+}).catch(function(e){if(e&&e.name!=='AbortError')console.log('Directory picker error',e);});
+return;
+}
+// Fallback: webkitdirectory input
+var inp=document.createElement('input');
+inp.type='file';inp.multiple=true;
+try{inp.webkitdirectory=true;}catch(e){}
+inp.onchange=function(){
+if(!inp.files.length)return;
+mtBuildLibraryFromFlatFiles(Array.from(inp.files));
+};
+inp.click();
+}
+
+// Fallback builder: group files by their parent folder (from webkitRelativePath)
+function mtBuildLibraryFromFlatFiles(files){
+var groups={};
+var rootName='';
+files.forEach(function(f){
+var rel=f.webkitRelativePath||f.name;
+var parts=rel.split('/');
+if(!rootName&&parts.length>1)rootName=parts[0];
+if(parts.length<3)return; // need root/song/file.wav
+if(!/\.(wav|mp3|m4a|flac|ogg|aac)$/i.test(f.name)&&(f.type||'').indexOf('audio')!==0)return;
+var songName=parts[parts.length-2];
+(groups[songName]=groups[songName]||[]).push(f);
+});
+mtLibraryName=rootName||'Pasta';
+mtLibrary=Object.keys(groups).sort(function(a,b){return a.localeCompare(b,'pt-BR',{numeric:true});}).map(function(name){
+groups[name].sort(function(a,b){return a.name.localeCompare(b.name,'pt-BR',{numeric:true});});
+return{id:name,name:name,files:groups[name]};
+});
+mtSetlist=mtSetlist.filter(function(id){return mtLibrary.some(function(s){return s.id===id;});});
+mtSaveSetlist();
+renderMultitrack();
+var st=document.getElementById('mt-status');
+if(st)st.textContent=mtLibrary.length+' musica'+(mtLibrary.length!==1?'s':'')+' na biblioteca';
 }
 
 function mtTryAutoLoad(){
 if(mtAutoLoadTried)return Promise.resolve();
 mtAutoLoadTried=true;
+mtLoadSetlistFromStorage();
 if(!('showDirectoryPicker' in window))return Promise.resolve();
 return mtGetHandle().then(function(handle){
-if(!handle)return;
-if(!handle.queryPermission)return;
+if(!handle||!handle.queryPermission)return;
 return handle.queryPermission({mode:'read'}).then(function(perm){
-if(perm==='granted'){return mtLoadFromHandle(handle);}
-// Need user gesture - show a restore button
-mtPendingHandle=handle;
-mtFolderName=handle.name||'';
+if(perm==='granted')return mtLoadLibraryFromHandle(handle);
+mtPendingHandle=handle;mtLibraryName=handle.name||'';
 renderMultitrack();
 });
 }).catch(function(e){console.log('Auto-load error',e);});
@@ -3570,16 +3653,17 @@ function mtRestorePending(){
 if(!mtPendingHandle)return;
 var h=mtPendingHandle;
 h.requestPermission({mode:'read'}).then(function(perm){
-if(perm==='granted'){mtPendingHandle=null;mtLoadFromHandle(h);}
+if(perm==='granted'){mtPendingHandle=null;mtLoadLibraryFromHandle(h);}
 else{alert('Permissao negada. Selecione a pasta manualmente.');mtPendingHandle=null;renderMultitrack();}
 }).catch(function(){mtPendingHandle=null;renderMultitrack();});
 }
 
-function mtForgetFolder(){
-if(!confirm('Esquecer essa pasta? Na proxima vez voce precisara selecionar de novo.'))return;
-mtClearHandle();
-mtPendingHandle=null;
-mtFolderName='';
+function mtForgetLibrary(){
+if(!confirm('Esquecer essa biblioteca? O setlist tambem sera apagado.'))return;
+mtStop();mtClearHandleDB();
+mtLibraryHandle=null;mtLibrary=[];mtSetlist=[];mtSaveSetlist();
+mtPendingHandle=null;mtLibraryName='';
+mtUnloadCurrent();
 renderMultitrack();
 }
 
@@ -3588,79 +3672,99 @@ var ctx=getCtx();
 if(!mtMaster){mtMaster=ctx.createGain();mtMaster.gain.value=mtMasterVol/100;mtMaster.connect(ctx.destination);}
 }
 
-function mtPickFolder(){
-// Prefer File System Access API (Chrome/Edge desktop + Android Chrome) - allows remembering folder
-if('showDirectoryPicker' in window){
-window.showDirectoryPicker({id:'louvor-multitrack',mode:'read'}).then(function(handle){
-mtSaveHandle(handle);
-return mtLoadFromHandle(handle);
-}).catch(function(e){if(e&&e.name!=='AbortError')console.log('Directory picker error',e);});
-return;
-}
-// Fallback: webkitdirectory input (no persistence)
-var inp=document.createElement('input');
-inp.type='file';inp.multiple=true;
-try{inp.webkitdirectory=true;}catch(e){}
-inp.accept='audio/*,.wav,.mp3,.m4a,.flac,.ogg,.aac';
-inp.onchange=function(){if(inp.files.length){mtFolderName='';mtLoadFiles(Array.from(inp.files));}};
-inp.click();
-}
-function mtPickFiles(){
-var inp=document.createElement('input');
-inp.type='file';inp.multiple=true;
-inp.accept='audio/*,.wav,.mp3,.m4a,.flac,.ogg,.aac';
-inp.onchange=function(){if(inp.files.length)mtLoadFiles(Array.from(inp.files));};
-inp.click();
+// --- Song loading (decode all files of a song) ---
+function mtUnloadCurrent(){
+mtStop();
+mtTracks.forEach(mtDisposeTrack);
+mtTracks=[];mtDuration=0;mtStartOffset=0;
+mtCurrentSongId=null;mtCurrentSongName='';
 }
 
-function mtLoadFiles(files){
-mtStop();
-files=files.filter(function(f){
-return /\.(wav|mp3|m4a|flac|ogg|aac)$/i.test(f.name)||(f.type&&f.type.indexOf('audio')===0);
-}).sort(function(a,b){return a.name.localeCompare(b.name,'pt-BR',{numeric:true});});
-if(!files.length){alert('Nenhum arquivo de audio encontrado.');return;}
-mtTracks=[];mtDuration=0;
+function mtLoadSong(song,autoPlay){
+mtUnloadCurrent();
+mtCurrentSongId=song.id;mtCurrentSongName=song.name;
 renderMultitrack();
 var status=document.getElementById('mt-status');
-if(status)status.textContent='Decodificando 0/'+files.length+'...';
 var ctx=getCtx();
+
+// Get File objects - either from handles or from pre-resolved files
+var filesPromise;
+if(song.fileHandles){
+filesPromise=Promise.all(song.fileHandles.map(function(fh){return fh.getFile();}));
+}else if(song.files){
+filesPromise=Promise.resolve(song.files.slice());
+}else{
+filesPromise=Promise.resolve([]);
+}
+
+filesPromise.then(function(files){
+if(!files.length){if(status)status.textContent='Sem arquivos';return;}
+if(status)status.textContent='Decodificando 0/'+files.length+'...';
 var loaded=0;
+var tmp=new Array(files.length);
 files.forEach(function(f,idx){
 var reader=new FileReader();
 reader.onload=function(e){
 var cb=function(buffer){
-mtTracks[idx]={
-name:f.name.replace(/\.[^.]+$/,''),
-buffer:buffer,
-gain:0.9,
-inverted:false,
-muted:false,
-source:null,
-gainNode:null,
-splitter:null,
-merger:null
-};
+tmp[idx]={name:f.name.replace(/\.[^.]+$/,''),buffer:buffer,gain:0.9,inverted:false,muted:false,source:null,gainNode:null,splitter:null,merger:null};
 mtDuration=Math.max(mtDuration,buffer.duration);
 loaded++;
 if(status)status.textContent='Decodificando '+loaded+'/'+files.length+'...';
 if(loaded===files.length){
-mtTracks=mtTracks.filter(Boolean);
+// Ignore if user switched songs while decoding
+if(mtCurrentSongId!==song.id)return;
+mtTracks=tmp.filter(Boolean);
 renderMultitrack();
 if(status)status.textContent=mtTracks.length+' pista'+(mtTracks.length!==1?'s':'')+' carregada'+(mtTracks.length!==1?'s':'');
+if(autoPlay)mtPlay();
 }
 };
-var err=function(){
-console.log('Decode error:',f.name);
-loaded++;
-if(status)status.textContent='Decodificando '+loaded+'/'+files.length+'...';
-if(loaded===files.length){mtTracks=mtTracks.filter(Boolean);renderMultitrack();}
-};
+var err=function(){console.log('Decode error:',f.name);loaded++;if(status)status.textContent='Decodificando '+loaded+'/'+files.length+'...';if(loaded===files.length){if(mtCurrentSongId!==song.id)return;mtTracks=tmp.filter(Boolean);renderMultitrack();}};
 try{var p=ctx.decodeAudioData(e.target.result,cb,err);if(p&&p.then)p.then(cb).catch(err);}catch(ex){err();}
 };
 reader.readAsArrayBuffer(f);
 });
+});
 }
 
+function mtPlaySongById(id,autoPlay){
+var song=mtLibrary.find(function(s){return s.id===id;});
+if(!song)return;
+mtLoadSong(song,autoPlay!==false);
+}
+
+// --- Setlist operations ---
+function mtToggleSetlist(id){
+var i=mtSetlist.indexOf(id);
+if(i>=0)mtSetlist.splice(i,1);
+else mtSetlist.push(id);
+mtSaveSetlist();renderMultitrack();
+}
+function mtMoveSetlist(id,dir){
+var i=mtSetlist.indexOf(id);if(i<0)return;
+var j=i+dir;if(j<0||j>=mtSetlist.length)return;
+var tmp=mtSetlist[i];mtSetlist[i]=mtSetlist[j];mtSetlist[j]=tmp;
+mtSaveSetlist();renderMultitrack();
+}
+function mtRemoveSetlist(id){mtSetlist=mtSetlist.filter(function(x){return x!==id;});mtSaveSetlist();renderMultitrack();}
+function mtClearSetlist(){if(!mtSetlist.length)return;if(!confirm('Limpar setlist?'))return;mtSetlist=[];mtSaveSetlist();renderMultitrack();}
+
+function mtNextInSetlist(){
+if(!mtSetlist.length)return;
+var idx=mtCurrentSongId?mtSetlist.indexOf(mtCurrentSongId):-1;
+var nextIdx=idx<0?0:(idx+1);
+if(nextIdx>=mtSetlist.length)return;
+mtPlaySongById(mtSetlist[nextIdx],true);
+}
+function mtPrevInSetlist(){
+if(!mtSetlist.length)return;
+var idx=mtCurrentSongId?mtSetlist.indexOf(mtCurrentSongId):-1;
+var prevIdx=idx<0?0:(idx-1);
+if(prevIdx<0)return;
+mtPlaySongById(mtSetlist[prevIdx],true);
+}
+
+// --- Audio graph per track ---
 function mtBuildTrackNodes(t){
 var ctx=getCtx();
 var src=ctx.createBufferSource();
@@ -3677,7 +3781,6 @@ gainNode.connect(mtMaster);
 t.source=src;t.splitter=splitter;t.merger=merger;t.gainNode=gainNode;
 return src;
 }
-
 function mtDisposeTrack(t){
 try{if(t.source){t.source.stop();}}catch(e){}
 try{if(t.source)t.source.disconnect();}catch(e){}
@@ -3687,6 +3790,7 @@ try{if(t.gainNode)t.gainNode.disconnect();}catch(e){}
 t.source=null;t.splitter=null;t.merger=null;t.gainNode=null;
 }
 
+// --- Transport ---
 function mtPlay(){
 if(!mtTracks.length||mtPlaying)return;
 mtEnsureMaster();
@@ -3701,7 +3805,6 @@ if(mtUiInterval)clearInterval(mtUiInterval);
 mtUiInterval=setInterval(mtUpdateTime,150);
 mtUpdatePlayBtn();
 }
-
 function mtPause(){
 if(!mtPlaying)return;
 var ctx=getCtx();
@@ -3713,23 +3816,19 @@ mtPlaying=false;
 if(mtUiInterval){clearInterval(mtUiInterval);mtUiInterval=null;}
 mtUpdatePlayBtn();mtUpdateTime();
 }
-
 function mtStop(){
 if(mtPlaying){mtTracks.forEach(mtDisposeTrack);mtPlaying=false;}
 if(mtUiInterval){clearInterval(mtUiInterval);mtUiInterval=null;}
 mtStartOffset=0;
 mtUpdatePlayBtn();mtUpdateTime();
 }
-
 function mtTogglePlayPause(){if(mtPlaying)mtPause();else mtPlay();}
-
 function mtSeek(pos){
 var wasPlaying=mtPlaying;
 if(mtPlaying){mtTracks.forEach(mtDisposeTrack);mtPlaying=false;if(mtUiInterval){clearInterval(mtUiInterval);mtUiInterval=null;}}
 mtStartOffset=Math.max(0,Math.min(+pos,mtDuration));
 if(wasPlaying)mtPlay();else{mtUpdatePlayBtn();mtUpdateTime();}
 }
-
 function mtToggleInvert(idx){
 var t=mtTracks[idx];if(!t)return;
 t.inverted=!t.inverted;
@@ -3741,7 +3840,6 @@ else{t.splitter.connect(t.merger,0,0);t.splitter.connect(t.merger,1,1);}
 var card=document.getElementById('mt-track-'+idx);if(card)card.classList.toggle('inverted',t.inverted);
 var btn=document.getElementById('mt-invert-'+idx);if(btn)btn.classList.toggle('active',t.inverted);
 }
-
 function mtToggleMute(idx){
 var t=mtTracks[idx];if(!t)return;
 t.muted=!t.muted;
@@ -3749,14 +3847,12 @@ if(t.gainNode){var ctx=getCtx();t.gainNode.gain.setTargetAtTime(t.muted?0:t.gain
 var card=document.getElementById('mt-track-'+idx);if(card)card.classList.toggle('muted',t.muted);
 var btn=document.getElementById('mt-mute-'+idx);if(btn)btn.classList.toggle('active',t.muted);
 }
-
 function mtSetGain(idx,v){
 var t=mtTracks[idx];if(!t)return;
 t.gain=v/100;
 if(t.gainNode&&!t.muted){var ctx=getCtx();t.gainNode.gain.setTargetAtTime(t.gain,ctx.currentTime,0.01);}
 var el=document.getElementById('mt-gain-val-'+idx);if(el)el.textContent=v+'%';
 }
-
 function mtSetMaster(v){
 mtMasterVol=+v;
 mtEnsureMaster();
@@ -3764,66 +3860,86 @@ var ctx=getCtx();
 mtMaster.gain.setTargetAtTime(v/100,ctx.currentTime,0.01);
 var el=document.getElementById('mt-master-val');if(el)el.textContent=v+'%';
 }
-
 function mtUpdateTime(){
 var cur;
 if(mtPlaying){
 var ctx=getCtx();
 cur=mtStartOffset+(ctx.currentTime-mtStartTime);
-if(cur>=mtDuration){mtStop();cur=0;}
+if(cur>=mtDuration){
+mtStop();cur=0;
+// Auto-advance to next in setlist
+setTimeout(function(){if(mtSetlist.indexOf(mtCurrentSongId)>=0)mtNextInSetlist();},50);
+}
 }else{cur=mtStartOffset;}
 var tEl=document.getElementById('mt-time');
 if(tEl)tEl.textContent=mtFormatTime(cur)+' / '+mtFormatTime(mtDuration);
 var sk=document.getElementById('mt-seek');
 if(sk&&document.activeElement!==sk)sk.value=mtDuration?(cur/mtDuration)*1000:0;
 }
-
 function mtFormatTime(s){s=Math.max(0,s||0);var m=Math.floor(s/60);var ss=Math.floor(s%60);return m+':'+(ss<10?'0':'')+ss;}
-
 function mtUpdatePlayBtn(){var b=document.getElementById('mt-play-btn');if(b)b.innerHTML=mtPlaying?'&#9208; Pausar':'&#9654; Tocar';}
 
-function mtClear(){
-if(!confirm('Limpar todas as pistas?'))return;
-mtStop();mtTracks=[];mtDuration=0;mtStartOffset=0;
-renderMultitrack();
-}
-
+// --- Render UI ---
 function renderMultitrack(){
 var area=document.getElementById('multitrack-area');if(!area)return;
 var h='';
+// Top actions
 h+='<div class="mt-topbar">';
-h+='<button class="mt-btn-primary" onclick="mtPickFolder()">&#128193; Carregar Pasta</button>';
-h+='<button class="mt-btn" onclick="mtPickFiles()">Selecionar Arquivos</button>';
-if(mtTracks.length)h+='<button class="mt-btn-danger" onclick="mtClear()">Limpar</button>';
+h+='<button class="mt-btn-primary" onclick="mtPickLibrary()">&#128193; '+(mtLibrary.length?'Trocar Biblioteca':'Carregar Biblioteca')+'</button>';
+if(mtLibraryName||mtPendingHandle)h+='<button class="mt-btn-danger" onclick="mtForgetLibrary()">Esquecer</button>';
 h+='</div>';
-// Show pending (remembered but waiting for permission) state
-if(mtPendingHandle&&!mtTracks.length){
+
+// Pending permission state
+if(mtPendingHandle&&!mtLibrary.length){
 h+='<div class="mt-empty" style="background:var(--accent-glow);border-color:rgba(178,34,34,.35);border-style:solid">';
-h+='<div style="font-size:13px;color:var(--accent2);font-weight:700;margin-bottom:8px">&#128193; '+esc(mtFolderName||'Pasta salva')+'</div>';
-h+='<div style="font-size:12px;margin-bottom:12px">Voce ja usou essa pasta antes. Clique para reabrir:</div>';
-h+='<button class="mt-btn-primary" style="max-width:260px;margin:0 auto;flex:none;display:block" onclick="mtRestorePending()">&#128260; Recarregar pasta</button>';
-h+='<button class="mt-btn" style="margin-top:8px;max-width:200px;margin-left:auto;margin-right:auto;flex:none;display:block;font-size:11px" onclick="mtForgetFolder()">Esquecer essa pasta</button>';
+h+='<div style="font-size:13px;color:var(--accent2);font-weight:700;margin-bottom:8px">&#128193; '+esc(mtLibraryName||'Biblioteca salva')+'</div>';
+h+='<div style="font-size:12px;margin-bottom:12px">Clique para liberar o acesso e ler as musicas:</div>';
+h+='<button class="mt-btn-primary" style="max-width:260px;margin:0 auto;flex:none;display:block" onclick="mtRestorePending()">&#128260; Reabrir biblioteca</button>';
 h+='</div>';
 h+='<div id="mt-status"></div>';
 area.innerHTML=h;return;
 }
-if(!mtTracks.length){
-h+='<div class="mt-empty">Selecione uma pasta ou arquivos <b>.wav / .mp3</b> do seu computador.<br><small>A pasta fica lembrada: da proxima vez, so precisa confirmar a permissao (1 clique).</small></div>';
+
+// Empty state (no library loaded)
+if(!mtLibrary.length){
+h+='<div class="mt-empty">Selecione uma pasta com <b>subpastas</b> (cada uma e uma musica com seus stems .wav / .mp3).<br><small>Estrutura:<br>&nbsp;Minha Biblioteca/<br>&nbsp;&nbsp;Musica A/ &mdash; bateria.wav, baixo.wav, violao.wav...<br>&nbsp;&nbsp;Musica B/ &mdash; ...</small></div>';
 h+='<div id="mt-status"></div>';
 area.innerHTML=h;return;
 }
-if(mtFolderName){
-h+='<div style="font-size:11px;color:var(--text-dim);margin-bottom:10px;padding:6px 10px;background:var(--card-bg);border-radius:8px;display:flex;align-items:center;justify-content:space-between;gap:8px">';
-h+='<span>&#128193; <b>'+esc(mtFolderName)+'</b> &middot; '+mtTracks.length+' pista'+(mtTracks.length!==1?'s':'')+'</span>';
-if('showDirectoryPicker' in window)h+='<button onclick="mtForgetFolder()" style="background:none;border:none;color:var(--text-dim);font-size:10px;cursor:pointer;text-decoration:underline">esquecer</button>';
+
+// Library name bar
+h+='<div class="mt-libbar"><span>&#128193; <b>'+esc(mtLibraryName)+'</b></span><span>'+mtLibrary.length+' musica'+(mtLibrary.length!==1?'s':'')+'</span></div>';
+
+// Setlist (if any)
+if(mtSetlist.length){
+h+='<div class="mt-section-title">&#127925; Setlist de hoje ('+mtSetlist.length+') <button class="mt-mini-btn" onclick="mtClearSetlist()">limpar</button></div>';
+h+='<div class="mt-setlist">';
+mtSetlist.forEach(function(id,idx){
+var song=mtLibrary.find(function(s){return s.id===id;});
+if(!song)return;
+var isCurrent=mtCurrentSongId===id;
+h+='<div class="mt-sl-item'+(isCurrent?' current':'')+'">';
+h+='<div class="mt-sl-num">'+(idx+1)+'</div>';
+h+='<div class="mt-sl-name" onclick="mtPlaySongById(\''+esc(id).replace(/\x27/g,'&apos;')+'\',true)">'+esc(song.name)+(isCurrent?' <span class="mt-sl-current">&#9654;</span>':'')+'</div>';
+h+='<button class="mt-sl-btn" onclick="mtMoveSetlist(\''+esc(id).replace(/\x27/g,'&apos;')+'\',-1)" '+(idx===0?'disabled':'')+'>&#9650;</button>';
+h+='<button class="mt-sl-btn" onclick="mtMoveSetlist(\''+esc(id).replace(/\x27/g,'&apos;')+'\',1)" '+(idx===mtSetlist.length-1?'disabled':'')+'>&#9660;</button>';
+h+='<button class="mt-sl-btn danger" onclick="mtRemoveSetlist(\''+esc(id).replace(/\x27/g,'&apos;')+'\')">&#10005;</button>';
+h+='</div>';
+});
 h+='</div>';
 }
+
+// Current song player (if loaded)
+if(mtTracks.length){
+h+='<div class="mt-section-title">&#127926; Tocando: '+esc(mtCurrentSongName||'-')+'</div>';
 h+='<div class="mt-transport">';
 h+='<div class="mt-time" id="mt-time">'+mtFormatTime(mtStartOffset)+' / '+mtFormatTime(mtDuration)+'</div>';
 h+='<input type="range" class="mt-seek" id="mt-seek" min="0" max="1000" value="0" oninput="mtSeek(this.value/1000*'+mtDuration+')">';
 h+='<div class="mt-controls">';
+h+='<button class="mt-stop" onclick="mtPrevInSetlist()" title="Anterior no setlist">&#9198;</button>';
 h+='<button class="mt-play" id="mt-play-btn" onclick="mtTogglePlayPause()">'+(mtPlaying?'&#9208; Pausar':'&#9654; Tocar')+'</button>';
-h+='<button class="mt-stop" onclick="mtStop()">&#9209;</button>';
+h+='<button class="mt-stop" onclick="mtStop()" title="Parar">&#9209;</button>';
+h+='<button class="mt-stop" onclick="mtNextInSetlist()" title="Proxima do setlist">&#9197;</button>';
 h+='</div>';
 h+='<div class="mt-master-row">';
 h+='<label>Master</label>';
@@ -3840,13 +3956,28 @@ h+='<button class="mt-track-btn'+(t.muted?' active':'')+'" id="mt-mute-'+idx+'" 
 h+='<button class="mt-track-btn invert'+(t.inverted?' active':'')+'" id="mt-invert-'+idx+'" onclick="mtToggleInvert('+idx+')" title="Inverter L&#8596;R">L&#8596;R</button>';
 h+='<input type="range" class="mt-track-slider" min="0" max="100" value="'+Math.round(t.gain*100)+'" oninput="mtSetGain('+idx+',this.value)">';
 h+='<span class="mt-track-val" id="mt-gain-val-'+idx+'">'+Math.round(t.gain*100)+'%</span>';
+h+='</div></div>';
+});
 h+='</div>';
+}
+
+// Library list
+h+='<div class="mt-section-title">&#128218; Biblioteca</div>';
+h+='<div class="mt-library">';
+mtLibrary.forEach(function(song){
+var inSet=mtSetlist.indexOf(song.id)>=0;
+var isCurrent=mtCurrentSongId===song.id;
+var nFiles=(song.fileHandles||song.files||[]).length;
+h+='<div class="mt-lib-item'+(isCurrent?' current':'')+'">';
+h+='<button class="mt-lib-star'+(inSet?' on':'')+'" onclick="mtToggleSetlist(\''+esc(song.id).replace(/\x27/g,'&apos;')+'\')" title="'+(inSet?'Remover do setlist':'Adicionar ao setlist')+'">'+(inSet?'&#9733;':'&#9734;')+'</button>';
+h+='<div class="mt-lib-name" onclick="mtPlaySongById(\''+esc(song.id).replace(/\x27/g,'&apos;')+'\',true)">'+esc(song.name)+'</div>';
+h+='<span class="mt-lib-count">'+nFiles+'</span>';
+h+='<button class="mt-lib-play" onclick="mtPlaySongById(\''+esc(song.id).replace(/\x27/g,'&apos;')+'\',true)" title="Tocar">&#9654;</button>';
 h+='</div>';
 });
 h+='</div>';
 h+='<div id="mt-status"></div>';
 area.innerHTML=h;
-mtRendered=true;
 }
 // ===== END MULTITRACK =====
 
