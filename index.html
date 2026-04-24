@@ -3535,40 +3535,21 @@ function mtLoadSetlistFromStorage(){try{var d=localStorage.getItem(MT_SETLIST_KE
 function mtSaveSetlist(){try{localStorage.setItem(MT_SETLIST_KEY,JSON.stringify(mtSetlist));}catch(e){}}
 
 // --- Library scanning ---
-// Scan a directory handle: each sub-directory with audio files becomes a "song".
+// Each audio file in the folder = one "song" (prerendered multitrack).
 function mtScanLibraryHandle(rootHandle){
-var songs=[];
+var fileHandles=[];
 var it=rootHandle.values();
 function next(){
 return it.next().then(function(res){
-if(res.done)return songs;
+if(res.done)return fileHandles;
 var entry=res.value;
-if(entry.kind==='directory'){
-// List audio files inside
-var fileHandles=[];
-var sit=entry.values();
-function nextFile(){
-return sit.next().then(function(fres){
-if(fres.done){
-if(fileHandles.length){
-fileHandles.sort(function(a,b){return a.name.localeCompare(b.name,'pt-BR',{numeric:true});});
-songs.push({id:entry.name,name:entry.name,fileHandles:fileHandles});
-}
-return next();
-}
-var fe=fres.value;
-if(fe.kind==='file'&&/\.(wav|mp3|m4a|flac|ogg|aac)$/i.test(fe.name))fileHandles.push(fe);
-return nextFile();
-});
-}
-return nextFile();
-}
+if(entry.kind==='file'&&/\.(wav|mp3|m4a|flac|ogg|aac)$/i.test(entry.name))fileHandles.push(entry);
 return next();
 });
 }
 return next().then(function(){
-songs.sort(function(a,b){return a.name.localeCompare(b.name,'pt-BR',{numeric:true});});
-return songs;
+fileHandles.sort(function(a,b){return a.name.localeCompare(b.name,'pt-BR',{numeric:true});});
+return fileHandles.map(function(fh){return{id:fh.name,name:fh.name.replace(/\.[^.]+$/,''),fileHandle:fh};});
 });
 }
 
@@ -3609,24 +3590,17 @@ mtBuildLibraryFromFlatFiles(Array.from(inp.files));
 inp.click();
 }
 
-// Fallback builder: group files by their parent folder (from webkitRelativePath)
+// Fallback builder: each audio file in the picked folder = one song
 function mtBuildLibraryFromFlatFiles(files){
-var groups={};
 var rootName='';
-files.forEach(function(f){
+var audio=files.filter(function(f){
 var rel=f.webkitRelativePath||f.name;
-var parts=rel.split('/');
-if(!rootName&&parts.length>1)rootName=parts[0];
-if(parts.length<3)return; // need root/song/file.wav
-if(!/\.(wav|mp3|m4a|flac|ogg|aac)$/i.test(f.name)&&(f.type||'').indexOf('audio')!==0)return;
-var songName=parts[parts.length-2];
-(groups[songName]=groups[songName]||[]).push(f);
+if(!rootName){var p=rel.split('/');if(p.length>1)rootName=p[0];}
+return /\.(wav|mp3|m4a|flac|ogg|aac)$/i.test(f.name)||(f.type||'').indexOf('audio')===0;
 });
+audio.sort(function(a,b){return a.name.localeCompare(b.name,'pt-BR',{numeric:true});});
 mtLibraryName=rootName||'Pasta';
-mtLibrary=Object.keys(groups).sort(function(a,b){return a.localeCompare(b,'pt-BR',{numeric:true});}).map(function(name){
-groups[name].sort(function(a,b){return a.name.localeCompare(b.name,'pt-BR',{numeric:true});});
-return{id:name,name:name,files:groups[name]};
-});
+mtLibrary=audio.map(function(f){return{id:f.name,name:f.name.replace(/\.[^.]+$/,''),file:f};});
 mtSetlist=mtSetlist.filter(function(id){return mtLibrary.some(function(s){return s.id===id;});});
 mtSaveSetlist();
 renderMultitrack();
@@ -3686,45 +3660,30 @@ mtCurrentSongId=song.id;mtCurrentSongName=song.name;
 renderMultitrack();
 var status=document.getElementById('mt-status');
 var ctx=getCtx();
-
-// Get File objects - either from handles or from pre-resolved files
-var filesPromise;
-if(song.fileHandles){
-filesPromise=Promise.all(song.fileHandles.map(function(fh){return fh.getFile();}));
-}else if(song.files){
-filesPromise=Promise.resolve(song.files.slice());
-}else{
-filesPromise=Promise.resolve([]);
-}
-
-filesPromise.then(function(files){
-if(!files.length){if(status)status.textContent='Sem arquivos';return;}
-if(status)status.textContent='Decodificando 0/'+files.length+'...';
-var loaded=0;
-var tmp=new Array(files.length);
-files.forEach(function(f,idx){
+var filePromise;
+if(song.fileHandle)filePromise=song.fileHandle.getFile();
+else if(song.file)filePromise=Promise.resolve(song.file);
+else{if(status)status.textContent='Arquivo nao encontrado';return;}
+if(status)status.textContent='Decodificando...';
+filePromise.then(function(f){
+return new Promise(function(resolve,reject){
 var reader=new FileReader();
 reader.onload=function(e){
-var cb=function(buffer){
-tmp[idx]={name:f.name.replace(/\.[^.]+$/,''),buffer:buffer,gain:0.9,inverted:false,muted:false,source:null,gainNode:null,splitter:null,merger:null};
-mtDuration=Math.max(mtDuration,buffer.duration);
-loaded++;
-if(status)status.textContent='Decodificando '+loaded+'/'+files.length+'...';
-if(loaded===files.length){
-// Ignore if user switched songs while decoding
-if(mtCurrentSongId!==song.id)return;
-mtTracks=tmp.filter(Boolean);
-renderMultitrack();
-if(status)status.textContent=mtTracks.length+' pista'+(mtTracks.length!==1?'s':'')+' carregada'+(mtTracks.length!==1?'s':'');
-if(autoPlay)mtPlay();
-}
+var cb=function(buffer){resolve(buffer);};
+var err=function(e){reject(e);};
+try{var p=ctx.decodeAudioData(e.target.result,cb,err);if(p&&p.then)p.then(cb).catch(err);}catch(ex){reject(ex);}
 };
-var err=function(){console.log('Decode error:',f.name);loaded++;if(status)status.textContent='Decodificando '+loaded+'/'+files.length+'...';if(loaded===files.length){if(mtCurrentSongId!==song.id)return;mtTracks=tmp.filter(Boolean);renderMultitrack();}};
-try{var p=ctx.decodeAudioData(e.target.result,cb,err);if(p&&p.then)p.then(cb).catch(err);}catch(ex){err();}
-};
+reader.onerror=function(){reject(reader.error);};
 reader.readAsArrayBuffer(f);
 });
-});
+}).then(function(buffer){
+if(mtCurrentSongId!==song.id)return; // user switched mid-load
+mtTracks=[{name:song.name,buffer:buffer,gain:0.9,inverted:false,muted:false,source:null,gainNode:null,splitter:null,merger:null}];
+mtDuration=buffer.duration;
+renderMultitrack();
+if(status)status.textContent='';
+if(autoPlay)mtPlay();
+}).catch(function(e){console.log('Load error',e);if(status)status.textContent='Erro ao carregar: '+(e.message||e);});
 }
 
 function mtPlaySongById(id,autoPlay){
@@ -3902,7 +3861,7 @@ area.innerHTML=h;return;
 
 // Empty state (no library loaded)
 if(!mtLibrary.length){
-h+='<div class="mt-empty">Selecione uma pasta com <b>subpastas</b> (cada uma e uma musica com seus stems .wav / .mp3).<br><small>Estrutura:<br>&nbsp;Minha Biblioteca/<br>&nbsp;&nbsp;Musica A/ &mdash; bateria.wav, baixo.wav, violao.wav...<br>&nbsp;&nbsp;Musica B/ &mdash; ...</small></div>';
+h+='<div class="mt-empty">Selecione uma pasta com seus <b>arquivos .wav / .mp3</b>.<br>Cada arquivo vira uma musica na biblioteca, com o nome do arquivo.<br><small>A pasta fica lembrada entre sessoes.</small></div>';
 h+='<div id="mt-status"></div>';
 area.innerHTML=h;return;
 }
