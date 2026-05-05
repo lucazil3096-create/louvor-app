@@ -562,6 +562,17 @@ body.light .aovivo-sub.active{background:rgba(178,34,34,.1);border-color:var(--a
 .ensaio-info{flex:1;min-width:0}
 .ensaio-name{font-size:13px;font-weight:600;color:var(--text);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;line-height:1.35}
 .ensaio-tom-badge{display:inline-block;background:var(--accent-glow);color:var(--accent2);font-size:9px;font-weight:700;padding:2px 7px;border-radius:6px;margin-top:3px;font-family:var(--fb);letter-spacing:.3px}
+.ensaio-tom-label{font-size:11px;color:var(--text-dim);font-weight:700;text-transform:uppercase;letter-spacing:.5px;margin-top:8px;margin-bottom:4px}
+.ensaio-tom-grid{display:flex;flex-wrap:wrap;gap:4px}
+.ensaio-tom-opt{background:rgba(255,255,255,.04);border:1px solid var(--card-border);border-radius:8px;padding:6px 8px;font-size:11px;font-weight:700;color:var(--text-dim);cursor:pointer;font-family:var(--fb);min-width:34px;transition:all .15s}
+.ensaio-tom-opt:hover{border-color:var(--accent);color:var(--text)}
+.ensaio-tom-opt.active{background:var(--accent);border-color:var(--accent);color:#fff}
+.ensaio-tom-popup{position:fixed;background:var(--surface);border:1px solid var(--card-border);border-radius:14px;padding:14px;z-index:500;box-shadow:0 10px 40px rgba(0,0,0,.5);max-width:300px;width:calc(100vw - 24px)}
+.ensaio-tom-popup-title{font-size:12px;color:var(--text);font-weight:700;text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center}
+.ensaio-tom-popup-close{background:none;border:none;color:var(--text-dim);font-size:18px;cursor:pointer;padding:0 4px;line-height:1}
+.ensaio-tom-popup .ensaio-tom-grid{margin-bottom:10px}
+.ensaio-tom-clear{width:100%;padding:8px;border-radius:8px;border:1px solid var(--card-border);background:transparent;color:var(--text-dim);font-size:11px;font-weight:700;cursor:pointer;font-family:var(--fb);text-transform:uppercase;letter-spacing:.5px}
+.ensaio-tom-clear:hover{border-color:var(--danger);color:var(--danger)}
 .ensaio-tom-row{display:flex;align-items:center;gap:4px;margin-top:3px}
 .ensaio-comment-text{font-size:10px;color:var(--text-dim);margin-top:2px;line-height:1.3;display:-webkit-box;-webkit-line-clamp:1;-webkit-box-orient:vertical;overflow:hidden}
 .ensaio-actions{display:flex;gap:4px;flex-shrink:0;flex-direction:column;align-items:center}
@@ -1214,7 +1225,9 @@ if(typeof _fbOnReady==='function')_fbOnReady();
 <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px"><span style="font-size:12px;font-weight:600;color:var(--text-dim)">Adicionar musica</span><button onclick="hideEnsaioAdd('now')" style="background:none;border:none;cursor:pointer;font-size:18px;color:var(--text-dim);padding:0 4px;line-height:1">&times;</button></div>
 <input type="text" class="lv-input-clean" id="ensaio-url-now" placeholder="Cole o link do YouTube..." autocomplete="off">
 <input type="text" class="lv-input-clean" id="ensaio-comment-now" placeholder="Comentario (opcional)" autocomplete="off" style="margin-top:6px">
-<button class="lv-confirm-btn" onclick="addEnsaioTo('now')" style="margin-top:6px;width:100%">Salvar</button>
+<div class="ensaio-tom-label">Tom (opcional)</div>
+<div class="ensaio-tom-grid" id="ensaio-tom-grid-now"></div>
+<button class="lv-confirm-btn" onclick="addEnsaioTo('now')" style="margin-top:10px;width:100%">Salvar</button>
 </div>
 <div id="ensaio-list-now"></div>
 <div id="ensaio-empty-now" class="lv-empty-msg">Nenhuma musica ensaiando</div>
@@ -1228,7 +1241,9 @@ if(typeof _fbOnReady==='function')_fbOnReady();
 <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px"><span style="font-size:12px;font-weight:600;color:var(--text-dim)">Adicionar musica</span><button onclick="hideEnsaioAdd('next')" style="background:none;border:none;cursor:pointer;font-size:18px;color:var(--text-dim);padding:0 4px;line-height:1">&times;</button></div>
 <input type="text" class="lv-input-clean" id="ensaio-url-next" placeholder="Cole o link do YouTube..." autocomplete="off">
 <input type="text" class="lv-input-clean" id="ensaio-comment-next" placeholder="Comentario (opcional)" autocomplete="off" style="margin-top:6px">
-<button class="lv-confirm-btn" onclick="addEnsaioTo('next')" style="margin-top:6px;width:100%">Salvar</button>
+<div class="ensaio-tom-label">Tom (opcional)</div>
+<div class="ensaio-tom-grid" id="ensaio-tom-grid-next"></div>
+<button class="lv-confirm-btn" onclick="addEnsaioTo('next')" style="margin-top:10px;width:100%">Salvar</button>
 </div>
 <div id="ensaio-list-next"></div>
 <div id="ensaio-empty-next" class="lv-empty-msg">Nenhuma musica na fila</div>
@@ -5455,9 +5470,27 @@ for(var n=0;n<names.length;n++){if(names[n].textContent==='Video')names[n].textC
 });
 });
 }
+var ENSAIO_TOMS=['C','C#','D','D#','E','F','F#','G','G#','A','A#','B','Cm','C#m','Dm','D#m','Em','Fm','F#m','Gm','G#m','Am','A#m','Bm'];
+var ensaioAddTomSelected={now:'',next:''};
+function renderAddTomGrid(tab){
+var grid=document.getElementById('ensaio-tom-grid-'+tab);if(!grid)return;
+var current=ensaioAddTomSelected[tab]||'';
+var h='';
+ENSAIO_TOMS.forEach(function(t){
+h+='<button type="button" class="ensaio-tom-opt'+(t===current?' active':'')+'" onclick="selectAddTom(\''+tab+'\',\''+t+'\')">'+t+'</button>';
+});
+grid.innerHTML=h;
+}
+function selectAddTom(tab,tom){
+ensaioAddTomSelected[tab]=ensaioAddTomSelected[tab]===tom?'':tom;
+renderAddTomGrid(tab);
+}
+
 function showEnsaioAdd(tab){
 var el=document.getElementById('ensaio-add-'+tab);
 if(el){el.style.display='block';var inp=document.getElementById('ensaio-url-'+tab);if(inp)inp.focus();}
+ensaioAddTomSelected[tab]='';
+renderAddTomGrid(tab);
 }
 function hideEnsaioAdd(tab){
 var el=document.getElementById('ensaio-add-'+tab);
@@ -5465,7 +5498,6 @@ if(el)el.style.display='none';
 }
 function addEnsaioTo(tab){
 var urlInput=document.getElementById('ensaio-url-'+tab);
-var tomSelect=document.getElementById('ensaio-tom-'+tab);
 var commentInput=document.getElementById('ensaio-comment-'+tab);
 if(!urlInput)return;
 var url=urlInput.value.trim();
@@ -5475,8 +5507,8 @@ var id=extractYoutubeId(url);
 if(!id){alert('Link inválido. Cole um link do YouTube.');return;}
 ensaioTab=tab;
 var links=getActiveLinks();
-for(var i=0;i<links.length;i++){if(links[i].id===id)return;}
-var tom=tomSelect?tomSelect.value:'';
+for(var i=0;i<links.length;i++){if(links[i].id===id){alert('Esta musica ja esta na lista.');return;}}
+var tom=ensaioAddTomSelected[tab]||'';
 var comment=commentInput?commentInput.value.trim():'';
 var now=Date.now();
 var newItem={id:id,name:'Carregando...',tom:tom,comment:comment,date:now,list:tab,updatedAt:now};
@@ -5484,8 +5516,8 @@ links.push(newItem);
 setActiveLinks(links);
 saveEnsaioData();
 urlInput.value='';
-if(tomSelect)tomSelect.value='';
 if(commentInput)commentInput.value='';
+ensaioAddTomSelected[tab]='';
 hideEnsaioAdd(tab);
 renderEnsaioList();
 fetchYoutubeTitle(id,function(title){newItem.name=title;newItem.updatedAt=Date.now();saveEnsaioData();renderEnsaioList();});
@@ -5499,18 +5531,42 @@ item.updatedAt=Date.now();
 saveEnsaioData();renderEnsaioList();
 }
 function editEnsaioTom(videoId){
-var toms=['C','C#','D','D#','E','F','F#','G','G#','A','A#','B','Cm','C#m','Dm','D#m','Em','Fm','F#m','Gm','G#m','Am','A#m','Bm'];
-var links=getActiveLinks();
-var item=links.find(function(l){return l.id===videoId;});
+if(!authCanEdit()){alert('Sem permissão para editar.');return;}
+closeTomPopup();
+var item=getActiveLinks().find(function(l){return l.id===videoId;});
 if(!item)return;
 var current=item.tom||'';
-var choice=prompt('Tom da música:\n\n'+toms.join(', ')+'\n\nAtual: '+(current||'nenhum'),current);
-if(choice===null)return;
-choice=choice.trim();
-if(choice&&toms.indexOf(choice)<0){alert('Tom inválido. Use: '+toms.join(', '));return;}
-item.tom=choice||'';
+var popup=document.createElement('div');
+popup.className='ensaio-tom-popup';popup.id='ensaio-tom-popup';
+var h='<div class="ensaio-tom-popup-title"><span>Tom: '+esc(item.name||'-')+'</span><button class="ensaio-tom-popup-close" onclick="closeTomPopup()">&times;</button></div>';
+h+='<div class="ensaio-tom-grid">';
+ENSAIO_TOMS.forEach(function(t){
+h+='<button type="button" class="ensaio-tom-opt'+(t===current?' active':'')+'" onclick="setEnsaioTomFor(\''+videoId+'\',\''+t+'\')">'+t+'</button>';
+});
+h+='</div>';
+h+='<button class="ensaio-tom-clear" onclick="setEnsaioTomFor(\''+videoId+'\',\'\')">Sem tom</button>';
+popup.innerHTML=h;
+document.body.appendChild(popup);
+// Center on screen (mobile-friendly)
+popup.style.left='50%';popup.style.top='50%';popup.style.transform='translate(-50%,-50%)';
+// Backdrop
+var bd=document.createElement('div');bd.id='ensaio-tom-backdrop';
+bd.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:499;backdrop-filter:blur(2px)';
+bd.onclick=closeTomPopup;
+document.body.appendChild(bd);
+}
+function closeTomPopup(){
+var p=document.getElementById('ensaio-tom-popup');if(p)p.remove();
+var b=document.getElementById('ensaio-tom-backdrop');if(b)b.remove();
+}
+function setEnsaioTomFor(videoId,tom){
+var item=getActiveLinks().find(function(l){return l.id===videoId;});
+if(!item){closeTomPopup();return;}
+item.tom=tom;
 item.updatedAt=Date.now();
-saveEnsaioData();renderEnsaioList();
+saveEnsaioData();
+closeTomPopup();
+renderEnsaioList();
 }
 function editEnsaioComment(videoId){
 var links=getActiveLinks();
