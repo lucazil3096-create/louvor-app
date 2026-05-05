@@ -3944,7 +3944,7 @@ reader.readAsArrayBuffer(f);
 });
 }).then(function(buffer){
 if(mtCurrentSongId!==song.id)return; // user switched mid-load
-mtTracks=[{name:song.name,buffer:buffer,gain:0.9,lGain:1.0,rGain:1.0,inverted:false,muted:false,source:null,gainNode:null,splitter:null,merger:null,lGainNode:null,rGainNode:null}];
+mtTracks=[{name:song.name,buffer:buffer,gain:0.5,lGain:0.5,rGain:0.5,inverted:false,muted:false,source:null,gainNode:null,splitter:null,merger:null,lGainNode:null,rGainNode:null}];
 mtDuration=buffer.duration;
 try{mtPeaks=mtGenPeaks(buffer);}catch(e){mtPeaks=null;}
 renderMultitrack();
