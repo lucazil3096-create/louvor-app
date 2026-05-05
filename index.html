@@ -1492,8 +1492,16 @@ if(typeof loadEnsaioData==='function'){loadEnsaioData();renderEnsaioList();}
 }catch(e){}
 }
 if(data.profileData){
-try{localStorage.setItem('church-profiles-v1',data.profileData);
-if(typeof loadProfiles==='function'){loadProfiles();updateProfileUI();}
+// Only sync the group NAMES across users. The 'active' field is which
+// group THIS device is currently viewing - it must stay per-device, otherwise
+// other users switching groups would yank the admin around mid-session.
+try{
+var remote=JSON.parse(data.profileData);
+if(remote&&Array.isArray(remote.names)){
+profileData.names=remote.names;
+try{localStorage.setItem('church-profiles-v1',JSON.stringify(profileData));}catch(e){}
+if(typeof updateProfileUI==='function')updateProfileUI();
+}
 }catch(e){}
 }
 if(data.escalaData){
@@ -5059,8 +5067,21 @@ var ENK='church-ensaio-v2';
 var ensaioTab='now';
 
 function loadEnsaioData(){
-try{var d=localStorage.getItem(ENK);if(d){var parsed=JSON.parse(d);ensaioData.g1=parsed.g1||[];ensaioData.g2=parsed.g2||[];}}catch(e){ensaioData={g1:[],g2:[]};}
-// Migration from old single-group format
+try{
+var d=localStorage.getItem(ENK);
+if(d){
+var parsed=JSON.parse(d);
+if(Array.isArray(parsed)){
+// Legacy single-group v2 (was an array) -> migrate into g1
+ensaioData.g1=parsed;ensaioData.g2=[];
+try{localStorage.setItem(ENK,JSON.stringify(ensaioData));}catch(e){}
+}else if(parsed&&typeof parsed==='object'){
+ensaioData.g1=Array.isArray(parsed.g1)?parsed.g1:[];
+ensaioData.g2=Array.isArray(parsed.g2)?parsed.g2:[];
+}
+}
+}catch(e){ensaioData={g1:[],g2:[]};}
+// Migration from old single-group v1 format
 try{var old=localStorage.getItem('church-ensaio-v1');if(old&&!localStorage.getItem('church-ensaio-migrated')){var oldLinks=JSON.parse(old);if(oldLinks.length>0&&ensaioData.g1.length===0){ensaioData.g1=oldLinks;saveEnsaioData();}localStorage.setItem('church-ensaio-migrated','1');}}catch(e){}
 // Ensure all items have a list property
 [ensaioData.g1,ensaioData.g2].forEach(function(arr){arr.forEach(function(item){if(!item.list)item.list='now';});});
