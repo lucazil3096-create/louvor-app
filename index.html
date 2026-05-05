@@ -469,6 +469,11 @@ body.light .aovivo-sub.active{background:rgba(178,34,34,.1);border-color:var(--a
 .mt-pb-master label{font-size:9px;color:var(--text-dim);font-weight:700;text-transform:uppercase;letter-spacing:.5px;flex-shrink:0}
 .mt-pb-master input{flex:1;min-width:40px;accent-color:var(--accent)}
 .mt-pb-master span{font-size:10px;color:var(--text-dim);font-weight:600;flex-shrink:0;min-width:32px;text-align:right}
+.mt-pb-balance{display:flex;gap:14px;margin-top:8px;padding-top:8px;border-top:1px solid var(--card-border)}
+.mt-pb-balance > div{flex:1;display:flex;align-items:center;gap:6px;min-width:0}
+.mt-pb-balance label{font-size:10px;color:var(--text-dim);font-weight:700;text-transform:uppercase;letter-spacing:.5px;flex-shrink:0;min-width:14px}
+.mt-pb-balance input{flex:1;min-width:0;accent-color:var(--accent)}
+.mt-pb-balance span{font-size:10px;color:var(--text-dim);font-weight:600;flex-shrink:0;min-width:34px;text-align:right}
 .mt-markers{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-top:8px}
 .mt-marker{display:flex;align-items:center;background:var(--gold-bg);border:1px solid var(--gold-border);border-radius:18px;padding:3px 4px 3px 8px;font-size:11px;color:var(--text);gap:4px;transition:all .15s}
 .mt-marker:hover{border-color:var(--gold)}
@@ -3939,7 +3944,7 @@ reader.readAsArrayBuffer(f);
 });
 }).then(function(buffer){
 if(mtCurrentSongId!==song.id)return; // user switched mid-load
-mtTracks=[{name:song.name,buffer:buffer,gain:0.9,inverted:false,muted:false,source:null,gainNode:null,splitter:null,merger:null}];
+mtTracks=[{name:song.name,buffer:buffer,gain:0.9,lGain:1.0,rGain:1.0,inverted:false,muted:false,source:null,gainNode:null,splitter:null,merger:null,lGainNode:null,rGainNode:null}];
 mtDuration=buffer.duration;
 try{mtPeaks=mtGenPeaks(buffer);}catch(e){mtPeaks=null;}
 renderMultitrack();
@@ -3986,29 +3991,44 @@ mtPlaySongById(mtSetlist[prevIdx],true);
 }
 
 // --- Audio graph per track ---
+// source -> splitter(2) -> [lGain | rGain] -> merger(2) (with optional invert) -> muteGain -> master
 function mtBuildTrackNodes(t){
 var ctx=getCtx();
 var src=ctx.createBufferSource();
 src.buffer=t.buffer;
 var splitter=ctx.createChannelSplitter(2);
 var merger=ctx.createChannelMerger(2);
-var gainNode=ctx.createGain();
-gainNode.gain.value=t.muted?0:t.gain;
+var lGainNode=ctx.createGain();
+var rGainNode=ctx.createGain();
+lGainNode.gain.value=(t.lGain==null?1:t.lGain);
+rGainNode.gain.value=(t.rGain==null?1:t.rGain);
+var muteGain=ctx.createGain();
+muteGain.gain.value=t.muted?0:1;
 src.connect(splitter);
-if(t.inverted){splitter.connect(merger,0,1);splitter.connect(merger,1,0);}
-else{splitter.connect(merger,0,0);splitter.connect(merger,1,1);}
-merger.connect(gainNode);
-gainNode.connect(mtMaster);
-t.source=src;t.splitter=splitter;t.merger=merger;t.gainNode=gainNode;
+splitter.connect(lGainNode,0); // left source -> lGain
+splitter.connect(rGainNode,1); // right source -> rGain
+if(t.inverted){
+lGainNode.connect(merger,0,1); // L source goes to RIGHT output
+rGainNode.connect(merger,0,0); // R source goes to LEFT output
+}else{
+lGainNode.connect(merger,0,0);
+rGainNode.connect(merger,0,1);
+}
+merger.connect(muteGain);
+muteGain.connect(mtMaster);
+t.source=src;t.splitter=splitter;t.merger=merger;
+t.lGainNode=lGainNode;t.rGainNode=rGainNode;t.gainNode=muteGain;
 return src;
 }
 function mtDisposeTrack(t){
 try{if(t.source){t.source.stop();}}catch(e){}
 try{if(t.source)t.source.disconnect();}catch(e){}
 try{if(t.splitter)t.splitter.disconnect();}catch(e){}
+try{if(t.lGainNode)t.lGainNode.disconnect();}catch(e){}
+try{if(t.rGainNode)t.rGainNode.disconnect();}catch(e){}
 try{if(t.merger)t.merger.disconnect();}catch(e){}
 try{if(t.gainNode)t.gainNode.disconnect();}catch(e){}
-t.source=null;t.splitter=null;t.merger=null;t.gainNode=null;
+t.source=null;t.splitter=null;t.merger=null;t.gainNode=null;t.lGainNode=null;t.rGainNode=null;
 }
 
 // --- Transport ---
@@ -4272,26 +4292,41 @@ mtDrawWaveform();
 function mtToggleInvert(idx){
 var t=mtTracks[idx];if(!t)return;
 t.inverted=!t.inverted;
-if(t.splitter&&t.merger){
-try{t.splitter.disconnect();}catch(e){}
-if(t.inverted){t.splitter.connect(t.merger,0,1);t.splitter.connect(t.merger,1,0);}
-else{t.splitter.connect(t.merger,0,0);t.splitter.connect(t.merger,1,1);}
+if(t.lGainNode&&t.rGainNode&&t.merger){
+try{t.lGainNode.disconnect();}catch(e){}
+try{t.rGainNode.disconnect();}catch(e){}
+if(t.inverted){t.lGainNode.connect(t.merger,0,1);t.rGainNode.connect(t.merger,0,0);}
+else{t.lGainNode.connect(t.merger,0,0);t.rGainNode.connect(t.merger,0,1);}
 }
 var card=document.getElementById('mt-track-'+idx);if(card)card.classList.toggle('inverted',t.inverted);
 var btn=document.getElementById('mt-invert-'+idx);if(btn)btn.classList.toggle('active',t.inverted);
+var btn2=document.getElementById('mt-pb-invert');if(btn2)btn2.classList.toggle('active',t.inverted);
+}
+function mtSetLGain(idx,v){
+var t=mtTracks[idx];if(!t)return;
+t.lGain=v/100;
+if(t.lGainNode){var ctx=getCtx();t.lGainNode.gain.setTargetAtTime(t.lGain,ctx.currentTime,0.01);}
+var el=document.getElementById('mt-pb-lval');if(el)el.textContent=v+'%';
+}
+function mtSetRGain(idx,v){
+var t=mtTracks[idx];if(!t)return;
+t.rGain=v/100;
+if(t.rGainNode){var ctx=getCtx();t.rGainNode.gain.setTargetAtTime(t.rGain,ctx.currentTime,0.01);}
+var el=document.getElementById('mt-pb-rval');if(el)el.textContent=v+'%';
 }
 function mtToggleMute(idx){
 var t=mtTracks[idx];if(!t)return;
 t.muted=!t.muted;
-if(t.gainNode){var ctx=getCtx();t.gainNode.gain.setTargetAtTime(t.muted?0:t.gain,ctx.currentTime,0.01);}
+if(t.gainNode){var ctx=getCtx();t.gainNode.gain.setTargetAtTime(t.muted?0:1,ctx.currentTime,0.01);}
 var card=document.getElementById('mt-track-'+idx);if(card)card.classList.toggle('muted',t.muted);
 var btn=document.getElementById('mt-mute-'+idx);if(btn)btn.classList.toggle('active',t.muted);
+var btn2=document.getElementById('mt-pb-mute');if(btn2)btn2.classList.toggle('active',t.muted);
 }
 function mtSetGain(idx,v){
+// Backward compatibility: scale both L and R together
 var t=mtTracks[idx];if(!t)return;
 t.gain=v/100;
-if(t.gainNode&&!t.muted){var ctx=getCtx();t.gainNode.gain.setTargetAtTime(t.gain,ctx.currentTime,0.01);}
-var el=document.getElementById('mt-gain-val-'+idx);if(el)el.textContent=v+'%';
+mtSetLGain(idx,v);mtSetRGain(idx,v);
 }
 function mtSetMaster(v){
 mtMasterVol=+v;
@@ -4456,6 +4491,13 @@ h+='<button class="mt-pb-btn" onclick="mtZoomReset()" title="Ver tudo" style="fo
 h+='<button class="mt-pb-btn" onclick="mtZoomIn()" title="Mais zoom"'+(mtZoom>=16?' disabled':'')+'><span style="font-size:13px;font-weight:700">+</span></button>';
 h+='<div class="mt-pb-spacer"></div>';
 h+='<div class="mt-pb-master"><label>Vol</label><input type="range" min="0" max="100" value="'+mtMasterVol+'" oninput="mtSetMaster(this.value)"><span id="mt-master-val">'+mtMasterVol+'%</span></div>';
+h+='</div>';
+// L/R balance row (per-channel volume)
+var lp=Math.round((t.lGain==null?1:t.lGain)*100);
+var rp=Math.round((t.rGain==null?1:t.rGain)*100);
+h+='<div class="mt-pb-balance">';
+h+='<div><label>L</label><input type="range" min="0" max="100" value="'+lp+'" oninput="mtSetLGain(0,this.value)"><span id="mt-pb-lval">'+lp+'%</span></div>';
+h+='<div><label>R</label><input type="range" min="0" max="100" value="'+rp+'" oninput="mtSetRGain(0,this.value)"><span id="mt-pb-rval">'+rp+'%</span></div>';
 h+='</div>';
 // Markers row
 var markers=mtGetMarkers();
