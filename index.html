@@ -1487,9 +1487,18 @@ renderList();try{updateTodayCount();}catch(e){}
 }catch(e){}
 }
 if(data.ensaioData){
-try{localStorage.setItem('church-ensaio-v2',data.ensaioData);
-if(typeof loadEnsaioData==='function'){loadEnsaioData();renderEnsaioList();}
-}catch(e){}
+try{
+if(typeof loadEnsaioData==='function')loadEnsaioData();
+var remoteEns=ensaioFromRaw(JSON.parse(data.ensaioData));
+var mergedEns=mergeEnsaioAllData(ensaioData,remoteEns);
+var changed=JSON.stringify(mergedEns)!==JSON.stringify(ensaioData);
+ensaioData=mergedEns;
+try{localStorage.setItem('church-ensaio-v2',JSON.stringify(ensaioData));}catch(e){}
+if(changed)try{renderEnsaioList();}catch(e){}
+// If we still have stuff Firebase doesn't, push back
+var pushBack=JSON.stringify(mergedEns)!==JSON.stringify(remoteEns);
+if(pushBack)fbSave();
+}catch(e){console.log('Ensaio sync error',e);}
 }
 if(data.profileData){
 // Only sync the group NAMES across users. The 'active' field is which
@@ -1635,6 +1644,19 @@ var totalExisting=(existingAll.g1||[]).length+(existingAll.g2||[]).length;
 if(totalExisting>0){fbCreateBackup(totalExisting);}
 }catch(e){}
 }
+// Merge ensaio data (per-id, newer updatedAt wins, respect tombstones)
+if(data.ensaioData){
+try{
+if(typeof loadEnsaioData==='function')loadEnsaioData();
+var remoteEns2=ensaioFromRaw(JSON.parse(data.ensaioData));
+var mergedEns2=mergeEnsaioAllData(ensaioData,remoteEns2);
+if(JSON.stringify(mergedEns2)!==JSON.stringify(ensaioData)){
+ensaioData=mergedEns2;
+try{localStorage.setItem('church-ensaio-v2',JSON.stringify(ensaioData));}catch(e){}
+try{renderEnsaioList();}catch(e){}
+}
+}catch(e){}
+}
 }
 // Now save
 var saveData={
@@ -1643,7 +1665,7 @@ todayList:JSON.stringify(todayAllData),
 songCount:(lyricsAllData.g1||[]).length+(lyricsAllData.g2||[]).length,
 updatedAt:firebase.firestore.FieldValue.serverTimestamp()
 };
-try{var ed=localStorage.getItem('church-ensaio-v2');if(ed)saveData.ensaioData=ed;}catch(e){}
+saveData.ensaioData=JSON.stringify(ensaioData);
 try{var pd=localStorage.getItem('church-profiles-v1');if(pd)saveData.profileData=pd;}catch(e){}
 try{var ud=localStorage.getItem('church-users-local');if(ud)saveData.userData=ud;}catch(e){}
 saveData.escalaData=JSON.stringify(escalasAllData);
@@ -1662,7 +1684,7 @@ todayList:JSON.stringify(todayAllData),
 songCount:(lyricsAllData.g1||[]).length+(lyricsAllData.g2||[]).length,
 updatedAt:firebase.firestore.FieldValue.serverTimestamp()
 };
-try{var ed=localStorage.getItem('church-ensaio-v2');if(ed)saveData.ensaioData=ed;}catch(e2){}
+saveData.ensaioData=JSON.stringify(ensaioData);
 try{var pd=localStorage.getItem('church-profiles-v1');if(pd)saveData.profileData=pd;}catch(e2){}
 try{var ud=localStorage.getItem('church-users-local');if(ud)saveData.userData=ud;}catch(e2){}
 saveData.escalaData=JSON.stringify(escalasAllData);
@@ -5066,6 +5088,35 @@ var ensaioData={g1:[],g2:[]};
 var ENK='church-ensaio-v2';
 var ensaioTab='now';
 
+// --- Ensaio merge + tombstone (prevents items disappearing on multi-device sync) ---
+var ENS_DEL_KEY='church-ensaio-deleted-v1';
+function getEnsaioDeletedIds(){try{return JSON.parse(localStorage.getItem(ENS_DEL_KEY)||'[]');}catch(e){return[];}}
+function markEnsaioDeleted(id){var a=getEnsaioDeletedIds();if(a.indexOf(id)<0){a.push(id);try{localStorage.setItem(ENS_DEL_KEY,JSON.stringify(a.slice(-200)));}catch(e){}}}
+function mergeEnsaioLists(localList,remoteList){
+var byId={},del=getEnsaioDeletedIds();
+(localList||[]).forEach(function(s){if(s&&s.id)byId[s.id]=s;});
+(remoteList||[]).forEach(function(s){
+if(!s||!s.id)return;
+if(!byId[s.id]){
+if(del.indexOf(s.id)>=0)return; // locally deleted, do not re-add
+byId[s.id]=s;
+}else{
+var lu=byId[s.id].updatedAt||0,ru=s.updatedAt||0;
+if(ru>lu)byId[s.id]=s;
+}
+});
+return Object.keys(byId).map(function(k){return byId[k];});
+}
+function mergeEnsaioAllData(local,remote){
+local=local||{g1:[],g2:[]};remote=remote||{g1:[],g2:[]};
+return{g1:mergeEnsaioLists(local.g1,remote.g1),g2:mergeEnsaioLists(local.g2,remote.g2)};
+}
+function ensaioFromRaw(raw){
+if(Array.isArray(raw))return{g1:raw.slice(),g2:[]};
+if(raw&&typeof raw==='object'){return{g1:Array.isArray(raw.g1)?raw.g1:[],g2:Array.isArray(raw.g2)?raw.g2:[]};}
+return{g1:[],g2:[]};
+}
+
 function loadEnsaioData(){
 try{
 var d=localStorage.getItem(ENK);
@@ -5427,7 +5478,8 @@ var links=getActiveLinks();
 for(var i=0;i<links.length;i++){if(links[i].id===id)return;}
 var tom=tomSelect?tomSelect.value:'';
 var comment=commentInput?commentInput.value.trim():'';
-var newItem={id:id,name:'Carregando...',tom:tom,comment:comment,date:Date.now(),list:tab};
+var now=Date.now();
+var newItem={id:id,name:'Carregando...',tom:tom,comment:comment,date:now,list:tab,updatedAt:now};
 links.push(newItem);
 setActiveLinks(links);
 saveEnsaioData();
@@ -5436,13 +5488,14 @@ if(tomSelect)tomSelect.value='';
 if(commentInput)commentInput.value='';
 hideEnsaioAdd(tab);
 renderEnsaioList();
-fetchYoutubeTitle(id,function(title){newItem.name=title;saveEnsaioData();renderEnsaioList();});
+fetchYoutubeTitle(id,function(title){newItem.name=title;newItem.updatedAt=Date.now();saveEnsaioData();renderEnsaioList();});
 }
 function moveEnsaioItem(videoId,fromTab){
 var links=getActiveLinks();
 var item=links.find(function(l){return l.id===videoId;});
 if(!item)return;
 item.list=(fromTab==='now'?'next':'now');
+item.updatedAt=Date.now();
 saveEnsaioData();renderEnsaioList();
 }
 function editEnsaioTom(videoId){
@@ -5456,6 +5509,7 @@ if(choice===null)return;
 choice=choice.trim();
 if(choice&&toms.indexOf(choice)<0){alert('Tom inválido. Use: '+toms.join(', '));return;}
 item.tom=choice||'';
+item.updatedAt=Date.now();
 saveEnsaioData();renderEnsaioList();
 }
 function editEnsaioComment(videoId){
@@ -5466,6 +5520,7 @@ var current=item.comment||'';
 var choice=prompt('Comentario / observacao:',current);
 if(choice===null)return;
 item.comment=choice.trim();
+item.updatedAt=Date.now();
 saveEnsaioData();renderEnsaioList();
 }
 
@@ -5475,6 +5530,7 @@ if(!confirm('Remover esta música?'))return;
 var links=getActiveLinks();
 var idx=links.findIndex(function(l){return l.id===videoId;});
 if(idx<0)return;
+markEnsaioDeleted(videoId);
 links.splice(idx,1);
 saveEnsaioData();renderEnsaioList();
 }
