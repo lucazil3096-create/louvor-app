@@ -2515,11 +2515,15 @@ presScrolling=true;
 var btn=document.getElementById('pres-scroll-toggle');
 if(btn){btn.classList.add('active');btn.innerHTML='&#9208; Pausar';}
 var lastT=performance.now();
+var advanced=false; // track whether we ever moved (so we don't auto-stop when content already fits)
 function tick(now){
 if(!presScrolling){presScrollRaf=null;return;}
 var dt=now-lastT;lastT=now;
+var prevTop=lyr.scrollTop;
 lyr.scrollTop+=(presScrollSpeed*dt)/1000;
-if(lyr.scrollTop+lyr.clientHeight>=lyr.scrollHeight-1){presStopAutoScroll();return;}
+if(lyr.scrollTop>prevTop+0.01)advanced=true;
+// Auto-stop only after we have actually been scrolling and hit the bottom.
+if(advanced&&lyr.scrollTop+lyr.clientHeight>=lyr.scrollHeight-1){presStopAutoScroll();return;}
 presScrollRaf=requestAnimationFrame(tick);
 }
 presScrollRaf=requestAnimationFrame(tick);
