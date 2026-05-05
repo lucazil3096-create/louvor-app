@@ -56,8 +56,21 @@ body.light .lyrics-single,body.light .split-col,body.light .page-col,body.light 
 body.light .btn-theme{border-color:var(--card-border);color:var(--gold)}
 
 /* Presentation */
-.presentation{position:fixed!important;top:0;left:0;right:0;bottom:0;z-index:999;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:30px;cursor:pointer}
-.presentation .pres-lyrics{white-space:pre-wrap;word-wrap:break-word;text-align:center;flex:1;display:flex;align-items:center;justify-content:center;overflow:hidden;font-family:var(--fb);width:100%;padding:0 30px}
+.presentation{position:fixed!important;top:0;left:0;right:0;bottom:0;z-index:999;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:30px}
+.presentation .pres-lyrics{white-space:pre-wrap;word-wrap:break-word;text-align:center;flex:1;overflow-y:auto;font-family:var(--fb);width:100%;padding:60px 30px 130px;scroll-behavior:smooth;-webkit-overflow-scrolling:touch}
+.presentation .pres-lyrics::-webkit-scrollbar{width:10px}
+.presentation .pres-lyrics::-webkit-scrollbar-track{background:transparent}
+.presentation .pres-lyrics::-webkit-scrollbar-thumb{background:rgba(255,255,255,.12);border-radius:5px}
+.presentation .pres-lyrics::-webkit-scrollbar-thumb:hover{background:rgba(255,255,255,.2)}
+.pres-close{position:absolute;top:14px;right:14px;width:42px;height:42px;border-radius:50%;border:1px solid rgba(255,255,255,.15);background:rgba(0,0,0,.4);color:#fff;font-size:18px;cursor:pointer;z-index:1001;backdrop-filter:blur(10px);display:flex;align-items:center;justify-content:center;transition:all .15s}
+.pres-close:hover{background:rgba(212,86,75,.4);border-color:var(--danger);transform:scale(1.05)}
+.pres-scroll-ctrl{display:flex;align-items:center;gap:8px;background:rgba(0,0,0,.4);backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,.1);border-radius:14px;padding:6px 10px}
+.pres-scroll-ctrl label{font-size:10px;color:var(--text-dim);text-transform:uppercase;letter-spacing:.5px;font-weight:700}
+.pres-scroll-ctrl input{width:90px;accent-color:var(--accent)}
+.pres-scroll-ctrl span{font-size:10px;color:var(--text-dim);font-weight:600;min-width:28px;text-align:right}
+.pres-scroll-btn{padding:8px 14px;border-radius:10px;border:1px solid rgba(255,255,255,.15);background:rgba(255,255,255,.06);color:var(--text);font-size:13px;font-weight:700;cursor:pointer;font-family:var(--fb);transition:all .15s}
+.pres-scroll-btn:hover{background:rgba(255,255,255,.12)}
+.pres-scroll-btn.active{background:var(--accent);border-color:var(--accent);color:#fff}
 .presentation .pres-title{position:absolute;top:12px;left:0;right:0;text-align:center;font-family:var(--fd);font-size:18px;color:var(--gold-dim);opacity:.6;letter-spacing:1.5px;text-transform:uppercase}
 .presentation .pres-tom{position:absolute;top:12px;right:16px;font-size:13px;font-weight:700;color:var(--gold-dim);opacity:.6}
 .presentation .pres-hint{position:absolute;bottom:8px;font-size:10px;color:var(--text-dim);opacity:.3;left:0;right:0;text-align:center;pointer-events:none}
@@ -1113,7 +1126,8 @@ if(typeof _fbOnReady==='function')_fbOnReady();
 </div></div>
 
 <!-- Presentation overlay -->
-<div class="presentation" id="presentation" style="display:none" onclick="presClick(event)">
+<div class="presentation" id="presentation" style="display:none">
+<button class="pres-close" onclick="exitPresentation()" title="Fechar">&#10005;</button>
 <div class="pres-title" id="pres-title"></div>
 <div class="pres-tom" id="pres-tom"></div>
 <div class="pres-lyrics" id="pres-lyrics"></div>
@@ -1126,9 +1140,10 @@ if(typeof _fbOnReady==='function')_fbOnReady();
 <div class="pres-font-ctrl">
 <button class="pres-nav-btn pres-font-btn" onclick="presFontSize(-2)">A−</button>
 <button class="pres-nav-btn pres-font-btn" onclick="presFontSize(2)">A+</button>
+<button class="pres-scroll-btn" id="pres-scroll-toggle" onclick="presToggleScroll()" title="Auto-scroll (espaco)">▶ Auto</button>
+<div class="pres-scroll-ctrl"><label>Veloc.</label><input type="range" min="10" max="120" value="35" oninput="presSetSpeed(this.value)"><span id="pres-speed-val">35</span></div>
 </div>
 </div>
-<div class="pres-hint">Toque no centro para sair</div>
 </div>
 
 <div id="screen-edit" class="screen">
@@ -2293,7 +2308,27 @@ lyrics=lyrics.filter(function(x){return x.id!==id;});
 todayList=todayList.filter(function(x){return x!==id;});
 save();
 if(currentId===id)goList();renderList();}
-document.addEventListener('keydown',function(e){if(viewMode!=='page')return;if(e.key==='ArrowLeft')pageGo(-1);if(e.key==='ArrowRight')pageGo(1);});
+document.addEventListener('keydown',function(e){
+// Presentation shortcuts have priority when fullscreen mode is active
+var pres=document.getElementById('presentation');
+if(pres&&pres.style.display==='flex'){
+var tag=(e.target&&e.target.tagName)||'';
+if(tag==='INPUT'||tag==='TEXTAREA')return;
+if(e.key==='Escape'){e.preventDefault();exitPresentation();return;}
+if(e.key===' '){e.preventDefault();presToggleScroll();return;}
+var lyr=document.getElementById('pres-lyrics');
+if(e.key==='ArrowDown'||e.key==='PageDown'){if(lyr){e.preventDefault();lyr.scrollBy({top:e.key==='PageDown'?lyr.clientHeight*0.85:60,behavior:'smooth'});}return;}
+if(e.key==='ArrowUp'||e.key==='PageUp'){if(lyr){e.preventDefault();lyr.scrollBy({top:e.key==='PageUp'?-lyr.clientHeight*0.85:-60,behavior:'smooth'});}return;}
+if(e.key==='Home'){if(lyr){e.preventDefault();lyr.scrollTop=0;}return;}
+if(e.key==='End'){if(lyr){e.preventDefault();lyr.scrollTop=lyr.scrollHeight;}return;}
+if(e.key==='ArrowLeft'){e.preventDefault();presNavGo(-1);return;}
+if(e.key==='ArrowRight'){e.preventDefault();presNavGo(1);return;}
+return;
+}
+if(viewMode!=='page')return;
+if(e.key==='ArrowLeft')pageGo(-1);
+if(e.key==='ArrowRight')pageGo(1);
+});
 var isLight=false;
 function toggleTheme(){isLight=!isLight;document.body.classList.toggle('light',isLight);document.getElementById('btn-theme').innerHTML=isLight?ICO.sun:ICO.sun;try{localStorage.setItem('church-theme',isLight?'light':'dark');}catch(e){}}
 function loadTheme(){try{var t=localStorage.getItem('church-theme');if(t==='light'){isLight=true;document.body.classList.add('light');document.getElementById('btn-theme').innerHTML=ICO.sun;}}catch(e){}}
@@ -2373,6 +2408,8 @@ if(availW>=900)maxCols=4;
 else if(availW>=600)maxCols=3;
 else if(availW>=400)maxCols=2;
 
+// Minimum readable size for live use (presentation mode is now scrollable, so we can overflow).
+var PRES_MIN_SIZE=28;
 if(fixedCols>0){
 // Use fixed column count from viewMode, only auto-fit font size
 var useCols=Math.min(fixedCols,maxCols);
@@ -2385,8 +2422,8 @@ var cl=stanzaLineCount(testCols[j]);
 if(cl>maxLinesInCol)maxLinesInCol=cl;
 }
 var fontH=Math.floor(availH/(maxLinesInCol*1.45));
-var bestSize=Math.min(fontW,fontH,60);
-bestSize=Math.max(bestSize,8);
+var bestSize=Math.min(fontW,fontH,72);
+bestSize=Math.max(bestSize,PRES_MIN_SIZE);
 var bestCols=useCols;
 } else {
 // Auto mode (fit/page): find best column+size combo
@@ -2402,11 +2439,10 @@ var cl=stanzaLineCount(testCols[j]);
 if(cl>maxLinesInCol)maxLinesInCol=cl;
 }
 var fontH=Math.floor(availH/(maxLinesInCol*1.45));
-var best=Math.min(fontW,fontH,60);
-best=Math.max(best,10);
+var best=Math.min(fontW,fontH,72);
 if(best>bestSize){bestSize=best;bestCols=cols;}
 }
-bestSize=Math.max(bestSize,8);
+bestSize=Math.max(bestSize,PRES_MIN_SIZE);
 }
 
 var finalCols=distributeStanzas(stanzas,bestCols);
@@ -2425,8 +2461,8 @@ if(lc>maxLF)maxLF=lc;
 var colWf=(availW-(bestCols-1)*12-bestCols*20)/bestCols;
 var fontWf=maxChars>0?Math.floor(colWf/(maxChars*0.55)):80;
 var fontHf=Math.floor(availH/(maxLF*1.45));
-bestSize=Math.min(fontWf,fontHf,60);
-bestSize=Math.max(bestSize,8);
+bestSize=Math.min(fontWf,fontHf,72);
+bestSize=Math.max(bestSize,PRES_MIN_SIZE);
 }
 var wrap=document.createElement('div');
 wrap.style.cssText='display:flex;gap:0;width:'+(availW)+'px;align-items:flex-start;justify-content:center';
@@ -2465,7 +2501,36 @@ document.getElementById('pres-prev').disabled=(pti===0);
 document.getElementById('pres-next').disabled=(pti>=todayList.length-1);
 }else{pnav.style.display='none';}
 }
-function exitPresentation(){document.getElementById('presentation').style.display='none';try{if(document.fullscreenElement)document.exitFullscreen();}catch(e){}}
+function exitPresentation(){presStopAutoScroll();document.getElementById('presentation').style.display='none';try{if(document.fullscreenElement)document.exitFullscreen();}catch(e){}}
+
+// --- Presentation auto-scroll (karaoke style) ---
+var presScrollSpeed=35; // pixels per second
+var presScrolling=false;
+var presScrollRaf=null;
+function presSetSpeed(v){presScrollSpeed=+v;var el=document.getElementById('pres-speed-val');if(el)el.textContent=v;}
+function presStartAutoScroll(){
+if(presScrolling)return;
+var lyr=document.getElementById('pres-lyrics');if(!lyr)return;
+presScrolling=true;
+var btn=document.getElementById('pres-scroll-toggle');
+if(btn){btn.classList.add('active');btn.innerHTML='&#9208; Pausar';}
+var lastT=performance.now();
+function tick(now){
+if(!presScrolling){presScrollRaf=null;return;}
+var dt=now-lastT;lastT=now;
+lyr.scrollTop+=(presScrollSpeed*dt)/1000;
+if(lyr.scrollTop+lyr.clientHeight>=lyr.scrollHeight-1){presStopAutoScroll();return;}
+presScrollRaf=requestAnimationFrame(tick);
+}
+presScrollRaf=requestAnimationFrame(tick);
+}
+function presStopAutoScroll(){
+presScrolling=false;
+if(presScrollRaf){cancelAnimationFrame(presScrollRaf);presScrollRaf=null;}
+var btn=document.getElementById('pres-scroll-toggle');
+if(btn){btn.classList.remove('active');btn.innerHTML='&#9654; Auto';}
+}
+function presToggleScroll(){if(presScrolling)presStopAutoScroll();else presStartAutoScroll();}
 var presFontOffset=0;
 function presFontSize(d){
 presFontOffset+=d;
@@ -2477,10 +2542,7 @@ c.style.fontSize=nv+'px';
 c.style.lineHeight=(nv*1.45)+'px';
 });
 }
-function presClick(e){
-if(e.target.closest('.pres-controls'))return;
-exitPresentation();
-}
+function presClick(e){/* deprecated: clicking lyrics no longer exits, use the X button or Esc */}
 function presNavGo(dir){
 if(!currentId)return;
 var ti=todayList.indexOf(currentId);
