@@ -151,6 +151,33 @@ body.light .btn-theme{border-color:var(--card-border);color:var(--gold)}
 .empty-state{text-align:center;padding:60px 24px}.empty-icon{font-size:48px;opacity:.15;margin-bottom:14px}
 .empty-text{font-size:14px;color:var(--text-dim);line-height:1.6}
 .empty-btn{margin-top:16px;display:inline-block;background:var(--accent);color:#fff;border:none;border-radius:12px;padding:12px 24px;font-size:13px;cursor:pointer;font-family:var(--fb);font-weight:600;transition:all .2s}
+.imp-modal{position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:600;display:flex;align-items:center;justify-content:center;padding:16px;backdrop-filter:blur(4px)}
+.imp-content{background:var(--surface);border:1px solid var(--card-border);border-radius:14px;padding:18px;max-width:600px;width:100%;max-height:88vh;display:flex;flex-direction:column}
+.imp-title{font-size:16px;font-weight:700;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;color:var(--text)}
+.imp-close{background:none;border:none;color:var(--text-dim);font-size:24px;cursor:pointer;line-height:1;padding:0 6px}
+.imp-close:hover{color:var(--danger)}
+.imp-howto{font-size:11px;color:var(--text-dim);margin-bottom:10px;line-height:1.5;background:var(--card-bg);border:1px solid var(--card-border);border-radius:8px;padding:10px}
+.imp-howto b{color:var(--text)}
+.imp-drop{border:2px dashed var(--card-border);border-radius:12px;padding:22px;text-align:center;color:var(--text-dim);cursor:pointer;transition:all .15s;background:var(--card-bg);display:block}
+.imp-drop:hover{border-color:var(--accent);color:var(--accent2);background:var(--accent-glow)}
+.imp-status{padding:6px 0;font-size:11px;color:var(--text-dim);text-align:center}
+.imp-list{flex:1;overflow-y:auto;border:1px solid var(--card-border);border-radius:10px;margin:8px 0;padding:4px;max-height:50vh}
+.imp-row{display:flex;align-items:center;gap:10px;padding:8px;border-bottom:1px solid var(--card-border);cursor:pointer}
+.imp-row:last-child{border-bottom:none}
+.imp-row.dup{background:rgba(212,86,75,.06)}
+.imp-row input[type=checkbox]{accent-color:var(--accent);width:18px;height:18px;flex-shrink:0;margin:0}
+.imp-row-info{flex:1;min-width:0}
+.imp-row-title{font-size:13px;color:var(--text);font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.imp-row-meta{font-size:11px;color:var(--text-dim);margin-top:2px}
+.imp-row-meta .dup-tag{color:var(--danger);font-weight:700}
+.imp-actions{display:flex;gap:8px;margin-top:8px}
+.imp-btn{flex:1;padding:11px;border-radius:10px;border:1px solid var(--card-border);background:var(--card-bg);color:var(--text);font-weight:700;font-size:13px;cursor:pointer;font-family:var(--fb);transition:all .15s}
+.imp-btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+.imp-btn.primary:disabled{opacity:.4;cursor:not-allowed}
+.imp-btn.primary:hover:not(:disabled){filter:brightness(1.1)}
+.imp-toggle-row{display:flex;align-items:center;justify-content:space-between;font-size:12px;color:var(--text-dim);padding:0 8px;margin-top:4px;flex-wrap:wrap;gap:8px}
+.imp-toggle-row a{color:var(--accent2);text-decoration:none;cursor:pointer;font-size:11px;font-weight:600}
+.imp-toggle-row a:hover{text-decoration:underline}
 
 /* View/Lyrics */
 .view-body{flex:1;overflow:hidden;position:relative;display:flex;flex-direction:column;background:var(--bg)}
@@ -1111,7 +1138,7 @@ if(typeof _fbOnReady==='function')_fbOnReady();
 <div style="display:flex;gap:6px;margin-top:4px;align-items:center"><input class="search-input" id="search-input" placeholder="Buscar..." oninput="renderList()" style="flex:1">
 <div class="tabs"><div class="tab active" id="tab-all" onclick="switchTab('all')">Todas</div><div class="tab" id="tab-today" onclick="switchTab('today')">Hoje <span class="tab-count" id="today-count">0</span></div></div></div>
 <div style="display:flex;justify-content:flex-end;align-items:center;gap:8px;margin-bottom:6px;flex-wrap:wrap"><span class="auth-user-badge membro" id="header-user-badge" onclick="authShowUserInfo()" style="cursor:pointer;font-size:13px;padding:5px 14px"></span></div>
-<div class="list-header-row"><div style="text-align:left"><div class="app-subtitle" id="song-count"></div></div><div style="display:flex;gap:6px;align-items:center"><button class="btn-theme" onclick="backupData()" title="Backup / Restaurar"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg></button><button class="btn-theme" id="btn-theme" onclick="toggleTheme()" title="Modo claro/escuro"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg></button><button class="btn-add" id="btn-new-song" onclick="openEdit()">+ Nova Letra</button></div></div>
+<div class="list-header-row"><div style="text-align:left"><div class="app-subtitle" id="song-count"></div></div><div style="display:flex;gap:6px;align-items:center"><button class="btn-theme" onclick="backupData()" title="Backup / Restaurar"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg></button><button class="btn-theme" id="btn-theme" onclick="toggleTheme()" title="Modo claro/escuro"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg></button><button class="btn-sm" id="btn-import-holyrics" onclick="holyricsOpenImport()" title="Importar do Holyrics" style="display:none">📥 Holyrics</button><button class="btn-add" id="btn-new-song" onclick="openEdit()">+ Nova Letra</button></div></div>
 </div><div class="tag-filter-bar" id="tag-filter-bar"></div><div class="list-content" id="list-content"></div></div>
 
 <div id="screen-view" class="screen">
@@ -2792,6 +2819,202 @@ setTimeout(function(){var el=document.getElementById('edit-cifra');if(el){el.scr
 // no server-side fetch (proxy or Cloud Function with plain fetch) can read the
 // cifra content. The manual workflow (Buscar no CifraClub link + Colar Cifra)
 // remains available.
+
+// ===== HOLYRICS BULK IMPORT =====
+// Accepts multiple .txt files (or a .zip with .txt files inside) exported from
+// Holyrics. Parses title / Tom / BPM / lyrics, shows a preview with checkboxes
+// (auto-unchecks duplicates), and bulk-adds to the current group's library.
+var holyricsParsed=[];
+
+function holyricsParseTxt(text,filename){
+text=(text||'').replace(/\r\n/g,'\n').replace(/\r/g,'\n');
+var lines=text.split('\n');
+var title=(filename||'').replace(/\.txt$/i,'').replace(/_/g,' ').trim()||'Sem titulo';
+var tom='',bpm=0,bodyStart=0;
+// First non-metadata, non-empty line within the first 10 lines might be the song title.
+for(var i=0;i<Math.min(10,lines.length);i++){
+var ln=lines[i].trim();
+if(!ln){if(bodyStart<i+1)bodyStart=i+1;continue;}
+if(/^(?:tom|tonalidade|key|bpm|autor|compositor|artista|album|categoria|tema)[\s:]/i.test(ln)){bodyStart=i+1;continue;}
+// Looks like a title: short line, no terminal punctuation
+if(ln.length<80&&!/[.,;]$/.test(ln)){title=ln;bodyStart=i+1;}
+break;
+}
+// Look for tom/bpm in the next 25 lines
+var maxScan=Math.min(25,lines.length);
+for(var i=0;i<maxScan;i++){
+var ln=lines[i].trim();if(!ln)continue;
+var m=ln.match(/^(?:tom|tonalidade|key)[\s:]+([A-G][#b]?[m]?[0-9]?)\b/i);
+if(m){tom=m[1];if(bodyStart<i+1)bodyStart=i+1;}
+var b=ln.match(/^bpm[\s:]+(\d+)/i);
+if(b){bpm=parseInt(b[1],10);if(bodyStart<i+1)bodyStart=i+1;}
+}
+var body=lines.slice(bodyStart).join('\n').replace(/^\s+|\s+$/g,'');
+var dup=lyrics.some(function(l){return(l.title||'').toLowerCase()===title.toLowerCase();});
+return{title:title,tom:tom,bpm:bpm,lyrics:body,dup:dup,import:!dup};
+}
+
+function holyricsLoadJSZip(){
+return new Promise(function(resolve,reject){
+if(window.JSZip)return resolve(window.JSZip);
+var s=document.createElement('script');
+s.src='https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js';
+s.onload=function(){resolve(window.JSZip);};
+s.onerror=function(){reject(new Error('Falha ao carregar leitor de ZIP'));};
+document.head.appendChild(s);
+});
+}
+
+function holyricsHandleFiles(files){
+var arr=Array.from(files);
+if(!arr.length)return;
+var zips=arr.filter(function(f){return /\.zip$/i.test(f.name);});
+var txts=arr.filter(function(f){return /\.txt$/i.test(f.name);});
+if(!zips.length&&!txts.length){holyricsSetStatus('Nenhum arquivo .txt ou .zip selecionado.');return;}
+holyricsSetStatus('Lendo '+arr.length+' arquivo'+(arr.length!==1?'s':'')+'...');
+var collected=[];
+function readTxts(){
+return Promise.all(txts.map(function(f){
+return new Promise(function(res){
+var r=new FileReader();
+r.onload=function(){try{collected.push(holyricsParseTxt(r.result,f.name));}catch(e){}res();};
+r.onerror=function(){res();};
+r.readAsText(f,'utf-8');
+});
+}));
+}
+function readZips(){
+if(!zips.length)return Promise.resolve();
+return holyricsLoadJSZip().then(function(JSZip){
+return Promise.all(zips.map(function(zf){
+return new Promise(function(res){
+var r=new FileReader();
+r.onload=function(){
+JSZip.loadAsync(r.result).then(function(zip){
+var entries=[];
+zip.forEach(function(path,file){
+if(file.dir)return;
+if(!/\.txt$/i.test(path))return;
+entries.push({path:path,file:file});
+});
+return Promise.all(entries.map(function(e){
+return e.file.async('string').then(function(t){
+try{var fname=e.path.split('/').pop();collected.push(holyricsParseTxt(t,fname));}catch(err){}
+});
+}));
+}).catch(function(err){console.log('ZIP error:',err);}).then(res);
+};
+r.onerror=function(){res();};
+r.readAsArrayBuffer(zf);
+});
+}));
+});
+}
+Promise.all([readTxts(),readZips()]).then(function(){
+holyricsParsed=collected.sort(function(a,b){return(a.title||'').localeCompare(b.title||'','pt-BR',{sensitivity:'base'});});
+holyricsRenderPreview();
+}).catch(function(e){holyricsSetStatus('Erro: '+(e.message||e));});
+}
+
+function holyricsOpenImport(){
+if(!authCanEdit()){alert('Sem permissão.');return;}
+holyricsParsed=[];
+holyricsClose();
+var bd=document.createElement('div');
+bd.className='imp-modal';bd.id='imp-modal';
+bd.onclick=function(e){if(e.target===bd)holyricsClose();};
+bd.innerHTML=''+
+'<div class="imp-content">'+
+'<div class="imp-title">&#128229; Importar do Holyrics<button class="imp-close" onclick="holyricsClose()">&times;</button></div>'+
+'<div class="imp-howto">Como exportar:<br>1. No Holyrics, abra a aba <b>Cifras</b><br>2. <b>Ctrl+A</b> para selecionar todas as músicas<br>3. Clique direito &rarr; <b>Exportar &rarr; Texto (.txt)</b><br>4. Escolha uma pasta de destino (vai gerar vários arquivos .txt)<br>5. <b>Compacte essa pasta em ZIP</b> (clique direito na pasta &rarr; Enviar para &rarr; Pasta compactada)<br>6. Selecione o ZIP abaixo (ou os .txt avulsos):</div>'+
+'<label class="imp-drop">'+
+'<input type="file" multiple accept=".txt,.zip" style="display:none" onchange="holyricsHandleFiles(this.files)">'+
+'<div style="font-size:30px;margin-bottom:8px">&#128193;</div>'+
+'<div style="font-size:14px;font-weight:700;color:var(--text)">Clique para selecionar arquivos</div>'+
+'<div style="font-size:11px;margin-top:4px">.txt, .zip ou ambos</div>'+
+'</label>'+
+'<div class="imp-status" id="imp-status"></div>'+
+'<div id="imp-preview"></div>'+
+'</div>';
+document.body.appendChild(bd);
+}
+
+function holyricsClose(){
+var m=document.getElementById('imp-modal');if(m)m.remove();
+holyricsParsed=[];
+}
+
+function holyricsSetStatus(msg){
+var el=document.getElementById('imp-status');if(el)el.textContent=msg||'';
+}
+
+function holyricsRenderPreview(){
+var prev=document.getElementById('imp-preview');if(!prev)return;
+if(!holyricsParsed.length){holyricsSetStatus('Nenhuma música encontrada nos arquivos.');return;}
+var dups=0;holyricsParsed.forEach(function(p){if(p.dup)dups++;});
+var h='';
+h+='<div class="imp-toggle-row">';
+h+='<span><b>'+holyricsParsed.length+'</b> música'+(holyricsParsed.length!==1?'s':'')+(dups?' &middot; <span style="color:var(--danger)"><b>'+dups+'</b> já existe'+(dups!==1?'m':'')+'</span>':'')+'</span>';
+h+='<span><a onclick="holyricsToggleAll(true)">marcar tudo</a> &middot; <a onclick="holyricsToggleAll(false)">desmarcar tudo</a>'+(dups?' &middot; <a onclick="holyricsToggleDups(false)">desmarcar duplicadas</a>':'')+'</span>';
+h+='</div>';
+h+='<div class="imp-list">';
+holyricsParsed.forEach(function(p,idx){
+h+='<label class="imp-row'+(p.dup?' dup':'')+'">';
+h+='<input type="checkbox" '+(p.import?'checked':'')+' onchange="holyricsToggleOne('+idx+',this.checked)">';
+h+='<div class="imp-row-info">';
+h+='<div class="imp-row-title">'+esc(p.title)+'</div>';
+var meta=[];
+if(p.tom)meta.push('Tom: <b>'+esc(p.tom)+'</b>');
+if(p.bpm)meta.push('BPM: <b>'+p.bpm+'</b>');
+var lc=(p.lyrics||'').split('\n').filter(function(x){return x.trim();}).length;
+meta.push(lc+' linha'+(lc!==1?'s':''));
+if(p.dup)meta.push('<span class="dup-tag">já existe</span>');
+h+='<div class="imp-row-meta">'+meta.join(' &middot; ')+'</div>';
+h+='</div></label>';
+});
+h+='</div>';
+h+='<div class="imp-actions">';
+h+='<button class="imp-btn" onclick="holyricsClose()">Cancelar</button>';
+h+='<button class="imp-btn primary" id="imp-confirm" onclick="holyricsConfirm()">Importar</button>';
+h+='</div>';
+prev.innerHTML=h;
+holyricsSetStatus('');
+holyricsUpdateConfirmBtn();
+}
+
+function holyricsToggleOne(idx,on){
+if(holyricsParsed[idx]){holyricsParsed[idx].import=on;holyricsUpdateConfirmBtn();}
+}
+function holyricsToggleAll(on){
+holyricsParsed.forEach(function(p){p.import=on;});
+holyricsRenderPreview();
+}
+function holyricsToggleDups(on){
+holyricsParsed.forEach(function(p){if(p.dup)p.import=on;});
+holyricsRenderPreview();
+}
+function holyricsUpdateConfirmBtn(){
+var btn=document.getElementById('imp-confirm');if(!btn)return;
+var n=0;holyricsParsed.forEach(function(p){if(p.import)n++;});
+btn.textContent=n?'Importar '+n+' música'+(n!==1?'s':''):'Importar';
+btn.disabled=n===0;
+}
+
+function holyricsConfirm(){
+var toImport=holyricsParsed.filter(function(p){return p.import;});
+if(!toImport.length){alert('Selecione pelo menos uma música.');return;}
+var grupoNome=(typeof getGrupoName==='function')?getGrupoName():'';
+if(!confirm('Importar '+toImport.length+' música'+(toImport.length!==1?'s':'')+(grupoNome?' para o grupo "'+grupoNome+'"':'')+'?'))return;
+var now=Date.now();
+toImport.forEach(function(p,i){
+var id=(now+i).toString();
+lyrics.push({id:id,title:p.title,tom:p.tom||'',bpm:p.bpm||0,lyrics:p.lyrics||'',cifra:'',tags:[],updatedAt:now+i});
+});
+save();
+holyricsClose();
+renderList();
+alert('✅ '+toImport.length+' música'+(toImport.length!==1?'s':'')+' importada'+(toImport.length!==1?'s':'')+'!');
+}
 // ===== CHAT DO LOUVOR =====
 var chatMessages=[];
 var chatLoaded=false;
@@ -4986,6 +5209,8 @@ badge.innerHTML=icon+' '+esc(currentUser.name);
 // New song button
 var newSongBtn=document.getElementById('btn-new-song');
 if(newSongBtn){newSongBtn.style.display=authCanEdit()?'':'none';}
+var impHolyBtn=document.getElementById('btn-import-holyrics');
+if(impHolyBtn){impHolyBtn.style.display=authCanEdit()?'':'none';}
 
 // Admin nav
 var adminNav=document.getElementById('nav-admin');
