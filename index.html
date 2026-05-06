@@ -1685,7 +1685,10 @@ todayList:JSON.stringify(todayAllData),
 songCount:(lyricsAllData.g1||[]).length+(lyricsAllData.g2||[]).length,
 updatedAt:firebase.firestore.FieldValue.serverTimestamp()
 };
-saveData.ensaioData=JSON.stringify(ensaioData);
+// Only push ensaio if we have data, OR if we explicitly emptied
+// (avoid wiping remote ensaio when local cache hasn't synced yet).
+var ensaioTotal=(ensaioData.g1||[]).length+(ensaioData.g2||[]).length;
+if(ensaioTotal>0)saveData.ensaioData=JSON.stringify(ensaioData);
 try{var pd=localStorage.getItem('church-profiles-v1');if(pd)saveData.profileData=pd;}catch(e){}
 try{var ud=localStorage.getItem('church-users-local');if(ud)saveData.userData=ud;}catch(e){}
 saveData.escalaData=JSON.stringify(escalasAllData);
@@ -1704,7 +1707,8 @@ todayList:JSON.stringify(todayAllData),
 songCount:(lyricsAllData.g1||[]).length+(lyricsAllData.g2||[]).length,
 updatedAt:firebase.firestore.FieldValue.serverTimestamp()
 };
-saveData.ensaioData=JSON.stringify(ensaioData);
+var ensaioTotalF=(ensaioData.g1||[]).length+(ensaioData.g2||[]).length;
+if(ensaioTotalF>0)saveData.ensaioData=JSON.stringify(ensaioData);
 try{var pd=localStorage.getItem('church-profiles-v1');if(pd)saveData.profileData=pd;}catch(e2){}
 try{var ud=localStorage.getItem('church-users-local');if(ud)saveData.userData=ud;}catch(e2){}
 saveData.escalaData=JSON.stringify(escalasAllData);
@@ -4889,11 +4893,45 @@ loadLyricsForGroup();
 loadEscalasForGroup();
 loadChatForGroup();
 loadTodayForGroup();
+if(typeof loadEnsaioData==='function')loadEnsaioData();
 applyPermissions();
 updateProfileUI();
 try{renderList();}catch(e){}
 try{renderChat();}catch(e){}
+try{if(typeof renderEnsaioList==='function')renderEnsaioList();}catch(e){}
 switchNav('louvor');
+// Force a fresh fetch from Firebase so brand-new users get all data immediately
+// (avoids relying on snapshot timing).
+if(typeof fbDoc!=='undefined'&&fbDoc){
+fbDoc.get().then(function(doc){
+if(!doc.exists)return;
+var d=doc.data();
+// Pull ensaio
+if(d.ensaioData){
+try{
+var remoteEns=ensaioFromRaw(JSON.parse(d.ensaioData));
+var merged=mergeEnsaioAllData(ensaioData,remoteEns);
+if(JSON.stringify(merged)!==JSON.stringify(ensaioData)){
+ensaioData=merged;
+try{localStorage.setItem('church-ensaio-v2',JSON.stringify(ensaioData));}catch(e){}
+try{renderEnsaioList();}catch(e){}
+}
+}catch(e){}
+}
+// Pull lyrics
+if(d.lyrics){
+try{
+var remoteLA=groupDataFrom(JSON.parse(d.lyrics));
+var mergedL={g1:mergeSongLists(lyricsAllData.g1||[],remoteLA.g1||[]),g2:mergeSongLists(lyricsAllData.g2||[],remoteLA.g2||[])};
+if(JSON.stringify(mergedL)!==JSON.stringify(lyricsAllData)){
+lyricsAllData=mergedL;loadLyricsForGroup();
+try{localStorage.setItem(SK,JSON.stringify(lyricsAllData));}catch(e){}
+try{renderList();}catch(e){}
+}
+}catch(e){}
+}
+}).catch(function(){});
+}
 }
 
 function adminSwitchGrupo(){
