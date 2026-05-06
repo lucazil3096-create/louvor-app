@@ -734,6 +734,16 @@ body.light .aovivo-sub.active{background:rgba(178,34,34,.1);border-color:var(--a
 .admin-user-info{flex:1;min-width:0}
 .admin-user-name{font-size:15px;font-weight:600;color:var(--text)}
 .admin-user-funcao{font-size:11px;color:var(--text-dim);margin-top:2px}
+.admin-group-section{margin-bottom:20px}
+.admin-group-header{display:flex;align-items:center;gap:8px;padding:10px 12px;background:var(--card-bg);border:1px solid var(--card-border);border-radius:12px;margin-bottom:8px}
+.admin-group-emoji{font-size:18px;line-height:1}
+.admin-group-name{flex:1;font-size:13px;color:var(--text);font-weight:700;letter-spacing:.3px}
+.admin-group-count{background:var(--accent-glow);color:var(--accent2);font-size:10px;font-weight:700;padding:3px 10px;border-radius:12px;letter-spacing:.5px}
+.admin-group-rename{background:transparent;border:none;color:var(--text-dim);font-size:11px;cursor:pointer;padding:4px 8px;border-radius:6px}
+.admin-group-rename:hover{color:var(--accent2);background:rgba(255,255,255,.04)}
+.admin-group-empty{padding:14px;text-align:center;color:var(--text-dim);font-size:12px;font-style:italic;background:var(--card-bg);border:1px dashed var(--card-border);border-radius:10px;opacity:.6;margin-bottom:6px}
+.admin-action-btn.move{border-color:rgba(91,140,235,.25);background:rgba(91,140,235,.06);color:#6e9bf5}
+.admin-action-btn.move:hover{background:rgba(91,140,235,.12)}
 .funcao-icon{font-size:1em;display:inline-block;filter:grayscale(.15) saturate(.85);vertical-align:middle;line-height:1;margin-right:1px}
 .escala-detail-funcao .funcao-icon{font-size:.9em}
 .admin-user-funcao .funcao-icon{font-size:1em}
@@ -5260,39 +5270,77 @@ authLoadUsers(function(){
 var stats=document.getElementById('admin-stats');
 var total=allUsers.length;
 var lideres=allUsers.filter(function(u){return u.role==='lider';}).length;
-var membros=allUsers.filter(function(u){return u.role==='membro';}).length;
-var g1Count=allUsers.filter(function(u){return u.grupo===0||typeof u.grupo==='undefined';}).length;
-var g2Count=allUsers.filter(function(u){return u.grupo===1;}).length;
-var gBothCount=allUsers.filter(function(u){return u.grupo===2;}).length;
+var g1Count=allUsers.filter(function(u){return (u.grupo===0||typeof u.grupo==='undefined')&&u.role!=='admin';}).length;
+var g2Count=allUsers.filter(function(u){return u.grupo===1&&u.role!=='admin';}).length;
+var gBothCount=allUsers.filter(function(u){return u.grupo===2&&u.role!=='admin';}).length;
+var name1=(profileData.names&&profileData.names[0])||'Louvor';
+var name2=(profileData.names&&profileData.names[1])||'Louvor Jovem';
 stats.innerHTML='<div class="admin-stat-item"><div class="admin-stat-num">'+total+'</div><div class="admin-stat-label">Total</div></div>'
 +'<div class="admin-stat-item"><div class="admin-stat-num">'+lideres+'</div><div class="admin-stat-label">Líderes</div></div>'
-+'<div class="admin-stat-item"><div class="admin-stat-num">'+g1Count+'</div><div class="admin-stat-label">Louvor</div></div>'
-+'<div class="admin-stat-item"><div class="admin-stat-num">'+g2Count+'</div><div class="admin-stat-label">L. Jovem</div></div>'
++'<div class="admin-stat-item"><div class="admin-stat-num">'+g1Count+'</div><div class="admin-stat-label">'+esc(name1)+'</div></div>'
++'<div class="admin-stat-item"><div class="admin-stat-num">'+g2Count+'</div><div class="admin-stat-label">'+esc(name2)+'</div></div>'
 +'<div class="admin-stat-item"><div class="admin-stat-num">'+gBothCount+'</div><div class="admin-stat-label">Ambos</div></div>';
 
-// Users list
+// Bucket users by group
+var buckets={admin:[],g0:[],g1:[],g2:[]};
+allUsers.forEach(function(u){
+if(u.role==='admin'){buckets.admin.push(u);return;}
+var g=u.grupo;
+if(typeof g==='undefined'||g===0)buckets.g0.push(u);
+else if(g===1)buckets.g1.push(u);
+else if(g===2)buckets.g2.push(u);
+else buckets.g0.push(u);
+});
+function sortByName(a,b){return(a.name||'').localeCompare(b.name||'','pt-BR',{sensitivity:'base'});}
+buckets.g0.sort(sortByName);buckets.g1.sort(sortByName);buckets.g2.sort(sortByName);buckets.admin.sort(sortByName);
+
+var sections=[
+{key:'g0',name:name1,emoji:'🎵',users:buckets.g0,renamable:true,renameIdx:0},
+{key:'g1',name:name2,emoji:'🎶',users:buckets.g1,renamable:true,renameIdx:1},
+{key:'g2',name:'Ambos os grupos',emoji:'⭐',users:buckets.g2,renamable:false},
+{key:'admin',name:'Administradores',emoji:'👑',users:buckets.admin,renamable:false}
+];
+
 var list=document.getElementById('admin-users-list');
 var h='';
-allUsers.forEach(function(u){
+sections.forEach(function(sec){
+// Hide empty Ambos/Admin sections; always show g0 and g1
+if(!sec.users.length&&sec.key!=='g0'&&sec.key!=='g1')return;
+h+='<div class="admin-group-section">';
+h+='<div class="admin-group-header">';
+h+='<span class="admin-group-emoji">'+sec.emoji+'</span>';
+h+='<span class="admin-group-name">'+esc(sec.name)+'</span>';
+h+='<span class="admin-group-count">'+sec.users.length+'</span>';
+if(sec.renamable)h+='<button class="admin-group-rename" onclick="adminRenameGroup('+sec.renameIdx+')" title="Renomear grupo">✎</button>';
+h+='</div>';
+if(!sec.users.length){h+='<div class="admin-group-empty">Ninguém aqui ainda</div>';}
+else{sec.users.forEach(function(u){h+=renderAdminUserCard(u);});}
+h+='</div>';
+});
+
+if(!allUsers.length)h='<div style="text-align:center;padding:40px;color:var(--text-dim)">Nenhum membro cadastrado</div>';
+list.innerHTML=h;
+});
+}
+
+function renderAdminUserCard(u){
 var isAdmin=u.role==='admin';
 var isLider=u.role==='lider';
 var initial=(u.name||'?').charAt(0).toUpperCase();
 var roleLabel=isAdmin?'Administrador':isLider?'Líder de Louvor':'Membro';
 var grupoLabel=getUserGrupoLabel(u.grupo);
 var photo=getUserPhoto(u.name);
-
-h+='<div class="admin-user-card">';
+var emoji=funcaoEmoji(u.funcao);
+var h='<div class="admin-user-card">';
 h+='<div class="admin-user-icon '+u.role+'">'+(photo?'<img src="'+photo+'" style="width:100%;height:100%;border-radius:50%;object-fit:cover">':initial)+'</div>';
 h+='<div class="admin-user-info">';
 h+='<div class="admin-user-name">'+esc(u.name)+'</div>';
-var emoji=funcaoEmoji(u.funcao);
 h+='<div class="admin-user-funcao">'+(emoji?'<span class="funcao-icon">'+emoji+'</span> ':'')+esc(u.funcao||'—')+' · '+ICO.mic+' '+grupoLabel+'</div>';
 h+='<span class="admin-user-role '+u.role+'">'+roleLabel+'</span>';
 if(!isAdmin){
 h+='<div class="admin-user-pass" style="font-size:12px;color:var(--text-dim);margin-top:6px">Senha: <span class="pass-hidden" data-pass="'+esc(u.password||'')+'" style="font-family:monospace;letter-spacing:2px">••••••</span> <button type="button" onclick="adminTogglePass(this)" style="background:transparent;border:none;cursor:pointer;color:var(--text-dim);font-size:14px;padding:0 4px;vertical-align:middle" title="Mostrar/ocultar">👁</button></div>';
 }
 h+='</div>';
-
 if(!isAdmin){
 h+='<div class="admin-user-actions">';
 if(isLider){
@@ -5300,15 +5348,56 @@ h+='<button class="admin-action-btn demote" onclick="adminSetRole(\''+esc(u.name
 }else{
 h+='<button class="admin-action-btn promote" onclick="adminSetRole(\''+esc(u.name)+'\',\'lider\')">'+ICO.lider+' Dar Líder</button>';
 }
+h+='<button class="admin-action-btn move" onclick="adminChangeGrupo(\''+esc(u.name)+'\')">Mudar Grupo</button>';
 h+='<button class="admin-action-btn demote" onclick="adminChangePassword(\''+esc(u.name)+'\')">Trocar Senha</button>';
 h+='<button class="admin-action-btn expel" onclick="adminExpel(\''+esc(u.name)+'\')">Expulsar</button>';
 h+='</div>';
 }
 h+='</div>';
+return h;
+}
+
+function adminChangeGrupo(name){
+var u=allUsers.find(function(x){return x.name===name;});
+if(!u)return;
+var name1=(profileData.names&&profileData.names[0])||'Louvor';
+var name2=(profileData.names&&profileData.names[1])||'Louvor Jovem';
+var current=u.grupo===1?name2:(u.grupo===2?'Ambos':name1);
+var msg='Mover "'+name+'" para qual grupo?\n\n'+
+'1 = '+name1+'\n'+
+'2 = '+name2+'\n'+
+'3 = Ambos os grupos (vê os dois)\n\n'+
+'Atual: '+current;
+var choice=prompt(msg,u.grupo===1?'2':(u.grupo===2?'3':'1'));
+if(choice===null)return;
+choice=(choice||'').trim();
+var newGrupo;
+if(choice==='1')newGrupo=0;
+else if(choice==='2')newGrupo=1;
+else if(choice==='3')newGrupo=2;
+else{alert('Opção inválida.');return;}
+u.grupo=newGrupo;
+authSaveUsers(function(){
+renderAdminPanel();
+if(currentUser&&currentUser.name.toLowerCase()===name.toLowerCase()){
+currentUser.grupo=newGrupo;
+try{localStorage.setItem(AUTH_KEY,JSON.stringify(currentUser));}catch(e){}
+}
 });
-if(!allUsers.length)h='<div style="text-align:center;padding:40px;color:var(--text-dim)">Nenhum membro cadastrado</div>';
-list.innerHTML=h;
-});
+}
+
+function adminRenameGroup(idx){
+if(!profileData.names)profileData.names=['Louvor','Louvor Jovem'];
+var current=profileData.names[idx]||(idx===0?'Louvor':'Louvor Jovem');
+var newName=prompt('Novo nome para o grupo "'+current+'":',current);
+if(newName===null)return;
+newName=newName.trim();
+if(!newName){alert('Nome não pode ser vazio.');return;}
+profileData.names[idx]=newName;
+saveProfiles();
+fbSave(); // sync new name to Firebase for other users
+renderAdminPanel();
+if(typeof updateProfileUI==='function')updateProfileUI();
 }
 
 function adminSetRole(name,newRole){
