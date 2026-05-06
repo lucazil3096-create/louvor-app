@@ -1,4 +1,5 @@
-const functions = require("firebase-functions");
+const {onRequest} = require("firebase-functions/v2/https");
+const {onDocumentUpdated} = require("firebase-functions/v2/firestore");
 const admin = require("firebase-admin");
 
 admin.initializeApp();
@@ -9,11 +10,11 @@ const messaging = admin.messaging();
  * Triggered when the main app data document changes.
  * Detects new chat messages and escala changes, sends push notifications.
  */
-exports.onDataChange = functions.firestore
-    .document("app/data")
-    .onUpdate(async (change, context) => {
-      const before = change.before.data();
-      const after = change.after.data();
+exports.onDataChange = onDocumentUpdated(
+    {document: "app/data", region: "us-central1"},
+    async (event) => {
+      const before = event.data.before.data();
+      const after = event.data.after.data();
 
       // Get all FCM tokens
       const tokensDoc = await db.collection("app").doc("fcm-tokens").get();
@@ -228,7 +229,7 @@ async function sendToTokens(tokens, data) {
  * HTTP function to test push notifications.
  * Call: https://<region>-louvor-app-a7264.cloudfunctions.net/testNotification
  */
-exports.testNotification = functions.https.onRequest(async (req, res) => {
+exports.testNotification = onRequest({region: "us-central1"}, async (req, res) => {
   try {
     const tokensDoc = await db.collection("app").doc("fcm-tokens").get();
     if (!tokensDoc.exists) {
@@ -269,6 +270,137 @@ exports.testNotification = functions.https.onRequest(async (req, res) => {
     });
   } catch (e) {
     console.error("Test notification error:", e);
+    res.status(500).json({error: e.message});
+  }
+});
+
+/**
+ * HTTP function to fetch a cifra from cifraclub.com.br server-side.
+ * Avoids CORS issues that block browser-side fetching.
+ *
+ * Usage:
+ *   GET /fetchCifra?q=Grande+e+o+Senhor   (auto: search + first result)
+ *   GET /fetchCifra?url=https://www.cifraclub.com.br/morada/grande-e-o-senhor/
+ * Returns JSON: { cifra, tom, url, title }
+ */
+exports.fetchCifra = onRequest({cors: true, region: "us-central1"}, async (req, res) => {
+  res.set("Access-Control-Allow-Origin", "*");
+  res.set("Access-Control-Allow-Methods", "GET");
+  if (req.method === "OPTIONS") return res.status(204).send("");
+
+  const ua = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) " +
+      "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36";
+
+  async function fetchHtml(url) {
+    const r = await fetch(url, {
+      headers: {
+        "User-Agent": ua,
+        "Accept": "text/html,application/xhtml+xml",
+        "Accept-Language": "pt-BR,pt;q=0.9",
+      },
+    });
+    if (!r.ok) throw new Error("HTTP " + r.status + " ao buscar " + url);
+    return await r.text();
+  }
+
+  function findFirstResult(html) {
+    const skip = new Set([
+      "artistas", "generos", "pesquisa", "contato", "dicionario",
+      "noticias", "cifras-mais-tocadas", "top", "cursos", "rec",
+      "letras", "tablaturas",
+    ]);
+    const re = /https?:\/\/(?:www\.)?cifraclub\.com\.br\/([^\/?#"\s]+)\/([^\/?#"\s]+)\/?(?=["'\s])/gi;
+    const seen = new Set();
+    let m;
+    while ((m = re.exec(html)) !== null) {
+      const first = m[1];
+      const path = m[1] + "/" + m[2];
+      if (skip.has(first)) continue;
+      if (seen.has(path)) continue;
+      seen.add(path);
+      return "https://www.cifraclub.com.br/" + path + "/";
+    }
+    return null;
+  }
+
+  function extractCifra(html) {
+    // Look for <pre ...>...</pre> after the cifra section
+    let m = html.match(
+        /<pre[^>]*(?:class="cifra_cnt"|id="cifra_cnt")[^>]*>([\s\S]*?)<\/pre>/i,
+    );
+    if (!m) m = html.match(/<pre[^>]*>([\s\S]*?)<\/pre>/i);
+    if (!m) return null;
+    let raw = m[1];
+    // Strip HTML tags but keep text content
+    raw = raw
+        .replace(/<br\s*\/?>/gi, "\n")
+        .replace(/<\/p>/gi, "\n")
+        .replace(/<[^>]+>/g, "")
+        .replace(/&amp;/g, "&")
+        .replace(/&lt;/g, "<")
+        .replace(/&gt;/g, ">")
+        .replace(/&quot;/g, "\"")
+        .replace(/&#39;/g, "'")
+        .replace(/&nbsp;/g, " ")
+        .replace(/\r/g, "")
+        .replace(/\n{3,}/g, "\n\n")
+        .trim();
+    return raw;
+  }
+
+  function extractTom(html) {
+    // Try multiple patterns
+    const patterns = [
+      /Tom\s*:?\s*<\/span>\s*<a[^>]*>\s*<b[^>]*>([A-G][#bm]{0,3})<\/b>/i,
+      /Tom\s*:?\s*<\/[a-z]+>\s*<[a-z]+[^>]*>\s*([A-G][#bm]{0,3})/i,
+      /id="cifra_tom"[^>]*>\s*<a[^>]*>\s*([A-G][#bm]{0,3})/i,
+      /class="cifra_tom"[^>]*>[^<]*<[^>]*>\s*([A-G][#bm]{0,3})/i,
+      /Tom\s*:?\s*<[^>]+>\s*([A-G][#bm]{0,3})/i,
+    ];
+    for (const p of patterns) {
+      const m = html.match(p);
+      if (m && m[1]) return m[1].trim();
+    }
+    return null;
+  }
+
+  function extractTitle(html) {
+    const m = html.match(/<title>([^<]+)<\/title>/i);
+    return m ? m[1].replace(/\s*-\s*Cifra Club\s*$/i, "").trim() : null;
+  }
+
+  try {
+    const q = (req.query.q || "").toString().trim();
+    let url = (req.query.url || "").toString().trim();
+
+    if (!q && !url) {
+      return res.status(400).json({error: "Pass ?q=titulo or ?url=..."});
+    }
+
+    if (!url && q) {
+      const searchURL =
+          "https://www.cifraclub.com.br/?q=" + encodeURIComponent(q);
+      const searchHtml = await fetchHtml(searchURL);
+      url = findFirstResult(searchHtml);
+      if (!url) {
+        return res.json({error: "Nenhum resultado encontrado para: " + q});
+      }
+    }
+
+    if (!/^https?:\/\/(www\.)?cifraclub\.com\.br\//i.test(url)) {
+      return res.status(400).json({error: "URL deve ser de cifraclub.com.br"});
+    }
+
+    const html = await fetchHtml(url);
+    const cifra = extractCifra(html);
+    if (!cifra || cifra.length < 20) {
+      return res.json({error: "Cifra nao encontrada na pagina.", url});
+    }
+    const tom = extractTom(html);
+    const title = extractTitle(html);
+    res.json({cifra, tom, url, title});
+  } catch (e) {
+    console.error("fetchCifra error:", e);
     res.status(500).json({error: e.message});
   }
 });
