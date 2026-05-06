@@ -2748,12 +2748,9 @@ h+='<div style="display:flex;align-items:center;justify-content:space-between;ma
 h+='<div><div style="font-family:var(--fd);font-size:15px;text-transform:uppercase;letter-spacing:1px">'+esc(song.title)+'</div>';
 h+='<div style="font-size:11px;color:var(--accent2);margin-top:2px">'+(song.tom?'Tom: '+esc(song.tom):'')+'</div></div>';
 h+='<div style="display:flex;gap:6px">';
-h+='<button onclick="importCifraAuto(\''+esc(song.id)+'\')" style="font-size:11px;color:#fff;background:var(--accent);border:1px solid var(--accent);padding:5px 10px;border-radius:8px;cursor:pointer;font-family:var(--fb);font-weight:700">&#128269; Auto-importar</button>';
-h+='<button onclick="importCifraFromUrl(\''+esc(song.id)+'\')" style="font-size:11px;color:var(--accent);background:none;border:1px solid var(--accent);padding:5px 10px;border-radius:8px;cursor:pointer;font-family:var(--fb)" title="Colar URL do CifraClub">&#128279; URL</button>';
-h+='<a href="'+esc(searchUrl)+'" target="_blank" style="font-size:11px;color:var(--text-dim);text-decoration:none;padding:5px 10px;border:1px solid var(--card-border);border-radius:8px">Abrir CifraClub &#8599;</a>';
+h+='<a href="'+esc(searchUrl)+'" target="_blank" style="font-size:11px;color:var(--accent);text-decoration:none;padding:5px 10px;border:1px solid var(--accent);border-radius:8px">Abrir CifraClub &#8599;</a>';
 h+='<button onclick="editarCifra(\''+esc(song.id)+'\')" style="font-size:11px;color:var(--gold);background:none;border:1px solid var(--gold);padding:5px 10px;border-radius:8px;cursor:pointer;font-family:var(--fb)">Editar</button>';
 h+='</div></div>';
-h+='<div id="cifra-import-status" style="display:none;background:var(--accent-glow);border:1px solid rgba(178,34,34,.25);border-radius:8px;padding:10px;font-size:12px;color:var(--accent2);text-align:center;margin-bottom:10px;font-weight:600"></div>';
 if(song.cifra&&song.cifra.trim()){
 // Render cifra with highlighted chords
 var lines=song.cifra.split('\n');
@@ -2775,12 +2772,9 @@ h+='<div style="font-size:40px;margin-bottom:12px;opacity:.3">&#9835;</div>';
 h+='<div style="font-size:14px;color:var(--text-dim);margin-bottom:6px">Nenhuma cifra salva</div>';
 h+='<div style="font-size:12px;color:var(--text-dim);opacity:.6;margin-bottom:20px">Copie a cifra do CifraClub e cole no editor da música</div>';
 h+='<div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap">';
-h+='<button onclick="importCifraAuto(\''+esc(song.id)+'\')" style="padding:10px 20px;background:var(--accent);color:#fff;border:none;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;font-family:var(--fb)">&#128269; Auto-importar do CifraClub</button>';
-h+='<button onclick="importCifraFromUrl(\''+esc(song.id)+'\')" style="padding:10px 20px;background:none;color:var(--accent);border:1px solid var(--accent);border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;font-family:var(--fb)">&#128279; Colar URL</button>';
-h+='<a href="'+esc(searchUrl)+'" target="_blank" style="display:inline-block;padding:10px 20px;background:none;color:var(--text-dim);border:1px solid var(--card-border);border-radius:10px;text-decoration:none;font-size:12px">Abrir CifraClub &#8599;</a>';
-h+='<button onclick="editarCifra(\''+esc(song.id)+'\')" style="padding:10px 20px;background:var(--gold);color:#fff;border:none;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;font-family:var(--fb)">Colar manualmente</button>';
+h+='<a href="'+esc(searchUrl)+'" target="_blank" style="display:inline-block;padding:10px 20px;background:var(--accent);color:#fff;border-radius:10px;text-decoration:none;font-size:13px;font-weight:700">Buscar no CifraClub &#8599;</a>';
+h+='<button onclick="editarCifra(\''+esc(song.id)+'\')" style="padding:10px 20px;background:var(--gold);color:#fff;border:none;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;font-family:var(--fb)">Colar Cifra</button>';
 h+='</div></div>';
-h+='<div id="cifra-import-status" style="display:none;background:var(--accent-glow);border:1px solid rgba(178,34,34,.25);border-radius:8px;padding:10px;font-size:12px;color:var(--accent2);text-align:center;margin-top:10px;font-weight:600"></div>';
 }
 target.innerHTML=h;
 if(body&&body!==target)body.innerHTML=h;
@@ -2794,115 +2788,10 @@ openEdit(songId);
 setTimeout(function(){var el=document.getElementById('edit-cifra');if(el){el.scrollIntoView({behavior:'smooth'});el.focus();}},300);
 }
 
-// ===== CIFRA IMPORT FROM CIFRACLUB =====
-// Browsers block direct fetch of cifraclub.com.br (no CORS) so we route through
-// a public proxy. If unreliable, the user can paste the URL manually.
-var CIFRA_PROXIES=['https://corsproxy.io/?','https://api.allorigins.win/raw?url='];
-function cifraFetchViaProxy(url){
-var attempts=CIFRA_PROXIES.map(function(p){return p+encodeURIComponent(url);});
-function tryNext(i){
-if(i>=attempts.length)return Promise.reject(new Error('Todos os proxies falharam'));
-return fetch(attempts[i]).then(function(r){
-if(!r.ok)throw new Error('HTTP '+r.status);
-return r.text();
-}).catch(function(e){console.log('Proxy',i,'failed:',e.message);return tryNext(i+1);});
-}
-return tryNext(0);
-}
-function cifraExtractFirstResultURL(html){
-try{
-var doc=new DOMParser().parseFromString(html,'text/html');
-var links=doc.querySelectorAll('a[href*="cifraclub.com.br"]');
-var skipFirst=['artistas','generos','pesquisa','contato','dicionario','noticias','cifras-mais-tocadas','top','cursos','rec'];
-for(var i=0;i<links.length;i++){
-var href=links[i].href||'';
-var m=href.match(/cifraclub\.com\.br\/([^\/?#]+)\/([^\/?#]+)\/?$/);
-if(m&&skipFirst.indexOf(m[1])<0)return href;
-}
-}catch(e){}
-return null;
-}
-function cifraExtractFromHTML(html){
-try{
-var doc=new DOMParser().parseFromString(html,'text/html');
-var pre=doc.querySelector('pre.cifra_cnt')||doc.querySelector('#cifra_cnt')||doc.querySelector('pre#cifra')||doc.querySelector('.cifra-pre')||doc.querySelector('pre');
-if(!pre)return null;
-// Use textContent then normalize: <b>chord</b> becomes plain "chord" text
-var t=pre.textContent||'';
-return t.replace(/\r/g,'').trim();
-}catch(e){return null;}
-}
-function cifraExtractTomFromHTML(html){
-try{
-var doc=new DOMParser().parseFromString(html,'text/html');
-// Try common locations
-var selectors=['#cifra_tom','.cifra_tom','[class*="cifra_tom"]','#tom','span.tom','b.tom'];
-for(var i=0;i<selectors.length;i++){
-var el=doc.querySelector(selectors[i]);
-if(el){
-var txt=(el.textContent||'').replace(/^\s*Tom\s*:?\s*/i,'').trim();
-if(/^[A-G][#bm]{0,3}$/.test(txt))return txt;
-}
-}
-// Fallback: regex on raw HTML
-var m=html.match(/Tom\s*:?\s*<[^>]*>\s*([A-G][#bm]{0,3})/i);
-if(m)return m[1];
-}catch(e){}
-return null;
-}
-
-function cifraSetStatus(msg){
-var el=document.getElementById('cifra-import-status');
-if(el){el.textContent=msg||'';el.style.display=msg?'block':'none';}
-}
-function importCifraAuto(songId){
-var song=lyrics.find(function(x){return x.id===songId;});
-if(!song)return;
-if(!authCanEdit()){alert('Sem permissão para editar.');return;}
-if(song.cifra&&song.cifra.trim()&&!confirm('Esta música já tem cifra. Substituir?'))return;
-cifraSetStatus('Procurando "'+song.title+'" no Cifra Club...');
-var searchURL='https://www.cifraclub.com.br/?q='+encodeURIComponent(song.title);
-cifraFetchViaProxy(searchURL).then(function(html){
-var url=cifraExtractFirstResultURL(html);
-if(!url)throw new Error('Nenhum resultado encontrado.');
-cifraSetStatus('Carregando cifra: '+url.replace(/^https?:\/\/(www\.)?cifraclub\.com\.br\//,''));
-return cifraFetchViaProxy(url).then(function(h){return{url:url,html:h};});
-}).then(function(r){
-var cifra=cifraExtractFromHTML(r.html);
-if(!cifra||cifra.length<20)throw new Error('Não consegui extrair a cifra dessa página.');
-var tom=cifraExtractTomFromHTML(r.html);
-song.cifra=cifra;
-if(tom&&!song.tom)song.tom=tom;
-song.updatedAt=Date.now();
-save();
-cifraSetStatus('');
-verCifra(songId);
-}).catch(function(e){
-cifraSetStatus('');
-if(confirm('Auto-importação falhou: '+e.message+'\n\nQuer colar a URL manualmente?'))importCifraFromUrl(songId);
-});
-}
-function importCifraFromUrl(songId){
-var song=lyrics.find(function(x){return x.id===songId;});
-if(!song)return;
-if(!authCanEdit()){alert('Sem permissão para editar.');return;}
-var url=prompt('Cole a URL da cifra no Cifra Club:\n(exemplo: https://www.cifraclub.com.br/morada/grande-e-o-senhor/)');
-if(!url)return;
-url=url.trim();
-if(!/^https?:\/\/(www\.)?cifraclub\.com\.br\//i.test(url)){alert('URL invalida. Tem que ser uma pagina do cifraclub.com.br.');return;}
-cifraSetStatus('Carregando cifra...');
-cifraFetchViaProxy(url).then(function(html){
-var cifra=cifraExtractFromHTML(html);
-if(!cifra||cifra.length<20)throw new Error('Não consegui extrair a cifra dessa pagina.');
-var tom=cifraExtractTomFromHTML(html);
-song.cifra=cifra;
-if(tom&&!song.tom)song.tom=tom;
-song.updatedAt=Date.now();
-save();
-cifraSetStatus('');
-verCifra(songId);
-}).catch(function(e){cifraSetStatus('');alert('Erro: '+e.message);});
-}
+// Cifra auto-import was removed: CifraClub now renders 100% client-side, so
+// no server-side fetch (proxy or Cloud Function with plain fetch) can read the
+// cifra content. The manual workflow (Buscar no CifraClub link + Colar Cifra)
+// remains available.
 // ===== CHAT DO LOUVOR =====
 var chatMessages=[];
 var chatLoaded=false;
