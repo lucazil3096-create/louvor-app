@@ -707,6 +707,12 @@ body.light .aovivo-sub.active{background:rgba(178,34,34,.1);border-color:var(--a
 .profile-info-label{font-size:12px;color:var(--text-dim);text-transform:uppercase;letter-spacing:.5px;font-weight:600}
 .profile-info-value{font-size:14px;color:var(--text);font-weight:500;text-align:right}
 .profile-grupo-switch{width:100%;display:flex;gap:8px;margin-top:4px}
+.lv-topbar-grupos{display:flex;gap:5px;align-items:center}
+.lv-grupo-btn{position:relative;background:rgba(255,255,255,.04);color:var(--text-dim);border:1px solid var(--card-border);border-radius:8px;padding:5px 10px;font-size:11px;font-weight:700;cursor:pointer;font-family:var(--fb);letter-spacing:.3px;transition:all .15s;white-space:nowrap}
+.lv-grupo-btn:hover:not(.active){background:var(--accent-glow);color:var(--accent2);border-color:rgba(178,34,34,.25)}
+.lv-grupo-btn.active{background:var(--accent);color:#fff;border-color:var(--accent);cursor:default}
+.lv-grupo-btn.has-new::after{content:'';position:absolute;top:-3px;right:-3px;width:9px;height:9px;background:var(--danger);border-radius:50%;border:2px solid var(--surface);animation:bell-pulse 1.6s ease-in-out infinite}
+.lv-grupo-badge{background:var(--accent-glow);color:var(--accent2);border:1px solid rgba(178,34,34,.2);border-radius:8px;padding:5px 10px;font-size:11px;font-weight:700;font-family:var(--fb);letter-spacing:.3px}
 .grupo-bell-btn{position:relative;background:var(--card-bg);border:1px solid var(--card-border);color:var(--text);border-radius:10px;padding:5px 10px;font-size:14px;cursor:pointer;font-family:var(--fb);transition:all .15s}
 .grupo-bell-btn:hover{border-color:var(--accent);background:var(--accent-glow)}
 .grupo-bell-btn.has-new::after{content:'';position:absolute;top:1px;right:1px;width:9px;height:9px;background:var(--danger);border-radius:50%;border:2px solid var(--surface);animation:bell-pulse 1.6s ease-in-out infinite}
@@ -1254,7 +1260,7 @@ if(typeof _fbOnReady==='function')_fbOnReady();
 <div class="lv-topbar">
 <div class="lv-topbar-left">
 <span class="lv-topbar-title">Louvor</span>
-<span class="profile-badge" id="ensaio-profile-badge" style="font-size:9px">Grupo</span>
+<div class="lv-topbar-grupos" id="lv-topbar-grupos"></div>
 </div>
 <button onclick="shareEnsaioWhatsApp()" class="lv-round-btn green" title="WhatsApp"><svg viewBox="0 0 24 24" width="15" height="15" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg></button>
 </div>
@@ -1564,6 +1570,7 @@ ensaioData=remoteEns;
 loadEnsaioData(); // normalize/defensive
 try{renderEnsaioList();}catch(e){}
 try{if(typeof grupoUpdateBellUI==='function')grupoUpdateBellUI();}catch(e){}
+try{if(typeof updateLvGruposUI==='function')updateLvGruposUI();}catch(e){}
 }
 }catch(e){console.log('Ensaio sync error',e);}
 }
@@ -5262,12 +5269,15 @@ try{saved=localStorage.getItem(grupoSeenKey(otherKey))||'';}catch(e){}
 if(!saved&&current==='0:0')return false; // both empty, no badge
 return current!==saved;
 }
-function grupoSwitchToOther(){
+function grupoSwitchTo(g){
 if(!currentUser)return;
-grupoMarkSeen(); // mark current view as seen
+g=parseInt(g,10)||0;
+if(g!==0&&g!==1)return;
+if(g===activeViewGrupo)return;
+grupoMarkSeen(); // mark current view as seen first
 syncLyricsToAllData();syncEscalasToAllData();syncChatToAllData();syncTodayToData();
-activeViewGrupo=activeViewGrupo===0?1:0;
-profileData.active=activeViewGrupo;
+activeViewGrupo=g;
+profileData.active=g;
 saveProfiles();
 grupoPersistChoice();
 grupoMarkSeen(); // mark new view as seen too
@@ -5278,7 +5288,24 @@ try{renderChat();}catch(e){}
 try{renderEscala();}catch(e){}
 try{renderEnsaioList();}catch(e){}
 grupoUpdateBellUI();
+updateLvGruposUI();
 lastChatCount=(chatMessages||[]).length;
+}
+function grupoSwitchToOther(){
+if(!currentUser)return;
+grupoSwitchTo(activeViewGrupo===0?1:0);
+}
+function grupoFingerprintForKey(gk){return grupoFingerprint(ensaioData&&ensaioData[gk]);}
+function grupoSeenFor(gk){
+if(!currentUser)return '';
+try{return localStorage.getItem(grupoSeenKey(gk))||'';}catch(e){return '';}
+}
+function grupoHasNewInGroup(gk){
+if(!currentUser)return false;
+var current=grupoFingerprintForKey(gk);
+var saved=grupoSeenFor(gk);
+if(!saved&&current==='0:0')return false;
+return current!==saved;
 }
 function grupoUpdateBellUI(){
 var btn=document.getElementById('btn-grupo-bell');if(!btn)return;
@@ -5290,6 +5317,25 @@ var current=activeViewGrupo===0?name1:name2;
 var other=activeViewGrupo===0?name2:name1;
 btn.title='Voce esta em: '+current+'\nClique para ir para: '+other;
 btn.classList.toggle('has-new',grupoHasNewInOther());
+}
+function updateLvGruposUI(){
+var container=document.getElementById('lv-topbar-grupos');if(!container)return;
+var name1=(profileData.names&&profileData.names[0])||'Louvor';
+var name2=(profileData.names&&profileData.names[1])||'Louvor Jovem';
+var canSwitch=currentUser&&(currentUser.role==='admin'||currentUser.grupo===2);
+if(!canSwitch){
+// Single group user: show only their group as a static badge
+var label=activeViewGrupo===0?name1:name2;
+container.innerHTML='<span class="lv-grupo-badge">'+esc(label)+'</span>';
+return;
+}
+// Ambos / admin: two clickable buttons, inactive shows red dot if has new content
+var hasNew0=grupoHasNewInGroup('g1');
+var hasNew1=grupoHasNewInGroup('g2');
+var h='';
+h+='<button class="lv-grupo-btn'+(activeViewGrupo===0?' active':(hasNew0?' has-new':''))+'" onclick="grupoSwitchTo(0)">'+esc(name1)+'</button>';
+h+='<button class="lv-grupo-btn'+(activeViewGrupo===1?' active':(hasNew1?' has-new':''))+'" onclick="grupoSwitchTo(1)">'+esc(name2)+'</button>';
+container.innerHTML=h;
 }
 
 function authCanEdit(){return currentUser&&(currentUser.role==='admin'||currentUser.role==='lider');}
@@ -5556,8 +5602,11 @@ var n1=document.getElementById('profile-name-1');
 var n2=document.getElementById('profile-name-2');
 if(n1)n1.textContent=profileData.names[0];
 if(n2)n2.textContent=profileData.names[1];
+// Legacy badge (kept for backwards compat if some screen still uses it)
 var badge=document.getElementById('ensaio-profile-badge');
 if(badge)badge.textContent=profileData.names[profileData.active]||'Grupo';
+// New: 2-button group switch on ensaio top bar
+try{if(typeof updateLvGruposUI==='function')updateLvGruposUI();}catch(e){}
 }
 
 function selectProfile(n){
