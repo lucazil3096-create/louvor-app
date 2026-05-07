@@ -1530,7 +1530,8 @@ console.log('Synced/merged: g1='+(lyricsAllData.g1||[]).length+' g2='+(lyricsAll
 if(mergedStr!==remoteStr){
 fbSynced=true;
 fbSaveNow();
-return;
+// Don't return - keep processing other fields (todayList, ensaio, etc.)
+// Otherwise an ensaio update from another device would be skipped here.
 }
 }catch(e){console.log('Parse error:',e);}
 }
