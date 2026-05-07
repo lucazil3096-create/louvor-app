@@ -1523,10 +1523,7 @@ if(data.lyrics){
 try{
 var remoteParsed=JSON.parse(data.lyrics);
 var remoteAll=groupDataFrom(remoteParsed);
-var mergedAll={
-g1:mergeSongLists(lyricsAllData.g1||[],remoteAll.g1||[]),
-g2:mergeSongLists(lyricsAllData.g2||[],remoteAll.g2||[])
-};
+var mergedAll=mergeAllGroupSongLists(lyricsAllData,remoteAll);
 var localStr=JSON.stringify(lyricsAllData);
 var mergedStr=JSON.stringify(mergedAll);
 var remoteStr=JSON.stringify(remoteAll);
@@ -1535,7 +1532,7 @@ lyricsAllData=mergedAll;
 loadLyricsForGroup();
 try{localStorage.setItem(SK,JSON.stringify(lyricsAllData));}catch(e){}
 renderList();
-console.log('Synced/merged: g1='+(lyricsAllData.g1||[]).length+' g2='+(lyricsAllData.g2||[]).length);
+console.log('Synced/merged: '+sumGroupCounts(lyricsAllData)+' songs total');
 }
 if(mergedStr!==remoteStr){
 fbSynced=true;
@@ -1548,12 +1545,11 @@ fbSaveNow();
 if(data.todayList){
 try{
 var remoteData=JSON.parse(data.todayList);
-// Handle both old format (array) and new format (object with g1/g2)
-if(Array.isArray(remoteData)){remoteData={g1:remoteData,g2:[]};}
+// Handle both old format (array) and new format (object with gN keys)
+if(Array.isArray(remoteData)){var legacy=emptyGroupData();legacy.g1=remoteData;remoteData=legacy;}
 if(JSON.stringify(todayAllData)!==JSON.stringify(remoteData)){
 todayAllData=remoteData;
-if(!todayAllData.g1)todayAllData.g1=[];
-if(!todayAllData.g2)todayAllData.g2=[];
+forEachGroupKey(function(k){if(!Array.isArray(todayAllData[k]))todayAllData[k]=[];});
 loadTodayForGroup();
 try{localStorage.setItem(TK,JSON.stringify(todayAllData));}catch(e){}
 renderList();try{updateTodayCount();}catch(e){}
@@ -1690,7 +1686,7 @@ if(!fbSynced){
 console.log('BLOCKED save - waiting for first sync');
 return;
 }
-var totalSongs=(lyricsAllData.g1||[]).length+(lyricsAllData.g2||[]).length;
+var totalSongs=sumGroupCounts(lyricsAllData);
 // SAFETY 2: never overwrite with empty
 if(totalSongs===0){
 console.log('BLOCKED save - empty data');
@@ -1704,17 +1700,14 @@ if(data.lyrics){
 try{
 var existingAll=groupDataFrom(JSON.parse(data.lyrics));
 // Merge local + remote per group
-var mergedAll={
-g1:mergeSongLists(lyricsAllData.g1||[],existingAll.g1||[]),
-g2:mergeSongLists(lyricsAllData.g2||[],existingAll.g2||[])
-};
+var mergedAll=mergeAllGroupSongLists(lyricsAllData,existingAll);
 if(JSON.stringify(mergedAll)!==JSON.stringify(lyricsAllData)){
 lyricsAllData=mergedAll;
 loadLyricsForGroup();
 try{localStorage.setItem(SK,JSON.stringify(lyricsAllData));}catch(e){}
 try{renderList();}catch(e){}
 }
-var totalExisting=(existingAll.g1||[]).length+(existingAll.g2||[]).length;
+var totalExisting=sumGroupCounts(existingAll);
 if(totalExisting>0){fbCreateBackup(totalExisting);}
 }catch(e){}
 }
@@ -1725,7 +1718,7 @@ if(totalExisting>0){fbCreateBackup(totalExisting);}
 var saveData={
 lyrics:JSON.stringify(lyricsAllData),
 todayList:JSON.stringify(todayAllData),
-songCount:(lyricsAllData.g1||[]).length+(lyricsAllData.g2||[]).length,
+songCount:sumGroupCounts(lyricsAllData),
 updatedAt:firebase.firestore.FieldValue.serverTimestamp()
 };
 // Ensaio is no longer pushed via fbSaveNow - it has its own channel
@@ -1733,7 +1726,7 @@ updatedAt:firebase.firestore.FieldValue.serverTimestamp()
 try{var pd=localStorage.getItem('church-profiles-v1');if(pd)saveData.profileData=pd;}catch(e){}
 try{var ud=localStorage.getItem('church-users-local');if(ud)saveData.userData=ud;}catch(e){}
 saveData.escalaData=JSON.stringify(escalasAllData);
-var chatTotal=(chatAllData.g1||[]).length+(chatAllData.g2||[]).length;
+var chatTotal=sumGroupCounts(chatAllData);
 if(chatTotal)saveData.chatData=JSON.stringify(chatAllData);
 ignoreSnapshot=true;
 fbDoc.set(saveData).then(function(){
@@ -1745,14 +1738,14 @@ console.log('Check failed, saving:',e);
 var saveData={
 lyrics:JSON.stringify(lyricsAllData),
 todayList:JSON.stringify(todayAllData),
-songCount:(lyricsAllData.g1||[]).length+(lyricsAllData.g2||[]).length,
+songCount:sumGroupCounts(lyricsAllData),
 updatedAt:firebase.firestore.FieldValue.serverTimestamp()
 };
 // Ensaio not pushed here (separate channel)
 try{var pd=localStorage.getItem('church-profiles-v1');if(pd)saveData.profileData=pd;}catch(e2){}
 try{var ud=localStorage.getItem('church-users-local');if(ud)saveData.userData=ud;}catch(e2){}
 saveData.escalaData=JSON.stringify(escalasAllData);
-var chatTotal2=(chatAllData.g1||[]).length+(chatAllData.g2||[]).length;
+var chatTotal2=sumGroupCounts(chatAllData);
 if(chatTotal2)saveData.chatData=JSON.stringify(chatAllData);
 ignoreSnapshot=true;
 fbDoc.set(saveData).then(function(){
@@ -1789,19 +1782,19 @@ if(!choice||choice==='0')return;
 var idx=parseInt(choice)-1;
 if(idx<0||idx>=items.length){alert('Opção inválida');return;}
 var sel=items[idx];
-var curTotal=(lyricsAllData.g1||[]).length+(lyricsAllData.g2||[]).length;
+var curTotal=sumGroupCounts(lyricsAllData);
 if(!confirm('Restaurar backup de '+sel.count+' músicas?\n\nIsso vai SUBSTITUIR os dados atuais ('+curTotal+' músicas).\n\nTem certeza?'))return;
 try{
 lyricsAllData=groupDataFrom(JSON.parse(sel.lyrics));
 loadLyricsForGroup();
-if(sel.todayList){var rtd=JSON.parse(sel.todayList);if(Array.isArray(rtd)){todayAllData.g1=rtd;}else if(rtd.g1){todayAllData=rtd;}loadTodayForGroup();}
+if(sel.todayList){var rtd=JSON.parse(sel.todayList);if(Array.isArray(rtd)){todayAllData=emptyGroupData();todayAllData.g1=rtd;}else if(rtd&&typeof rtd==='object'){todayAllData=rtd;forEachGroupKey(function(k){if(!Array.isArray(todayAllData[k]))todayAllData[k]=[];});}loadTodayForGroup();}
 if(sel.ensaioData)try{
 ensaioData=ensaioFromRaw(JSON.parse(sel.ensaioData));
 loadEnsaioData();
 saveEnsaioData(); // push to Firebase (now Firebase-only)
 }catch(e){}
 save();saveToday();renderList();
-var newTotal=(lyricsAllData.g1||[]).length+(lyricsAllData.g2||[]).length;
+var newTotal=sumGroupCounts(lyricsAllData);
 alert('✅ Restaurado! '+newTotal+' músicas recuperadas.');
 }catch(e){alert('Erro ao restaurar: '+e.message);}
 }).catch(function(e){alert('Erro ao buscar backups: '+e.message);});
@@ -1816,7 +1809,7 @@ var activeTagFilter='';
 var editSelectedTags=[];
 var ESCALA_KEY='church-escala-v1';
 var escalas=[];
-var todayAllData={g1:[],g2:[]};
+var todayAllData=emptyGroupData();
 var todayList=[],currentTab='all';
 
 function loadTodayForGroup(){
@@ -1832,15 +1825,15 @@ function load(){
 try{var d=localStorage.getItem(SK);
 if(d){var parsedL=JSON.parse(d);lyricsAllData=groupDataFrom(parsedL);}
 var td=localStorage.getItem(TK);
-if(td){todayAllData=JSON.parse(td);if(!todayAllData.g1)todayAllData.g1=[];if(!todayAllData.g2)todayAllData.g2=[];}
+if(td){todayAllData=JSON.parse(td);forEachGroupKey(function(k){if(!Array.isArray(todayAllData[k]))todayAllData[k]=[];});}
 else{
 var oldTd=localStorage.getItem('church-today-v1');
-if(oldTd){todayAllData.g1=JSON.parse(oldTd);todayAllData.g2=[];}
-else{todayAllData={g1:[],g2:[]};}
+if(oldTd){todayAllData=emptyGroupData();todayAllData.g1=JSON.parse(oldTd);}
+else{todayAllData=emptyGroupData();}
 }
 loadLyricsForGroup();
 loadTodayForGroup();
-}catch(e){lyrics=[];lyricsAllData={g1:[],g2:[]};todayAllData={g1:[],g2:[]};todayList=[];}
+}catch(e){lyrics=[];lyricsAllData=emptyGroupData();todayAllData=emptyGroupData();todayList=[];}
 renderList();try{updateTodayCount();}catch(e){}
 }
 
@@ -1848,15 +1841,46 @@ var DEL_KEY='church-deleted-ids';
 function getDeletedIds(){try{return JSON.parse(localStorage.getItem(DEL_KEY)||'[]');}catch(e){return[];}}
 function markDeletedId(id){var a=getDeletedIds();if(a.indexOf(id)<0){a.push(id);try{localStorage.setItem(DEL_KEY,JSON.stringify(a.slice(-200)));}catch(e){}}}
 
+// ===== N-GROUPS SUPPORT =====
+// Groups are stored as object keys: g1, g2, g3, ...
+// profileData.names is an array of group display names.
+// Number of groups = profileData.names.length (always >= 2 for backward compat).
+function getNumGroups(){var n=(profileData&&profileData.names)?profileData.names.length:0;return n<2?2:n;}
+function groupKeys(){var arr=[],n=getNumGroups();for(var i=0;i<n;i++)arr.push('g'+(i+1));return arr;}
+function forEachGroupKey(cb){groupKeys().forEach(cb);}
+function emptyGroupData(){var d={};forEachGroupKey(function(k){d[k]=[];});return d;}
+function sumGroupCounts(obj){var t=0;forEachGroupKey(function(k){if(obj&&Array.isArray(obj[k]))t+=obj[k].length;});return t;}
+function isAmbosUser(){return currentUser&&(currentUser.role==='admin'||currentUser.grupo==='all'||currentUser.grupo===2);}
+
 function groupDataFrom(raw){
-if(Array.isArray(raw))return{g1:raw.slice(),g2:[]};
-if(raw&&typeof raw==='object'){return{g1:Array.isArray(raw.g1)?raw.g1:[],g2:Array.isArray(raw.g2)?raw.g2:[]};}
-return{g1:[],g2:[]};
+// Legacy single-array format -> migrate to g1
+if(Array.isArray(raw)){var d=emptyGroupData();d.g1=raw.slice();return d;}
+if(raw&&typeof raw==='object'){
+var out=emptyGroupData();
+// Copy all keys we know about
+forEachGroupKey(function(k){if(Array.isArray(raw[k]))out[k]=raw[k];});
+// Also preserve any extra group keys present in raw (e.g., remote has more groups)
+Object.keys(raw).forEach(function(k){if(/^g\d+$/.test(k)&&!out[k])out[k]=Array.isArray(raw[k])?raw[k]:[];});
+return out;
+}
+return emptyGroupData();
 }
 
-var lyricsAllData={g1:[],g2:[]};
-var escalasAllData={g1:[],g2:[]};
-var chatAllData={g1:[],g2:[]};
+// Merge song lists across all groups (per-id merge with updatedAt)
+function mergeAllGroupSongLists(local,remote){
+local=local||{};remote=remote||{};
+var allKeys={};
+Object.keys(local).forEach(function(k){if(/^g\d+$/.test(k))allKeys[k]=true;});
+Object.keys(remote).forEach(function(k){if(/^g\d+$/.test(k))allKeys[k]=true;});
+forEachGroupKey(function(k){allKeys[k]=true;});
+var out={};
+Object.keys(allKeys).forEach(function(k){out[k]=mergeSongLists(local[k]||[],remote[k]||[]);});
+return out;
+}
+
+var lyricsAllData=emptyGroupData();
+var escalasAllData=emptyGroupData();
+var chatAllData=emptyGroupData();
 
 function loadLyricsForGroup(){
 var gk=(typeof getMyGrupoKey==='function')?getMyGrupoKey():'g1';
@@ -2433,7 +2457,7 @@ function loadTheme(){try{var t=localStorage.getItem('church-theme');if(t==='ligh
 
 function backupData(){
 syncLyricsToAllData();
-var curTotal=(lyricsAllData.g1||[]).length+(lyricsAllData.g2||[]).length;
+var curTotal=sumGroupCounts(lyricsAllData);
 var choice=prompt('BACKUP / RESTAURAR\n\nDigite:\n1 = Exportar backup (salvar arquivo)\n2 = Importar backup (de arquivo)\n3 = Restaurar backup automático (Firebase)\n\nVocê tem '+curTotal+' música(s)');
 if(choice==='1'){
 var data={lyricsAllData:lyricsAllData,todayList:todayAllData,escalasAllData:escalasAllData,date:new Date().toISOString()};
@@ -2455,13 +2479,13 @@ try{
 var data=JSON.parse(e.target.result);
 var incoming=data.lyricsAllData?groupDataFrom(data.lyricsAllData):(Array.isArray(data.lyrics)?groupDataFrom(data.lyrics):null);
 if(!incoming){alert('❌ Arquivo inválido');return;}
-var inTotal=(incoming.g1||[]).length+(incoming.g2||[]).length;
+var inTotal=sumGroupCounts(incoming);
 if(!confirm('Restaurar '+inTotal+' músicas?\nIsso vai SUBSTITUIR os dados atuais.\n\nContinuar?'))return;
 lyricsAllData=incoming;
 loadLyricsForGroup();
 if(data.todayList){
-if(Array.isArray(data.todayList)){todayAllData.g1=data.todayList;}
-else if(data.todayList.g1){todayAllData=data.todayList;}
+if(Array.isArray(data.todayList)){todayAllData=emptyGroupData();todayAllData.g1=data.todayList;}
+else if(data.todayList&&typeof data.todayList==='object'){todayAllData=data.todayList;forEachGroupKey(function(k){if(!Array.isArray(todayAllData[k]))todayAllData[k]=[];});}
 loadTodayForGroup();
 }
 if(data.escalasAllData){escalasAllData=groupDataFrom(data.escalasAllData);loadEscalasForGroup();}
@@ -3133,7 +3157,7 @@ console.log('Chat limpo (grupo '+_gk+')');
 }
 
 // ===== ESCALA DE MINISTROS - CALENDARIO =====
-function loadEscalas(){try{var d=localStorage.getItem(ESCALA_KEY);if(d){var p=JSON.parse(d);escalasAllData=groupDataFrom(p);}}catch(e){escalasAllData={g1:[],g2:[]};}loadEscalasForGroup();}
+function loadEscalas(){try{var d=localStorage.getItem(ESCALA_KEY);if(d){var p=JSON.parse(d);escalasAllData=groupDataFrom(p);}}catch(e){escalasAllData=emptyGroupData();}loadEscalasForGroup();}
 function saveEscalas(){syncEscalasToAllData();try{localStorage.setItem(ESCALA_KEY,JSON.stringify(escalasAllData));}catch(e){}fbSaveEscala();}
 function fbSaveEscala(){if(typeof db!=='undefined'&&db){try{db.collection('app').doc('data').update({escalaData:JSON.stringify(escalasAllData)});}catch(e){}}}
 
@@ -5054,16 +5078,19 @@ document.getElementById('profile-cargo-display').textContent=roleLabels[currentU
 // Notification toggle state
 if(typeof notifUpdateUI==='function')notifUpdateUI();
 
-// Grupo switch buttons - only for users that participate in BOTH groups (or admin)
+// Grupo switch buttons - only for users that participate in MULTIPLE groups (or admin)
 var switchWrap=document.getElementById('profile-grupo-switch-wrap');
 var switchDiv=document.getElementById('profile-grupo-switch');
 if(switchWrap){
 if(canSwitchGrupo()){
 switchWrap.style.display='block';
-var name1=(profileData.names&&profileData.names[0])||'Louvor';
-var name2=(profileData.names&&profileData.names[1])||'Louvor Jovem';
-var h='<button class="profile-grupo-btn'+(activeViewGrupo===0?' active':'')+'" onclick="profileSwitchGrupo(0)">'+esc(name1)+'</button>';
-h+='<button class="profile-grupo-btn'+(activeViewGrupo===1?' active':'')+'" onclick="profileSwitchGrupo(1)">'+esc(name2)+'</button>';
+var nGroups=getNumGroups();
+var names=(profileData.names||[]);
+var h='';
+for(var i=0;i<nGroups;i++){
+var nm=names[i]||('Grupo '+(i+1));
+h+='<button class="profile-grupo-btn'+(activeViewGrupo===i?' active':'')+'" onclick="profileSwitchGrupo('+i+')">'+esc(nm)+'</button>';
+}
 switchDiv.innerHTML=h;
 }else{
 switchWrap.style.display='none';
@@ -5141,10 +5168,15 @@ badge.innerHTML=icon+' '+esc(currentUser.name);
 // ===== GRUPO HELPERS =====
 var activeViewGrupo=0; // 0=Louvor, 1=Louvor Jovem (the group currently being viewed)
 function getMyGrupo(){return currentUser?currentUser.grupo||0:0;}
-function canSwitchGrupo(){return currentUser&&(currentUser.role==='admin'||currentUser.grupo===2);}
-function getMyGrupoKey(){return activeViewGrupo===0?'g1':'g2';}
+function canSwitchGrupo(){return isAmbosUser();}
+function getMyGrupoKey(){var idx=Math.max(0,Math.min((typeof activeViewGrupo==='number'?activeViewGrupo:0),getNumGroups()-1));return 'g'+(idx+1);}
 function getGrupoName(){var names=['Louvor','Louvor Jovem'];return names[activeViewGrupo]||'Louvor';}
-function getUserGrupoLabel(g){if(g===2)return'Ambos';if(g===1)return'Louvor Jovem';return'Louvor';}
+function getUserGrupoLabel(g){
+if(g==='all'||g===2)return'Ambos';
+var idx=parseInt(g,10);if(isNaN(idx))idx=0;
+var names=(profileData&&profileData.names)||['Louvor','Louvor Jovem'];
+return names[idx]||('Grupo '+(idx+1));
+}
 function funcaoEmoji(f){
 if(!f)return'';
 var s=String(f).toLowerCase();
@@ -5164,13 +5196,22 @@ return'🎵'; // 🎵
 
 function authAfterLogin(){
 authHideScreen();
+// Migrate legacy grupo===2 (Ambos in 2-group world) to 'all'
+if(currentUser.grupo===2)currentUser.grupo='all';
 // Set active view grupo
-if(currentUser.grupo===2){
-// Ambos: restore last selected view from local storage (per-user)
+var nGroups=getNumGroups();
+if(currentUser.grupo==='all'||currentUser.role==='admin'){
+// Ambos / admin: restore last selected view from local storage (per-user)
 var saved=null;
 try{saved=localStorage.getItem('church-ambos-grupo-'+currentUser.name);}catch(e){}
-activeViewGrupo=(saved==='1')?1:0;
-}else activeViewGrupo=currentUser.grupo||0;
+var idx=parseInt(saved,10);
+if(isNaN(idx)||idx<0||idx>=nGroups)idx=0;
+activeViewGrupo=idx;
+}else{
+var g=parseInt(currentUser.grupo,10);if(isNaN(g))g=0;
+if(g<0||g>=nGroups)g=0;
+activeViewGrupo=g;
+}
 profileData.active=activeViewGrupo;
 saveProfiles();
 loadLyricsForGroup();
@@ -5205,7 +5246,7 @@ try{renderEnsaioList();}catch(e){}
 if(d.lyrics){
 try{
 var remoteLA=groupDataFrom(JSON.parse(d.lyrics));
-var mergedL={g1:mergeSongLists(lyricsAllData.g1||[],remoteLA.g1||[]),g2:mergeSongLists(lyricsAllData.g2||[],remoteLA.g2||[])};
+var mergedL=mergeAllGroupSongLists(lyricsAllData,remoteLA);
 if(JSON.stringify(mergedL)!==JSON.stringify(lyricsAllData)){
 lyricsAllData=mergedL;loadLyricsForGroup();
 try{localStorage.setItem(SK,JSON.stringify(lyricsAllData));}catch(e){}
@@ -5245,7 +5286,7 @@ lastChatCount=(chatMessages||[]).length;
 
 // ===== AMBOS: persist last view + new-content bell =====
 function grupoPersistChoice(){
-if(!currentUser||currentUser.grupo!==2)return;
+if(!isAmbosUser())return;
 try{localStorage.setItem('church-ambos-grupo-'+currentUser.name,String(activeViewGrupo));}catch(e){}
 }
 function grupoFingerprint(arr){
@@ -5255,24 +5296,26 @@ return n+':'+maxU;
 }
 function grupoSeenKey(gk){return 'church-grupo-seen-'+(currentUser?currentUser.name:'_')+'-'+gk;}
 function grupoMarkSeen(){
-if(!currentUser||currentUser.grupo!==2)return;
+if(!isAmbosUser())return;
 var gk=getMyGrupoKey();
 var fp=grupoFingerprint(ensaioData&&ensaioData[gk]);
 try{localStorage.setItem(grupoSeenKey(gk),fp);}catch(e){}
 }
 function grupoHasNewInOther(){
-if(!currentUser||currentUser.grupo!==2)return false;
-var otherKey=activeViewGrupo===0?'g2':'g1';
-var current=grupoFingerprint(ensaioData&&ensaioData[otherKey]);
-var saved='';
-try{saved=localStorage.getItem(grupoSeenKey(otherKey))||'';}catch(e){}
-if(!saved&&current==='0:0')return false; // both empty, no badge
-return current!==saved;
+if(!isAmbosUser())return false;
+var myKey=getMyGrupoKey();
+var keys=groupKeys();
+for(var i=0;i<keys.length;i++){
+if(keys[i]===myKey)continue;
+if(grupoHasNewInGroup(keys[i]))return true;
+}
+return false;
 }
 function grupoSwitchTo(g){
 if(!currentUser)return;
-g=parseInt(g,10)||0;
-if(g!==0&&g!==1)return;
+g=parseInt(g,10);if(isNaN(g))g=0;
+var n=getNumGroups();
+if(g<0||g>=n)return;
 if(g===activeViewGrupo)return;
 grupoMarkSeen(); // mark current view as seen first
 syncLyricsToAllData();syncEscalasToAllData();syncChatToAllData();syncTodayToData();
@@ -5309,46 +5352,47 @@ return current!==saved;
 }
 function grupoUpdateBellUI(){
 var btn=document.getElementById('btn-grupo-bell');if(!btn)return;
-if(!currentUser||currentUser.grupo!==2){btn.style.display='none';return;}
+if(!isAmbosUser()){btn.style.display='none';return;}
 btn.style.display='';
-var name1=(profileData.names&&profileData.names[0])||'Louvor';
-var name2=(profileData.names&&profileData.names[1])||'Louvor Jovem';
-var current=activeViewGrupo===0?name1:name2;
-var other=activeViewGrupo===0?name2:name1;
-btn.title='Voce esta em: '+current+'\nClique para ir para: '+other;
+var names=(profileData.names||[]);
+var current=names[activeViewGrupo]||('Grupo '+(activeViewGrupo+1));
+btn.title='Voce esta em: '+current+'\nClique para alternar de grupo';
 btn.classList.toggle('has-new',grupoHasNewInOther());
 }
 var grupoBellTimer=null;
 function updateLvGruposUI(){
 var container=document.getElementById('lv-topbar-grupos');if(!container)return;
-var name1=(profileData.names&&profileData.names[0])||'Louvor';
-var name2=(profileData.names&&profileData.names[1])||'Louvor Jovem';
-var canSwitch=currentUser&&(currentUser.role==='admin'||currentUser.grupo===2);
+var names=(profileData&&profileData.names)||['Louvor','Louvor Jovem'];
+var n=getNumGroups();
+var canSwitch=isAmbosUser();
 if(!canSwitch){
 // Single group user: show only their group as a static badge
-var label=activeViewGrupo===0?name1:name2;
+var label=names[activeViewGrupo]||('Grupo '+(activeViewGrupo+1));
 container.innerHTML='<span class="lv-grupo-badge">'+esc(label)+'</span>';
 return;
 }
-// Ambos / admin: two clickable buttons, inactive shows red dot if has new content
-var hasNew0=grupoHasNewInGroup('g1');
-var hasNew1=grupoHasNewInGroup('g2');
-var showDot0=hasNew0&&activeViewGrupo!==0;
-var showDot1=hasNew1&&activeViewGrupo!==1;
+// Ambos / admin: N clickable buttons, inactive shows red dot if has new content
+var anyDot=false;
 var h='';
-h+='<button class="lv-grupo-btn'+(activeViewGrupo===0?' active':(showDot0?' has-new':''))+'" onclick="grupoSwitchTo(0)">'+esc(name1)+'</button>';
-h+='<button class="lv-grupo-btn'+(activeViewGrupo===1?' active':(showDot1?' has-new':''))+'" onclick="grupoSwitchTo(1)">'+esc(name2)+'</button>';
+for(var i=0;i<n;i++){
+var key='g'+(i+1);
+var nm=names[i]||('Grupo '+(i+1));
+var hasNew=grupoHasNewInGroup(key);
+var showDot=hasNew&&activeViewGrupo!==i;
+if(showDot)anyDot=true;
+h+='<button class="lv-grupo-btn'+(activeViewGrupo===i?' active':(showDot?' has-new':''))+'" onclick="grupoSwitchTo('+i+')">'+esc(nm)+'</button>';
+}
 container.innerHTML=h;
 // Notification = ephemeral. After being visible for a few seconds the user
 // is considered to have "seen" it, and the dot is cleared.
 if(grupoBellTimer){clearTimeout(grupoBellTimer);grupoBellTimer=null;}
-if(showDot0||showDot1){
+if(anyDot){
 grupoBellTimer=setTimeout(function(){
 grupoBellTimer=null;
-if(!currentUser||currentUser.grupo!==2)return;
-// Mark both groups as seen so the dot disappears on next render
-try{localStorage.setItem(grupoSeenKey('g1'),grupoFingerprintForKey('g1'));}catch(e){}
-try{localStorage.setItem(grupoSeenKey('g2'),grupoFingerprintForKey('g2'));}catch(e){}
+if(!isAmbosUser())return;
+forEachGroupKey(function(k){
+try{localStorage.setItem(grupoSeenKey(k),grupoFingerprintForKey(k));}catch(e){}
+});
 updateLvGruposUI();
 try{if(typeof grupoUpdateBellUI==='function')grupoUpdateBellUI();}catch(e){}
 },4000);
@@ -5411,48 +5455,61 @@ authLoadUsers(function(){
 var stats=document.getElementById('admin-stats');
 var total=allUsers.length;
 var lideres=allUsers.filter(function(u){return u.role==='lider';}).length;
-var g1Count=allUsers.filter(function(u){return (u.grupo===0||typeof u.grupo==='undefined')&&u.role!=='admin';}).length;
-var g2Count=allUsers.filter(function(u){return u.grupo===1&&u.role!=='admin';}).length;
-var gBothCount=allUsers.filter(function(u){return u.grupo===2&&u.role!=='admin';}).length;
-var name1=(profileData.names&&profileData.names[0])||'Louvor';
-var name2=(profileData.names&&profileData.names[1])||'Louvor Jovem';
-stats.innerHTML='<div class="admin-stat-item"><div class="admin-stat-num">'+total+'</div><div class="admin-stat-label">Total</div></div>'
-+'<div class="admin-stat-item"><div class="admin-stat-num">'+lideres+'</div><div class="admin-stat-label">Líderes</div></div>'
-+'<div class="admin-stat-item"><div class="admin-stat-num">'+g1Count+'</div><div class="admin-stat-label">'+esc(name1)+'</div></div>'
-+'<div class="admin-stat-item"><div class="admin-stat-num">'+g2Count+'</div><div class="admin-stat-label">'+esc(name2)+'</div></div>'
-+'<div class="admin-stat-item"><div class="admin-stat-num">'+gBothCount+'</div><div class="admin-stat-label">Ambos</div></div>';
+var nGroups=getNumGroups();
+var groupCounts=[];
+for(var gi=0;gi<nGroups;gi++){
+groupCounts.push(allUsers.filter(function(u){return typeof u.grupo==='number'&&u.grupo===gi&&u.role!=='admin';}).length);
+}
+// Backward-compat: grupo=0 includes undefined when in 1st group
+groupCounts[0]+=allUsers.filter(function(u){return typeof u.grupo==='undefined'&&u.role!=='admin';}).length;
+var gBothCount=allUsers.filter(function(u){return (u.grupo==='all'||(u.grupo===2&&nGroups<=2))&&u.role!=='admin';}).length;
+var statsHtml='<div class="admin-stat-item"><div class="admin-stat-num">'+total+'</div><div class="admin-stat-label">Total</div></div>'
++'<div class="admin-stat-item"><div class="admin-stat-num">'+lideres+'</div><div class="admin-stat-label">Líderes</div></div>';
+for(var gi=0;gi<nGroups;gi++){
+var nm=(profileData.names&&profileData.names[gi])||('Grupo '+(gi+1));
+statsHtml+='<div class="admin-stat-item"><div class="admin-stat-num">'+groupCounts[gi]+'</div><div class="admin-stat-label">'+esc(nm)+'</div></div>';
+}
+statsHtml+='<div class="admin-stat-item"><div class="admin-stat-num">'+gBothCount+'</div><div class="admin-stat-label">Ambos</div></div>';
+stats.innerHTML=statsHtml;
 
-// Bucket users by group
-var buckets={admin:[],g0:[],g1:[],g2:[]};
+// Bucket users by group dynamically
+var nGroups=getNumGroups();
+var buckets={admin:[],ambos:[]};
+for(var bi=0;bi<nGroups;bi++)buckets['idx'+bi]=[];
 allUsers.forEach(function(u){
 if(u.role==='admin'){buckets.admin.push(u);return;}
 var g=u.grupo;
-if(typeof g==='undefined'||g===0)buckets.g0.push(u);
-else if(g===1)buckets.g1.push(u);
-else if(g===2)buckets.g2.push(u);
-else buckets.g0.push(u);
+// Backward compat: grupo===2 in 2-group world means Ambos
+if(g==='all'||(g===2&&nGroups<=2))buckets.ambos.push(u);
+else if(typeof g==='number'&&g>=0&&g<nGroups)buckets['idx'+g].push(u);
+else buckets['idx0'].push(u); // fallback to first group
 });
 function sortByName(a,b){return(a.name||'').localeCompare(b.name||'','pt-BR',{sensitivity:'base'});}
-buckets.g0.sort(sortByName);buckets.g1.sort(sortByName);buckets.g2.sort(sortByName);buckets.admin.sort(sortByName);
+Object.keys(buckets).forEach(function(k){buckets[k].sort(sortByName);});
 
-var sections=[
-{key:'g0',name:name1,emoji:'🎵',users:buckets.g0,renamable:true,renameIdx:0},
-{key:'g1',name:name2,emoji:'🎶',users:buckets.g1,renamable:true,renameIdx:1},
-{key:'g2',name:'Ambos os grupos',emoji:'⭐',users:buckets.g2,renamable:false},
-{key:'admin',name:'Administradores',emoji:'👑',users:buckets.admin,renamable:false}
-];
+var groupEmojis=['🎵','🎶','🎤','🎸','🥁','🎻','🎷','🎹'];
+var sections=[];
+for(var i=0;i<nGroups;i++){
+sections.push({key:'idx'+i,name:(profileData.names&&profileData.names[i])||('Grupo '+(i+1)),emoji:groupEmojis[i%groupEmojis.length],users:buckets['idx'+i],renamable:true,renameIdx:i,deletable:nGroups>2});
+}
+sections.push({key:'ambos',name:'Ambos os grupos',emoji:'⭐',users:buckets.ambos,renamable:false});
+sections.push({key:'admin',name:'Administradores',emoji:'👑',users:buckets.admin,renamable:false});
 
 var list=document.getElementById('admin-users-list');
 var h='';
+// Top action: create new group
+h+='<div style="display:flex;justify-content:flex-end;margin-bottom:10px"><button class="admin-action-btn promote" onclick="adminCreateGroup()" style="font-size:12px;padding:8px 14px">+ Criar grupo</button></div>';
 sections.forEach(function(sec){
-// Hide empty Ambos/Admin sections; always show g0 and g1
-if(!sec.users.length&&sec.key!=='g0'&&sec.key!=='g1')return;
+// Hide empty Ambos/Admin sections, but always show the actual groups
+if(!sec.users.length&&sec.key!=='admin'&&sec.key!=='ambos'&&!/^idx[01]$/.test(sec.key))return;
+if(!sec.users.length&&(sec.key==='admin'||sec.key==='ambos'))return;
 h+='<div class="admin-group-section">';
 h+='<div class="admin-group-header">';
 h+='<span class="admin-group-emoji">'+sec.emoji+'</span>';
 h+='<span class="admin-group-name">'+esc(sec.name)+'</span>';
 h+='<span class="admin-group-count">'+sec.users.length+'</span>';
 if(sec.renamable)h+='<button class="admin-group-rename" onclick="adminRenameGroup('+sec.renameIdx+')" title="Renomear grupo">✎</button>';
+if(sec.deletable)h+='<button class="admin-group-rename" onclick="adminDeleteGroup('+sec.renameIdx+')" title="Apagar grupo" style="color:var(--danger)">×</button>';
 h+='</div>';
 if(!sec.users.length){h+='<div class="admin-group-empty">Ninguém aqui ainda</div>';}
 else{sec.users.forEach(function(u){h+=renderAdminUserCard(u);});}
@@ -5501,22 +5558,23 @@ return h;
 function adminChangeGrupo(name){
 var u=allUsers.find(function(x){return x.name===name;});
 if(!u)return;
-var name1=(profileData.names&&profileData.names[0])||'Louvor';
-var name2=(profileData.names&&profileData.names[1])||'Louvor Jovem';
-var current=u.grupo===1?name2:(u.grupo===2?'Ambos':name1);
-var msg='Mover "'+name+'" para qual grupo?\n\n'+
-'1 = '+name1+'\n'+
-'2 = '+name2+'\n'+
-'3 = Ambos os grupos (vê os dois)\n\n'+
-'Atual: '+current;
-var choice=prompt(msg,u.grupo===1?'2':(u.grupo===2?'3':'1'));
+var n=getNumGroups();
+var names=(profileData.names||[]);
+var msgLines=['Mover "'+name+'" para qual grupo?',''];
+for(var i=0;i<n;i++)msgLines.push((i+1)+' = '+(names[i]||('Grupo '+(i+1))));
+msgLines.push((n+1)+' = Ambos (todos os grupos)');
+msgLines.push('');
+msgLines.push('Atual: '+getUserGrupoLabel(u.grupo));
+var defaultChoice='1';
+if(u.grupo==='all'||u.grupo===2)defaultChoice=String(n+1);
+else if(typeof u.grupo==='number'&&u.grupo>=0&&u.grupo<n)defaultChoice=String(u.grupo+1);
+var choice=prompt(msgLines.join('\n'),defaultChoice);
 if(choice===null)return;
-choice=(choice||'').trim();
+choice=parseInt((choice||'').trim(),10);
+if(isNaN(choice)||choice<1||choice>n+1){alert('Opção inválida.');return;}
 var newGrupo;
-if(choice==='1')newGrupo=0;
-else if(choice==='2')newGrupo=1;
-else if(choice==='3')newGrupo=2;
-else{alert('Opção inválida.');return;}
+if(choice===n+1)newGrupo='all';
+else newGrupo=choice-1;
 u.grupo=newGrupo;
 authSaveUsers(function(){
 renderAdminPanel();
@@ -5525,6 +5583,78 @@ currentUser.grupo=newGrupo;
 try{localStorage.setItem(AUTH_KEY,JSON.stringify(currentUser));}catch(e){}
 }
 });
+}
+
+function adminCreateGroup(){
+if(!authCanManage()){alert('Sem permissão.');return;}
+if(!profileData.names)profileData.names=['Louvor','Louvor Jovem'];
+var newName=prompt('Nome do novo grupo:','Grupo '+(profileData.names.length+1));
+if(newName===null)return;
+newName=newName.trim();
+if(!newName){alert('Nome não pode ser vazio.');return;}
+profileData.names.push(newName);
+saveProfiles();
+fbSave(); // sync to Firebase so other users see it
+// Initialize per-group data buckets (so they exist locally)
+var newKey='g'+profileData.names.length;
+if(!Array.isArray(lyricsAllData[newKey]))lyricsAllData[newKey]=[];
+if(!Array.isArray(escalasAllData[newKey]))escalasAllData[newKey]=[];
+if(!Array.isArray(chatAllData[newKey]))chatAllData[newKey]=[];
+if(!Array.isArray(todayAllData[newKey]))todayAllData[newKey]=[];
+if(!Array.isArray(ensaioData[newKey]))ensaioData[newKey]=[];
+renderAdminPanel();
+if(typeof updateLvGruposUI==='function')updateLvGruposUI();
+alert('Grupo "'+newName+'" criado!');
+}
+
+function adminDeleteGroup(idx){
+if(!authCanManage()){alert('Sem permissão.');return;}
+if(!profileData.names||profileData.names.length<=2){alert('Não é possível apagar: precisa ter pelo menos 2 grupos.');return;}
+if(idx<0||idx>=profileData.names.length){alert('Índice inválido.');return;}
+var nm=profileData.names[idx];
+// Count users in this group and content
+var usersInGroup=allUsers.filter(function(u){return typeof u.grupo==='number'&&u.grupo===idx&&u.role!=='admin';}).length;
+var key='g'+(idx+1);
+var contentCount=(lyricsAllData[key]||[]).length+(ensaioData[key]||[]).length+(escalasAllData[key]||[]).length;
+var warn='Apagar grupo "'+nm+'"?\n\n';
+if(usersInGroup)warn+='⚠️ '+usersInGroup+' usuário(s) serão movidos para o primeiro grupo.\n';
+if(contentCount)warn+='⚠️ '+contentCount+' itens (letras + ensaio + escala) serão APAGADOS.\n';
+warn+='\nTem certeza?';
+if(!confirm(warn))return;
+// Move users
+allUsers.forEach(function(u){
+if(typeof u.grupo==='number'){
+if(u.grupo===idx)u.grupo=0; // move to first
+else if(u.grupo>idx)u.grupo=u.grupo-1; // shift down
+}
+});
+// Shift per-group data: remove key idx and renumber
+function shiftDataBucket(obj){
+if(!obj)return;
+var newObj={};
+for(var i=0;i<profileData.names.length;i++){
+var oldKey='g'+(i+1);
+if(i<idx){newObj[oldKey]=obj[oldKey]||[];}
+else if(i>idx){newObj['g'+i]=obj[oldKey]||[];}
+}
+// Replace contents in place (since other code holds references via getMyGrupoKey)
+Object.keys(obj).forEach(function(k){if(/^g\d+$/.test(k))delete obj[k];});
+Object.keys(newObj).forEach(function(k){obj[k]=newObj[k];});
+}
+shiftDataBucket(lyricsAllData);
+shiftDataBucket(escalasAllData);
+shiftDataBucket(chatAllData);
+shiftDataBucket(todayAllData);
+shiftDataBucket(ensaioData);
+// Remove from names
+profileData.names.splice(idx,1);
+saveProfiles();
+authSaveUsers();
+fbSave();
+saveEnsaioData(); // separate channel
+renderAdminPanel();
+if(typeof updateLvGruposUI==='function')updateLvGruposUI();
+alert('Grupo "'+nm+'" apagado.');
 }
 
 function adminRenameGroup(idx){
@@ -5664,7 +5794,7 @@ authInit();
 }
 
 // ===== ENSAIO - YOUTUBE =====
-var ensaioData={g1:[],g2:[]};
+var ensaioData=emptyGroupData();
 var ENK='church-ensaio-v2';
 var ensaioTab='now';
 
@@ -5688,25 +5818,26 @@ if(ru>lu)byId[s.id]=s;
 return Object.keys(byId).map(function(k){return byId[k];});
 }
 function mergeEnsaioAllData(local,remote){
-local=local||{g1:[],g2:[]};remote=remote||{g1:[],g2:[]};
-return{g1:mergeEnsaioLists(local.g1,remote.g1),g2:mergeEnsaioLists(local.g2,remote.g2)};
+local=local||emptyGroupData();remote=remote||emptyGroupData();
+var allKeys={};
+Object.keys(local).forEach(function(k){if(/^g\d+$/.test(k))allKeys[k]=true;});
+Object.keys(remote).forEach(function(k){if(/^g\d+$/.test(k))allKeys[k]=true;});
+forEachGroupKey(function(k){allKeys[k]=true;});
+var out={};
+Object.keys(allKeys).forEach(function(k){out[k]=mergeEnsaioLists(local[k]||[],remote[k]||[]);});
+return out;
 }
-function ensaioFromRaw(raw){
-if(Array.isArray(raw))return{g1:raw.slice(),g2:[]};
-if(raw&&typeof raw==='object'){return{g1:Array.isArray(raw.g1)?raw.g1:[],g2:Array.isArray(raw.g2)?raw.g2:[]};}
-return{g1:[],g2:[]};
-}
+function ensaioFromRaw(raw){return groupDataFrom(raw);}
 
 // Ensaio is now Firebase-only: no localStorage cache, no merge, no tombstones.
 // Source of truth is the Firestore doc app/data, field 'ensaioData'.
 // This eliminates inconsistencies between devices that the merge+tombstone
 // approach was creating (concurrent edits caused infinite ping-pong).
 function loadEnsaioData(){
-// Defensive: ensure both groups have arrays
-if(!ensaioData||typeof ensaioData!=='object')ensaioData={g1:[],g2:[]};
-if(!Array.isArray(ensaioData.g1))ensaioData.g1=[];
-if(!Array.isArray(ensaioData.g2))ensaioData.g2=[];
-[ensaioData.g1,ensaioData.g2].forEach(function(arr){arr.forEach(function(item){if(!item.list)item.list='now';});});
+// Defensive: ensure all groups have arrays
+if(!ensaioData||typeof ensaioData!=='object')ensaioData=emptyGroupData();
+forEachGroupKey(function(k){if(!Array.isArray(ensaioData[k]))ensaioData[k]=[];});
+forEachGroupKey(function(k){(ensaioData[k]||[]).forEach(function(item){if(!item.list)item.list='now';});});
 }
 
 function saveEnsaioData(){
@@ -5728,8 +5859,8 @@ alert('Erro ao salvar no servidor. Tente novamente.');
 
 function loadEnsaioLinks(){loadEnsaioData();}
 
-function getActiveLinks(){return profileData.active===0?ensaioData.g1:ensaioData.g2;}
-function setActiveLinks(links){if(profileData.active===0)ensaioData.g1=links;else ensaioData.g2=links;}
+function getActiveLinks(){var k='g'+((profileData.active||0)+1);if(!Array.isArray(ensaioData[k]))ensaioData[k]=[];return ensaioData[k];}
+function setActiveLinks(links){var k='g'+((profileData.active||0)+1);ensaioData[k]=links;}
 
 function switchEnsaioTab(tab){
 ensaioTab=tab;
