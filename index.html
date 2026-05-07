@@ -5318,6 +5318,7 @@ var other=activeViewGrupo===0?name2:name1;
 btn.title='Voce esta em: '+current+'\nClique para ir para: '+other;
 btn.classList.toggle('has-new',grupoHasNewInOther());
 }
+var grupoBellTimer=null;
 function updateLvGruposUI(){
 var container=document.getElementById('lv-topbar-grupos');if(!container)return;
 var name1=(profileData.names&&profileData.names[0])||'Louvor';
@@ -5332,10 +5333,26 @@ return;
 // Ambos / admin: two clickable buttons, inactive shows red dot if has new content
 var hasNew0=grupoHasNewInGroup('g1');
 var hasNew1=grupoHasNewInGroup('g2');
+var showDot0=hasNew0&&activeViewGrupo!==0;
+var showDot1=hasNew1&&activeViewGrupo!==1;
 var h='';
-h+='<button class="lv-grupo-btn'+(activeViewGrupo===0?' active':(hasNew0?' has-new':''))+'" onclick="grupoSwitchTo(0)">'+esc(name1)+'</button>';
-h+='<button class="lv-grupo-btn'+(activeViewGrupo===1?' active':(hasNew1?' has-new':''))+'" onclick="grupoSwitchTo(1)">'+esc(name2)+'</button>';
+h+='<button class="lv-grupo-btn'+(activeViewGrupo===0?' active':(showDot0?' has-new':''))+'" onclick="grupoSwitchTo(0)">'+esc(name1)+'</button>';
+h+='<button class="lv-grupo-btn'+(activeViewGrupo===1?' active':(showDot1?' has-new':''))+'" onclick="grupoSwitchTo(1)">'+esc(name2)+'</button>';
 container.innerHTML=h;
+// Notification = ephemeral. After being visible for a few seconds the user
+// is considered to have "seen" it, and the dot is cleared.
+if(grupoBellTimer){clearTimeout(grupoBellTimer);grupoBellTimer=null;}
+if(showDot0||showDot1){
+grupoBellTimer=setTimeout(function(){
+grupoBellTimer=null;
+if(!currentUser||currentUser.grupo!==2)return;
+// Mark both groups as seen so the dot disappears on next render
+try{localStorage.setItem(grupoSeenKey('g1'),grupoFingerprintForKey('g1'));}catch(e){}
+try{localStorage.setItem(grupoSeenKey('g2'),grupoFingerprintForKey('g2'));}catch(e){}
+updateLvGruposUI();
+try{if(typeof grupoUpdateBellUI==='function')grupoUpdateBellUI();}catch(e){}
+},4000);
+}
 }
 
 function authCanEdit(){return currentUser&&(currentUser.role==='admin'||currentUser.role==='lider');}
