@@ -1401,8 +1401,10 @@ Mudar Tom da Música (extensão gratuita)
 <div class="profile-info-row"><span class="profile-info-label">Grupo</span><span class="profile-info-value" id="profile-grupo-display">---</span></div>
 <div class="profile-info-row"><span class="profile-info-label">Cargo</span><span class="profile-info-value" id="profile-cargo-display">---</span></div>
 </div>
+<div id="profile-grupo-switch-wrap" style="width:100%;display:none">
 <div style="width:100%;font-size:11px;color:var(--text-dim);text-transform:uppercase;letter-spacing:1px;font-weight:700;margin-top:4px">Trocar Grupo de Louvor</div>
 <div class="profile-grupo-switch" id="profile-grupo-switch"></div>
+</div>
 <div style="width:100%;font-size:11px;color:var(--text-dim);text-transform:uppercase;letter-spacing:1px;font-weight:700;margin-top:12px">Notificações</div>
 <div class="profile-info-card" style="padding:12px 16px">
 <div style="display:flex;align-items:center;justify-content:space-between;gap:12px">
@@ -1549,16 +1551,14 @@ renderList();try{updateTodayCount();}catch(e){}
 }
 if(data.ensaioData){
 try{
-if(typeof loadEnsaioData==='function')loadEnsaioData();
+// Ensaio is Firebase-only: replace local with remote, no merge.
 var remoteEns=ensaioFromRaw(JSON.parse(data.ensaioData));
-var mergedEns=mergeEnsaioAllData(ensaioData,remoteEns);
-var changed=JSON.stringify(mergedEns)!==JSON.stringify(ensaioData);
-ensaioData=mergedEns;
-try{localStorage.setItem('church-ensaio-v2',JSON.stringify(ensaioData));}catch(e){}
-if(changed)try{renderEnsaioList();}catch(e){}
-// If we still have stuff Firebase doesn't, push back
-var pushBack=JSON.stringify(mergedEns)!==JSON.stringify(remoteEns);
-if(pushBack)fbSave();
+var changed=JSON.stringify(remoteEns)!==JSON.stringify(ensaioData);
+if(changed){
+ensaioData=remoteEns;
+loadEnsaioData(); // normalize/defensive
+try{renderEnsaioList();}catch(e){}
+}
 }catch(e){console.log('Ensaio sync error',e);}
 }
 if(data.profileData){
@@ -1705,19 +1705,8 @@ var totalExisting=(existingAll.g1||[]).length+(existingAll.g2||[]).length;
 if(totalExisting>0){fbCreateBackup(totalExisting);}
 }catch(e){}
 }
-// Merge ensaio data (per-id, newer updatedAt wins, respect tombstones)
-if(data.ensaioData){
-try{
-if(typeof loadEnsaioData==='function')loadEnsaioData();
-var remoteEns2=ensaioFromRaw(JSON.parse(data.ensaioData));
-var mergedEns2=mergeEnsaioAllData(ensaioData,remoteEns2);
-if(JSON.stringify(mergedEns2)!==JSON.stringify(ensaioData)){
-ensaioData=mergedEns2;
-try{localStorage.setItem('church-ensaio-v2',JSON.stringify(ensaioData));}catch(e){}
-try{renderEnsaioList();}catch(e){}
-}
-}catch(e){}
-}
+// Ensaio is now saved via its own channel (saveEnsaioData -> fbDoc.update),
+// not as part of fbSaveNow.
 }
 // Now save
 var saveData={
@@ -1726,10 +1715,8 @@ todayList:JSON.stringify(todayAllData),
 songCount:(lyricsAllData.g1||[]).length+(lyricsAllData.g2||[]).length,
 updatedAt:firebase.firestore.FieldValue.serverTimestamp()
 };
-// Only push ensaio if we have data, OR if we explicitly emptied
-// (avoid wiping remote ensaio when local cache hasn't synced yet).
-var ensaioTotal=(ensaioData.g1||[]).length+(ensaioData.g2||[]).length;
-if(ensaioTotal>0)saveData.ensaioData=JSON.stringify(ensaioData);
+// Ensaio is no longer pushed via fbSaveNow - it has its own channel
+// (saveEnsaioData writes directly to fbDoc).
 try{var pd=localStorage.getItem('church-profiles-v1');if(pd)saveData.profileData=pd;}catch(e){}
 try{var ud=localStorage.getItem('church-users-local');if(ud)saveData.userData=ud;}catch(e){}
 saveData.escalaData=JSON.stringify(escalasAllData);
@@ -1748,8 +1735,7 @@ todayList:JSON.stringify(todayAllData),
 songCount:(lyricsAllData.g1||[]).length+(lyricsAllData.g2||[]).length,
 updatedAt:firebase.firestore.FieldValue.serverTimestamp()
 };
-var ensaioTotalF=(ensaioData.g1||[]).length+(ensaioData.g2||[]).length;
-if(ensaioTotalF>0)saveData.ensaioData=JSON.stringify(ensaioData);
+// Ensaio not pushed here (separate channel)
 try{var pd=localStorage.getItem('church-profiles-v1');if(pd)saveData.profileData=pd;}catch(e2){}
 try{var ud=localStorage.getItem('church-users-local');if(ud)saveData.userData=ud;}catch(e2){}
 saveData.escalaData=JSON.stringify(escalasAllData);
@@ -1796,7 +1782,11 @@ try{
 lyricsAllData=groupDataFrom(JSON.parse(sel.lyrics));
 loadLyricsForGroup();
 if(sel.todayList){var rtd=JSON.parse(sel.todayList);if(Array.isArray(rtd)){todayAllData.g1=rtd;}else if(rtd.g1){todayAllData=rtd;}loadTodayForGroup();}
-if(sel.ensaioData)try{localStorage.setItem('church-ensaio-v2',sel.ensaioData);}catch(e){}
+if(sel.ensaioData)try{
+ensaioData=ensaioFromRaw(JSON.parse(sel.ensaioData));
+loadEnsaioData();
+saveEnsaioData(); // push to Firebase (now Firebase-only)
+}catch(e){}
 save();saveToday();renderList();
 var newTotal=(lyricsAllData.g1||[]).length+(lyricsAllData.g2||[]).length;
 alert('✅ Restaurado! '+newTotal+' músicas recuperadas.');
@@ -5051,11 +5041,21 @@ document.getElementById('profile-cargo-display').textContent=roleLabels[currentU
 // Notification toggle state
 if(typeof notifUpdateUI==='function')notifUpdateUI();
 
-// Grupo switch buttons
+// Grupo switch buttons - only for users that participate in BOTH groups (or admin)
+var switchWrap=document.getElementById('profile-grupo-switch-wrap');
 var switchDiv=document.getElementById('profile-grupo-switch');
-var h='<button class="profile-grupo-btn'+(activeViewGrupo===0?' active':'')+'" onclick="profileSwitchGrupo(0)">Louvor</button>';
-h+='<button class="profile-grupo-btn'+(activeViewGrupo===1?' active':'')+'" onclick="profileSwitchGrupo(1)">Louvor Jovem</button>';
+if(switchWrap){
+if(canSwitchGrupo()){
+switchWrap.style.display='block';
+var name1=(profileData.names&&profileData.names[0])||'Louvor';
+var name2=(profileData.names&&profileData.names[1])||'Louvor Jovem';
+var h='<button class="profile-grupo-btn'+(activeViewGrupo===0?' active':'')+'" onclick="profileSwitchGrupo(0)">'+esc(name1)+'</button>';
+h+='<button class="profile-grupo-btn'+(activeViewGrupo===1?' active':'')+'" onclick="profileSwitchGrupo(1)">'+esc(name2)+'</button>';
 switchDiv.innerHTML=h;
+}else{
+switchWrap.style.display='none';
+}
+}
 }
 function closeProfile(){
 document.getElementById('profile-overlay').classList.remove('active');
@@ -5169,10 +5169,9 @@ var d=doc.data();
 if(d.ensaioData){
 try{
 var remoteEns=ensaioFromRaw(JSON.parse(d.ensaioData));
-var merged=mergeEnsaioAllData(ensaioData,remoteEns);
-if(JSON.stringify(merged)!==JSON.stringify(ensaioData)){
-ensaioData=merged;
-try{localStorage.setItem('church-ensaio-v2',JSON.stringify(ensaioData));}catch(e){}
+if(JSON.stringify(remoteEns)!==JSON.stringify(ensaioData)){
+ensaioData=remoteEns;
+loadEnsaioData();
 try{renderEnsaioList();}catch(e){}
 }
 }catch(e){}
@@ -5553,30 +5552,33 @@ if(raw&&typeof raw==='object'){return{g1:Array.isArray(raw.g1)?raw.g1:[],g2:Arra
 return{g1:[],g2:[]};
 }
 
+// Ensaio is now Firebase-only: no localStorage cache, no merge, no tombstones.
+// Source of truth is the Firestore doc app/data, field 'ensaioData'.
+// This eliminates inconsistencies between devices that the merge+tombstone
+// approach was creating (concurrent edits caused infinite ping-pong).
 function loadEnsaioData(){
-try{
-var d=localStorage.getItem(ENK);
-if(d){
-var parsed=JSON.parse(d);
-if(Array.isArray(parsed)){
-// Legacy single-group v2 (was an array) -> migrate into g1
-ensaioData.g1=parsed;ensaioData.g2=[];
-try{localStorage.setItem(ENK,JSON.stringify(ensaioData));}catch(e){}
-}else if(parsed&&typeof parsed==='object'){
-ensaioData.g1=Array.isArray(parsed.g1)?parsed.g1:[];
-ensaioData.g2=Array.isArray(parsed.g2)?parsed.g2:[];
-}
-}
-}catch(e){ensaioData={g1:[],g2:[]};}
-// Migration from old single-group v1 format
-try{var old=localStorage.getItem('church-ensaio-v1');if(old&&!localStorage.getItem('church-ensaio-migrated')){var oldLinks=JSON.parse(old);if(oldLinks.length>0&&ensaioData.g1.length===0){ensaioData.g1=oldLinks;saveEnsaioData();}localStorage.setItem('church-ensaio-migrated','1');}}catch(e){}
-// Ensure all items have a list property
+// Defensive: ensure both groups have arrays
+if(!ensaioData||typeof ensaioData!=='object')ensaioData={g1:[],g2:[]};
+if(!Array.isArray(ensaioData.g1))ensaioData.g1=[];
+if(!Array.isArray(ensaioData.g2))ensaioData.g2=[];
 [ensaioData.g1,ensaioData.g2].forEach(function(arr){arr.forEach(function(item){if(!item.list)item.list='now';});});
 }
 
 function saveEnsaioData(){
-try{localStorage.setItem(ENK,JSON.stringify(ensaioData));}catch(e){}
-fbSave();
+if(typeof db==='undefined'||!db||typeof fbDoc==='undefined'||!fbDoc){
+alert('Sem conexao com o servidor. Conecte a internet para editar o ensaio.');
+return;
+}
+ignoreSnapshot=true;
+fbDoc.update({ensaioData:JSON.stringify(ensaioData)}).then(function(){
+// success - snapshot will echo back, ignored via ignoreSnapshot flag
+}).catch(function(e){
+// fallback: try set with merge in case the doc has missing fields
+fbDoc.set({ensaioData:JSON.stringify(ensaioData)},{merge:true}).catch(function(e2){
+console.error('Save ensaio error:',e2);
+alert('Erro ao salvar no servidor. Tente novamente.');
+});
+});
 }
 
 function loadEnsaioLinks(){loadEnsaioData();}
