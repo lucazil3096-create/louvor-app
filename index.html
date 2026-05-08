@@ -489,6 +489,11 @@ body.light .aovivo-sub.active{background:rgba(178,34,34,.1);border-color:var(--a
 .mt-pads-vol input{width:54px;cursor:pointer}
 .mt-pads-vol label{font-size:9px;color:var(--text-dim);text-transform:uppercase;letter-spacing:.5px;font-weight:700}
 .mt-pads-divider{flex:0 0 auto;width:1px;height:24px;background:var(--card-border);margin:0 2px}
+.mt-pads-pan{flex:0 0 auto;display:flex;align-items:center;gap:3px;padding:0 4px}
+.mt-pads-pan label{font-size:9px;color:var(--text-dim);text-transform:uppercase;letter-spacing:.5px;font-weight:700;margin-right:2px}
+.mt-pad-pan-btn{flex:0 0 auto;width:30px;height:28px;border-radius:7px;border:1px solid var(--card-border);background:var(--card-bg);color:var(--text-dim);font-size:11px;font-weight:700;cursor:pointer;font-family:var(--fb);padding:0;transition:all .15s}
+.mt-pad-pan-btn:active{transform:scale(.92)}
+.mt-pad-pan-btn.active{background:var(--accent-glow);border-color:var(--accent);color:var(--accent2)}
 .mt-pb-row1{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--text);margin-bottom:6px;min-height:16px}
 .mt-pb-close{width:26px;height:26px;border-radius:50%;border:1px solid var(--card-border);background:transparent;color:var(--text-dim);cursor:pointer;font-size:12px;padding:0;flex-shrink:0;transition:all .15s;display:flex;align-items:center;justify-content:center}
 .mt-pb-close:hover{color:var(--danger);border-color:var(--danger);background:rgba(212,86,75,.1)}
@@ -3700,6 +3705,7 @@ Object.keys(padPlaying).forEach(function(id){
 var p=padPlaying[id];
 if(p&&p.pan&&!p.fading&&!p.loading){p.pan.pan.setTargetAtTime(v/100,ctx.currentTime,0.1);}
 });
+try{renderPads();}catch(e){}
 }
 
 function renderMtPadsStrip(){
@@ -3716,6 +3722,11 @@ h+='<button class="'+c+'" onclick="tapTom(\''+t+'\')" title="'+TOM_NAMES[t]+(pl?
 });
 h+='<div class="mt-pads-divider"></div>';
 h+='<div class="mt-pads-vol"><label>Vol</label><input type="range" min="0" max="100" value="'+padVol+'" oninput="setGlobalVol(this.value)"></div>';
+h+='<div class="mt-pads-pan"><label>Pan</label>';
+h+='<button class="mt-pad-pan-btn'+(padPan<=-50?' active':'')+'" onclick="setGlobalPan(-100)" title="Esquerda">L</button>';
+h+='<button class="mt-pad-pan-btn'+(padPan>-50&&padPan<50?' active':'')+'" onclick="setGlobalPan(0)" title="Centro">C</button>';
+h+='<button class="mt-pad-pan-btn'+(padPan>=50?' active':'')+'" onclick="setGlobalPan(100)" title="Direita">R</button>';
+h+='</div>';
 h+='<button class="mt-pads-stop" onclick="stopAllPads()">&#9209; Parar</button>';
 b.innerHTML=h;
 }
