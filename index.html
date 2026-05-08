@@ -474,6 +474,21 @@ body.light .aovivo-sub.active{background:rgba(178,34,34,.1);border-color:var(--a
 #multitrack-area{flex:1;overflow-y:auto;padding:14px}
 .mt-player-bar{flex-shrink:0;background:var(--surface);border-top:1px solid var(--card-border);padding:10px 12px calc(68px + env(safe-area-inset-bottom,0));backdrop-filter:blur(20px)}
 .mt-player-bar:empty{display:none}
+.mt-pads-strip{flex-shrink:0;display:flex;align-items:center;gap:4px;padding:6px 10px;background:var(--surface);border-bottom:1px solid var(--card-border);overflow-x:auto;-webkit-overflow-scrolling:touch}
+.mt-pads-strip::-webkit-scrollbar{height:4px}
+.mt-pads-strip::-webkit-scrollbar-thumb{background:rgba(255,255,255,.1);border-radius:2px}
+.mt-pads-strip .mt-pad-btn{flex:0 0 auto;min-width:42px;height:38px;border-radius:8px;border:1px solid var(--card-border);background:var(--card-bg);color:var(--text-dim);font-family:var(--fd);font-size:14px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .15s;user-select:none;padding:0}
+.mt-pad-btn:active{transform:scale(.92)}
+.mt-pad-btn.has-audio{border-color:rgba(201,169,110,.25);color:var(--gold)}
+.mt-pad-btn.playing{background:rgba(78,201,144,.12);border-color:var(--green);color:var(--green)}
+.mt-pad-btn.fading{opacity:.5}
+.mt-pad-btn.loading{opacity:.6}
+.mt-pads-stop{flex:0 0 auto;height:38px;border-radius:8px;border:1px solid rgba(217,59,59,.3);background:rgba(217,59,59,.08);color:#e35454;font-size:11px;font-weight:700;padding:0 10px;cursor:pointer;font-family:var(--fb);white-space:nowrap}
+.mt-pads-stop:active{background:rgba(217,59,59,.18)}
+.mt-pads-vol{flex:0 0 auto;display:flex;align-items:center;gap:6px;padding:0 6px}
+.mt-pads-vol input{width:54px;cursor:pointer}
+.mt-pads-vol label{font-size:9px;color:var(--text-dim);text-transform:uppercase;letter-spacing:.5px;font-weight:700}
+.mt-pads-divider{flex:0 0 auto;width:1px;height:24px;background:var(--card-border);margin:0 2px}
 .mt-pb-row1{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--text);margin-bottom:6px;min-height:16px}
 .mt-pb-close{width:26px;height:26px;border-radius:50%;border:1px solid var(--card-border);background:transparent;color:var(--text-dim);cursor:pointer;font-size:12px;padding:0;flex-shrink:0;transition:all .15s;display:flex;align-items:center;justify-content:center}
 .mt-pb-close:hover{color:var(--danger);border-color:var(--danger);background:rgba(212,86,75,.1)}
@@ -1374,6 +1389,7 @@ Mudar Tom da Música (extensão gratuita)
 <div class="aovivo-header">
 <div class="subtab-bar"><button class="subtab" data-aovivo-sub="musicas" onclick="switchAoVivoSub('musicas')">Músicas</button><button class="subtab" data-aovivo-sub="pads" onclick="switchAoVivoSub('pads')">Pad e Metrônomo</button><button class="subtab" data-aovivo-sub="cifras" onclick="switchAoVivoSub('cifras')">Cifras</button><button class="subtab active" data-aovivo-sub="multitrack" onclick="switchAoVivoSub('multitrack')">Multitrack</button></div>
 </div>
+<div id="mt-pads-strip" class="mt-pads-strip"></div>
 <div id="multitrack-area"></div>
 <div id="mt-player-bar" class="mt-player-bar"></div>
 </div>
@@ -3686,8 +3702,26 @@ if(p&&p.pan&&!p.fading&&!p.loading){p.pan.pan.setTargetAtTime(v/100,ctx.currentT
 });
 }
 
+function renderMtPadsStrip(){
+var b=document.getElementById('mt-pads-strip');if(!b)return;
+var h='';
+TOMS.forEach(function(t){
+var pl=isPlaying(t),fd=isFading(t),ld=isLoading(t),ha=hasPad(t);
+var c='mt-pad-btn';
+if(pl&&!fd)c+=' playing';
+if(fd)c+=' fading';
+if(ld)c+=' loading';
+if(ha&&!pl&&!ld)c+=' has-audio';
+h+='<button class="'+c+'" onclick="tapTom(\''+t+'\')" title="'+TOM_NAMES[t]+(pl?' (tocando)':'')+'">'+t+'</button>';
+});
+h+='<div class="mt-pads-divider"></div>';
+h+='<div class="mt-pads-vol"><label>Vol</label><input type="range" min="0" max="100" value="'+padVol+'" oninput="setGlobalVol(this.value)"></div>';
+h+='<button class="mt-pads-stop" onclick="stopAllPads()">&#9209; Parar</button>';
+b.innerHTML=h;
+}
 function renderPads(){
-var b=document.getElementById('pads-grid-area');var h='<div class="tom-grid">';
+try{renderMtPadsStrip();}catch(e){}
+var b=document.getElementById('pads-grid-area');if(!b){return;}var h='<div class="tom-grid">';
 TOMS.forEach(function(t){
 var pl=isPlaying(t),fd=isFading(t),ld=isLoading(t),ha=hasPad(t);
 var ds=[];
