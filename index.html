@@ -1518,7 +1518,28 @@ var _gkC=(typeof getMyGrupoKey==='function')?getMyGrupoKey():'g1';
 if(typeof notifCheckChat==='function')notifCheckChat(snapChatAll[_gkC]||[]);
 }catch(e){}
 }
-// Skip data sync if this is our own save echo
+// ENSAIO: always merge — runs even on our own echo snapshots so we never miss
+// remote items (race condition where two devices write within the same window
+// would otherwise cause one device to skip the other's update via ignoreSnapshot).
+// The merge is idempotent: identical local+remote = no-op, no extra renders.
+if(data.ensaioData){
+try{
+var remoteEnsAll=ensaioFromRaw(JSON.parse(data.ensaioData));
+var mergedEnsAll=mergeEnsaioAllData(ensaioData,remoteEnsAll);
+if(JSON.stringify(mergedEnsAll)!==JSON.stringify(ensaioData)){
+ensaioData=mergedEnsAll;
+loadEnsaioData();
+try{renderEnsaioList();}catch(e){}
+try{if(typeof grupoUpdateBellUI==='function')grupoUpdateBellUI();}catch(e){}
+try{if(typeof updateLvGruposUI==='function')updateLvGruposUI();}catch(e){}
+}
+// If our local has items remote doesn't, push back via transactional save
+if(JSON.stringify(mergedEnsAll)!==JSON.stringify(remoteEnsAll)){
+try{saveEnsaioData();}catch(e){}
+}
+}catch(e){console.log('Ensaio sync error',e);}
+}
+// Skip OTHER data sync if this is our own save echo (lyrics/today/etc still use ignoreSnapshot)
 if(ignoreSnapshot){ignoreSnapshot=false;fbSynced=true;return;}
 if(data.lyrics){
 try{
@@ -1557,27 +1578,7 @@ renderList();try{updateTodayCount();}catch(e){}
 }
 }catch(e){}
 }
-if(data.ensaioData){
-try{
-// Merge local with remote (per-id with updatedAt). Without tombstones, so
-// no ping-pong; deletions might "come back" if another device still has it,
-// which is acceptable.
-var remoteEns=ensaioFromRaw(JSON.parse(data.ensaioData));
-var merged=mergeEnsaioAllData(ensaioData,remoteEns);
-var changed=JSON.stringify(merged)!==JSON.stringify(ensaioData);
-if(changed){
-ensaioData=merged;
-loadEnsaioData();
-try{renderEnsaioList();}catch(e){}
-try{if(typeof grupoUpdateBellUI==='function')grupoUpdateBellUI();}catch(e){}
-try{if(typeof updateLvGruposUI==='function')updateLvGruposUI();}catch(e){}
-}
-// If merged differs from remote (we have something extra) -> push back
-if(JSON.stringify(merged)!==JSON.stringify(remoteEns)){
-try{saveEnsaioData();}catch(e){}
-}
-}catch(e){console.log('Ensaio sync error',e);}
-}
+// (ensaioData merge moved above — runs unconditionally to avoid race-condition data loss)
 if(data.profileData){
 // Only sync the group NAMES across users. The 'active' field is which
 // group THIS device is currently viewing - it must stay per-device, otherwise
@@ -6029,24 +6030,52 @@ function ensaioFromRaw(raw){return groupDataFrom(raw);}
 // This eliminates inconsistencies between devices that the merge+tombstone
 // approach was creating (concurrent edits caused infinite ping-pong).
 function loadEnsaioData(){
-// Defensive: ensure all groups have arrays
+// Defensive: ensure all groups have arrays + every item has updatedAt
+// (essential for the merge to resolve cross-device conflicts correctly).
 if(!ensaioData||typeof ensaioData!=='object')ensaioData=emptyGroupData();
 forEachGroupKey(function(k){if(!Array.isArray(ensaioData[k]))ensaioData[k]=[];});
-forEachGroupKey(function(k){(ensaioData[k]||[]).forEach(function(item){if(!item.list)item.list='now';});});
+forEachGroupKey(function(k){(ensaioData[k]||[]).forEach(function(item){
+if(!item.list)item.list='now';
+if(!item.updatedAt)item.updatedAt=item.date||1;
+});});
 }
 
+// Transactional save — reads current Firebase state, merges with local, writes
+// merged result atomically. Eliminates the race where two devices saving within
+// the same window overwrite each other's items.
+var ensaioSaveTimer=null;
 function saveEnsaioData(){
 if(typeof db==='undefined'||!db||typeof fbDoc==='undefined'||!fbDoc){
 alert('Sem conexao com o servidor. Conecte a internet para editar o ensaio.');
 return;
 }
-ignoreSnapshot=true;
-fbDoc.update({ensaioData:JSON.stringify(ensaioData)}).then(function(){
-// success - snapshot will echo back, ignored via ignoreSnapshot flag
+// Coalesce rapid edits (e.g. multiple updates from one user action) into one transaction
+if(ensaioSaveTimer)clearTimeout(ensaioSaveTimer);
+ensaioSaveTimer=setTimeout(_saveEnsaioDataNow,80);
+}
+function _saveEnsaioDataNow(){
+ensaioSaveTimer=null;
+if(typeof db==='undefined'||!db||typeof fbDoc==='undefined'||!fbDoc)return;
+db.runTransaction(function(t){
+return t.get(fbDoc).then(function(doc){
+var remoteEns=(doc.exists&&doc.data().ensaioData)
+?ensaioFromRaw(JSON.parse(doc.data().ensaioData))
+:emptyGroupData();
+var merged=mergeEnsaioAllData(ensaioData,remoteEns);
+ensaioData=merged; // local now matches what we will write
+if(doc.exists){t.update(fbDoc,{ensaioData:JSON.stringify(merged)});}
+else{t.set(fbDoc,{ensaioData:JSON.stringify(merged)},{merge:true});}
+});
+}).then(function(){
+// Re-render in case merge brought in items from other devices
+try{loadEnsaioData();renderEnsaioList();}catch(e){}
+try{if(typeof grupoUpdateBellUI==='function')grupoUpdateBellUI();}catch(e){}
+try{if(typeof updateLvGruposUI==='function')updateLvGruposUI();}catch(e){}
 }).catch(function(e){
-// fallback: try set with merge in case the doc has missing fields
+console.error('Save ensaio transaction error:',e);
+// Fallback: plain set with merge so user changes aren't silently lost
 fbDoc.set({ensaioData:JSON.stringify(ensaioData)},{merge:true}).catch(function(e2){
-console.error('Save ensaio error:',e2);
+console.error('Save ensaio fallback error:',e2);
 alert('Erro ao salvar no servidor. Tente novamente.');
 });
 });
@@ -6146,7 +6175,8 @@ var links=getActiveLinks();
 for(var i=0;i<links.length;i++){if(links[i].id===id)return;}
 var tom=tomSelect?tomSelect.value:'';
 var comment=commentInput?commentInput.value.trim():'';
-var newItem={id:id,name:'Carregando...',tom:tom,comment:comment,date:Date.now(),list:ensaioTab};
+var _now=Date.now();
+var newItem={id:id,name:'Carregando...',tom:tom,comment:comment,date:_now,list:ensaioTab,updatedAt:_now};
 links.push(newItem);
 setActiveLinks(links);
 saveEnsaioData();
@@ -6156,6 +6186,7 @@ if(commentInput)commentInput.value='';
 renderEnsaioList();
 fetchYoutubeTitle(id,function(title){
 newItem.name=title;
+newItem.updatedAt=Date.now();
 saveEnsaioData();
 renderEnsaioList();
 });
@@ -6174,6 +6205,7 @@ var i=NOTAS_CHROMATIC.indexOf(base);
 if(i<0)return;
 i=(i+dir+12)%12;
 item.tom=NOTAS_CHROMATIC[i]+(isMinor?'m':'');
+item.updatedAt=Date.now();
 saveEnsaioData();
 renderEnsaioList();
 }
