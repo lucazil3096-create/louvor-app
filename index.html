@@ -1558,15 +1558,22 @@ renderList();try{updateTodayCount();}catch(e){}
 }
 if(data.ensaioData){
 try{
-// Ensaio is Firebase-only: replace local with remote, no merge.
+// Merge local with remote (per-id with updatedAt). Without tombstones, so
+// no ping-pong; deletions might "come back" if another device still has it,
+// which is acceptable.
 var remoteEns=ensaioFromRaw(JSON.parse(data.ensaioData));
-var changed=JSON.stringify(remoteEns)!==JSON.stringify(ensaioData);
+var merged=mergeEnsaioAllData(ensaioData,remoteEns);
+var changed=JSON.stringify(merged)!==JSON.stringify(ensaioData);
 if(changed){
-ensaioData=remoteEns;
-loadEnsaioData(); // normalize/defensive
+ensaioData=merged;
+loadEnsaioData();
 try{renderEnsaioList();}catch(e){}
 try{if(typeof grupoUpdateBellUI==='function')grupoUpdateBellUI();}catch(e){}
 try{if(typeof updateLvGruposUI==='function')updateLvGruposUI();}catch(e){}
+}
+// If merged differs from remote (we have something extra) -> push back
+if(JSON.stringify(merged)!==JSON.stringify(remoteEns)){
+try{saveEnsaioData();}catch(e){}
 }
 }catch(e){console.log('Ensaio sync error',e);}
 }
@@ -5803,17 +5810,15 @@ var ENS_DEL_KEY='church-ensaio-deleted-v1';
 function getEnsaioDeletedIds(){try{return JSON.parse(localStorage.getItem(ENS_DEL_KEY)||'[]');}catch(e){return[];}}
 function markEnsaioDeleted(id){var a=getEnsaioDeletedIds();if(a.indexOf(id)<0){a.push(id);try{localStorage.setItem(ENS_DEL_KEY,JSON.stringify(a.slice(-200)));}catch(e){}}}
 function mergeEnsaioLists(localList,remoteList){
-var byId={},del=getEnsaioDeletedIds();
+// Merge by id, newer updatedAt wins. NO tombstones (caused infinite ping-pong).
+// Trade-off: a deletion may come back if another device still has the item.
+// User can re-delete; that's acceptable vs. data loss bug.
+var byId={};
 (localList||[]).forEach(function(s){if(s&&s.id)byId[s.id]=s;});
 (remoteList||[]).forEach(function(s){
 if(!s||!s.id)return;
-if(!byId[s.id]){
-if(del.indexOf(s.id)>=0)return; // locally deleted, do not re-add
-byId[s.id]=s;
-}else{
-var lu=byId[s.id].updatedAt||0,ru=s.updatedAt||0;
-if(ru>lu)byId[s.id]=s;
-}
+if(!byId[s.id]){byId[s.id]=s;}
+else{var lu=byId[s.id].updatedAt||0,ru=s.updatedAt||0;if(ru>lu)byId[s.id]=s;}
 });
 return Object.keys(byId).map(function(k){return byId[k];});
 }
@@ -6288,7 +6293,6 @@ if(!confirm('Remover esta música?'))return;
 var links=getActiveLinks();
 var idx=links.findIndex(function(l){return l.id===videoId;});
 if(idx<0)return;
-markEnsaioDeleted(videoId);
 links.splice(idx,1);
 saveEnsaioData();renderEnsaioList();
 }
