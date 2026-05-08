@@ -491,6 +491,7 @@ body.light .aovivo-sub.active{background:rgba(178,34,34,.1);border-color:var(--a
 .mt-pb-btn.play:hover{filter:brightness(1.1);box-shadow:0 2px 10px rgba(178,34,34,.35)}
 .mt-pb-btn.invert.active{background:var(--gold);border-color:var(--gold);color:#000}
 .mt-pb-btn.mute.active{background:var(--accent);border-color:var(--accent);color:#fff}
+.mt-pb-btn.click.active{background:var(--green);border-color:var(--green);color:#0a0a0a}
 .mt-pb-spacer{flex:1}
 .mt-pb-master{display:flex;align-items:center;gap:6px;flex:1;min-width:0;max-width:180px}
 .mt-pb-master label{font-size:9px;color:var(--text-dim);font-weight:700;text-transform:uppercase;letter-spacing:.5px;flex-shrink:0}
@@ -2774,6 +2775,74 @@ if(sub==='multitrack')renderMultitrack();
 
 // ===== CIFRAS =====
 var cifraViewMode='list';
+// --- Chord transposition engine ---
+var CHORD_NOTES_SHARP=['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
+var CHORD_NOTES_FLAT=['C','Db','D','Eb','E','F','Gb','G','Ab','A','Bb','B'];
+var CHORD_NOTE_IDX={C:0,'C#':1,Db:1,D:2,'D#':3,Eb:3,E:4,F:5,'F#':6,Gb:6,G:7,'G#':8,Ab:8,A:9,'A#':10,Bb:10,B:11};
+// Idiomatic accidentals per key index (which spelling makes the cifra read naturally)
+var KEY_PREFERS_FLATS={1:1,3:1,5:1,8:1,10:1}; // Db, Eb, F, Ab, Bb
+var EASY_KEYS_MAJOR=['G','C','D','A','E']; // ranked by guitar friendliness
+var EASY_KEYS_MINOR=['Em','Am','Dm'];
+var CHORD_TOKEN_RE=/^([A-G])([#b]?)([^\/\s]*?)(?:\/([A-G])([#b]?))?$/;
+function chordTransposeToken(tok,semi,useFlats){
+if(!tok)return tok;
+var m=tok.match(CHORD_TOKEN_RE);if(!m)return tok;
+var root=m[1]+(m[2]||''),suffix=m[3]||'',bass=m[4]?m[4]+(m[5]||''):null;
+var idx=CHORD_NOTE_IDX[root];if(idx==null)return tok;
+var ni=((idx+semi)%12+12)%12;
+var pool=useFlats?CHORD_NOTES_FLAT:CHORD_NOTES_SHARP;
+var out=pool[ni]+suffix;
+if(bass){var bi=CHORD_NOTE_IDX[bass];if(bi!=null){var nb=((bi+semi)%12+12)%12;out+='/'+pool[nb];}else out+='/'+bass;}
+return out;
+}
+function chordTransposeLine(line,semi,useFlats){
+if(!semi)return line;
+var re=/\S+/g,m,toks=[];while((m=re.exec(line))!==null)toks.push({t:m[0],s:m.index});
+var out='',col=0;
+for(var i=0;i<toks.length;i++){
+var nt=chordTransposeToken(toks[i].t,semi,useFlats);
+if(col<toks[i].s){out+=new Array(toks[i].s-col+1).join(' ');col=toks[i].s;}
+else if(i>0){out+=' ';col++;}
+out+=nt;col+=nt.length;
+}
+return out;
+}
+function chordTransposeText(text,semi,useFlats){
+if(!text||!semi)return text;
+return text.split('\n').map(function(l){return isChordLine(l)?chordTransposeLine(l,semi,useFlats):l;}).join('\n');
+}
+function chordParseTom(tom){
+if(!tom)return null;
+var t=String(tom).trim();
+var isMinor=/m\b/.test(t)&&!/maj/i.test(t);
+var base=isMinor?t.replace(/m\b.*/,''):t;
+var m=base.match(/^([A-G])([#b]?)/);if(!m)return null;
+var root=m[1]+(m[2]||''),idx=CHORD_NOTE_IDX[root];if(idx==null)return null;
+return{idx:idx,isMinor:isMinor,useFlats:m[2]==='b'};
+}
+function chordEffectiveTom(originalTom,semi){
+var p=chordParseTom(originalTom);if(!p)return originalTom;
+var ni=((p.idx+semi)%12+12)%12;
+var useFlats=KEY_PREFERS_FLATS[ni]?true:false;
+return (useFlats?CHORD_NOTES_FLAT:CHORD_NOTES_SHARP)[ni]+(p.isMinor?'m':'');
+}
+function chordSuggestCapo(originalTom,curSemi){
+// Find easiest playable shape given the current effective key.
+// "Capo" raises pitch — so capo + shape_idx = current sounding idx.
+var p=chordParseTom(originalTom);if(!p)return null;
+var soundingIdx=((p.idx+curSemi)%12+12)%12;
+var keys=p.isMinor?EASY_KEYS_MINOR:EASY_KEYS_MAJOR;
+var best=null;
+for(var i=0;i<keys.length;i++){
+var kp=chordParseTom(keys[i]);if(!kp)continue;
+var capo=((soundingIdx-kp.idx)%12+12)%12;
+if(capo===0||capo>7)continue;
+if(!best||capo<best.capo||(capo===best.capo&&i<best.rank)){
+best={capo:capo,shape:keys[i],rank:i};
+}
+}
+return best;
+}
 function isChordLine(line){
 if(!line||!line.trim())return false;
 var t=line.trim();
@@ -2806,9 +2875,26 @@ var hasCifra=l.cifra&&l.cifra.trim().length>0;
 var badge=hasCifra?'<span style="font-size:10px;background:var(--accent);color:#fff;padding:2px 6px;border-radius:6px">Salva</span>':'<span style="font-size:10px;color:var(--text-dim)">Sem cifra</span>';
 return '<div class="cifra-song-card" onclick="verCifra(\''+esc(l.id)+'\')"><div class="cifra-song-info"><div class="cifra-song-title">'+esc(l.title)+'</div><div class="cifra-song-tom">'+(l.tom?'Tom: '+esc(l.tom)+' &middot; ':'')+badge+'</div></div><div class="cifra-link-icon" style="font-size:13px;color:var(--accent)">'+(hasCifra?'Ver Cifra':'Adicionar')+'</div></div>';
 }
+var cifraViewSongId='';
+var cifraViewSemi=0;
+function cifraTranspose(dir){cifraViewSemi=Math.max(-11,Math.min(11,cifraViewSemi+dir));verCifra(cifraViewSongId);}
+function cifraResetTom(){cifraViewSemi=0;verCifra(cifraViewSongId);}
+function cifraApplyCapo(){
+var song=lyrics.find(function(x){return x.id===cifraViewSongId;});
+if(!song||!song.tom)return;
+var sug=chordSuggestCapo(song.tom,cifraViewSemi);
+if(!sug)return;
+var p=chordParseTom(song.tom);if(!p)return;
+var sp=chordParseTom(sug.shape);if(!sp)return;
+// Make the cifra display in the easy shape key (current semi -> shape_idx - p.idx)
+cifraViewSemi=((sp.idx-p.idx)%12+12)%12;
+if(cifraViewSemi>6)cifraViewSemi-=12; // prefer the nearest direction
+verCifra(cifraViewSongId);
+}
 function verCifra(songId){
 var song=lyrics.find(function(x){return x.id===songId;});
 if(!song)return;
+if(cifraViewSongId!==songId){cifraViewSongId=songId;cifraViewSemi=0;}
 var body=document.getElementById('cifras-body');
 var body2=document.getElementById('aovivo-cifras-body');
 var target=null;
@@ -2818,17 +2904,40 @@ else target=body||body2;
 if(!target)return;
 cifraViewMode='detail';
 var searchUrl='https://www.cifraclub.com.br/?q='+encodeURIComponent(song.title);
+var effTom=song.tom?chordEffectiveTom(song.tom,cifraViewSemi):'';
+var capo=song.tom?chordSuggestCapo(song.tom,cifraViewSemi):null;
 var h='<button class="cifra-back" onclick="cifraViewMode=\'list\';renderCifras()">&#8592; Voltar</button>';
 h+='<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;flex-wrap:wrap;gap:8px">';
 h+='<div><div style="font-family:var(--fd);font-size:15px;text-transform:uppercase;letter-spacing:1px">'+esc(song.title)+'</div>';
-h+='<div style="font-size:11px;color:var(--accent2);margin-top:2px">'+(song.tom?'Tom: '+esc(song.tom):'')+'</div></div>';
-h+='<div style="display:flex;gap:6px">';
+if(song.tom){
+h+='<div style="font-size:11px;color:var(--accent2);margin-top:2px">Tom: '+esc(effTom);
+if(cifraViewSemi!==0)h+=' <span style="opacity:.55">('+esc(song.tom)+(cifraViewSemi>0?' +':' ')+cifraViewSemi+'st)</span>';
+h+='</div>';
+}
+h+='</div>';
+h+='<div style="display:flex;gap:6px;flex-wrap:wrap">';
 h+='<a href="'+esc(searchUrl)+'" target="_blank" style="font-size:11px;color:var(--accent);text-decoration:none;padding:5px 10px;border:1px solid var(--accent);border-radius:8px">Abrir CifraClub &#8599;</a>';
 h+='<button onclick="editarCifra(\''+esc(song.id)+'\')" style="font-size:11px;color:var(--gold);background:none;border:1px solid var(--gold);padding:5px 10px;border-radius:8px;cursor:pointer;font-family:var(--fb)">Editar</button>';
 h+='</div></div>';
+// Transpose toolbar (only if cifra has chords)
 if(song.cifra&&song.cifra.trim()){
-// Render cifra with highlighted chords
-var lines=song.cifra.split('\n');
+var tomLabel=effTom||(cifraViewSemi?(cifraViewSemi>0?'+':'')+cifraViewSemi+'st':'—');
+h+='<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:8px 10px;margin-bottom:10px">';
+h+='<span style="font-size:10px;color:var(--text-dim);text-transform:uppercase;letter-spacing:1px;font-weight:700;margin-right:2px">Transpor</span>';
+h+='<button onclick="cifraTranspose(-1)" style="width:32px;height:32px;border-radius:8px;background:var(--accent-glow);border:1px solid var(--accent);color:var(--accent2);font-size:16px;font-weight:700;cursor:pointer;font-family:var(--fb)">−</button>';
+h+='<div style="min-width:54px;text-align:center;font-family:var(--fd);font-size:18px;color:var(--text);font-weight:700">'+esc(tomLabel)+'</div>';
+h+='<button onclick="cifraTranspose(1)" style="width:32px;height:32px;border-radius:8px;background:var(--accent-glow);border:1px solid var(--accent);color:var(--accent2);font-size:16px;font-weight:700;cursor:pointer;font-family:var(--fb)">+</button>';
+if(cifraViewSemi!==0)h+='<button onclick="cifraResetTom()" style="font-size:10px;color:var(--text-dim);background:none;border:1px solid var(--card-border);padding:5px 9px;border-radius:8px;cursor:pointer;font-family:var(--fb)">Reset</button>';
+if(capo){
+h+='<div style="flex:1;min-width:0"></div>';
+h+='<button onclick="cifraApplyCapo()" title="Aplicar tom mais facil de tocar (com capotraste)" style="font-size:11px;background:var(--gold);color:#1a1a1a;border:none;padding:6px 10px;border-radius:8px;cursor:pointer;font-family:var(--fb);font-weight:700">&#9836; Capo '+capo.capo+' &rarr; '+esc(capo.shape)+'</button>';
+}
+h+='</div>';
+}
+if(song.cifra&&song.cifra.trim()){
+// Render cifra with highlighted chords (transposed if needed)
+var displayCifra=cifraViewSemi?chordTransposeText(song.cifra,cifraViewSemi,KEY_PREFERS_FLATS[(((chordParseTom(song.tom)||{idx:0}).idx)+cifraViewSemi+12)%12]?true:false):song.cifra;
+var lines=displayCifra.split('\n');
 h+='<div style="background:var(--card);padding:14px;border-radius:10px;border:1px solid var(--border);overflow-x:auto;font-family:\'Courier New\',monospace;font-size:13px;line-height:1.7">';
 for(var i=0;i<lines.length;i++){
 var line=lines[i];
@@ -4202,6 +4311,7 @@ mtPeaks=null;
 
 function mtLoadSong(song,autoPlay){
 mtUnloadCurrent();
+mtClickPause();mtClickEnabled=false;
 mtCurrentSongId=song.id;mtCurrentSongName=song.name;
 renderMultitrack();
 var status=document.getElementById('mt-status');
@@ -4336,6 +4446,7 @@ mtTracks.forEach(function(t){mtBuildTrackNodes(t);try{t.source.start(startAt,mtS
 mtPlaying=true;
 mtStartUiLoop();
 mtUpdatePlayBtn();
+if(mtClickEnabled)mtClickStart();
 }
 function mtPause(){
 if(!mtPlaying)return;
@@ -4346,18 +4457,20 @@ if(mtStartOffset>mtDuration)mtStartOffset=0;
 mtTracks.forEach(mtDisposeTrack);
 mtPlaying=false;
 mtStopUiLoop();
+mtClickPause();
 mtUpdatePlayBtn();mtUpdateTime();mtDrawWaveform();
 }
 function mtStop(){
 if(mtPlaying){mtTracks.forEach(mtDisposeTrack);mtPlaying=false;}
 mtStopUiLoop();
+mtClickPause();
 mtStartOffset=0;
 mtUpdatePlayBtn();mtUpdateTime();mtDrawWaveform();
 }
 function mtTogglePlayPause(){if(mtPlaying)mtPause();else mtPlay();}
 function mtSeek(pos){
 var wasPlaying=mtPlaying;
-if(mtPlaying){mtTracks.forEach(mtDisposeTrack);mtPlaying=false;mtStopUiLoop();}
+if(mtPlaying){mtTracks.forEach(mtDisposeTrack);mtPlaying=false;mtStopUiLoop();mtClickPause();}
 mtStartOffset=Math.max(0,Math.min(+pos,mtDuration));
 if(wasPlaying)mtPlay();else{mtUpdatePlayBtn();mtUpdateTime();mtDrawWaveform();}
 }
@@ -4766,6 +4879,10 @@ h+='<button class="mt-pb-btn" onclick="mtStop()" title="Parar">&#9632;</button>'
 h+='<button class="mt-pb-btn" onclick="mtPlayNextStarred()" title="Proxima">&#9197;</button>';
 h+='<button class="mt-pb-btn invert'+(t.inverted?' active':'')+'" id="mt-pb-invert" onclick="mtToggleInvert(0)" title="Inverter L&#8596;R"><span style="font-size:10px;font-weight:700">L&#8596;R</span></button>';
 h+='<button class="mt-pb-btn mute'+(t.muted?' active':'')+'" id="mt-pb-mute" onclick="mtToggleMute(0)" title="Mute"><span style="font-size:11px;font-weight:700">M</span></button>';
+var __mtMeta=mtGetBPM();
+h+='<button class="mt-pb-btn click'+(mtClickEnabled?' active':'')+'" onclick="mtToggleClick()" title="Click track (sincronizado com a musica)"><span style="font-size:10px;font-weight:700;line-height:1">'+(__mtMeta?'&#9836;'+__mtMeta.bpm:'CLICK')+'</span></button>';
+if(__mtMeta)h+='<button class="mt-pb-btn" onclick="mtSetBPMPrompt()" title="Editar BPM" style="font-size:11px">&#9998;</button>';
+if(__mtMeta&&mtPlaying)h+='<button class="mt-pb-btn" onclick="mtSetClickOffsetNow()" title="Marcar primeira batida agora" style="font-size:9px;font-weight:700">TAP</button>';
 h+='<button class="mt-pb-btn" onclick="mtZoomOut()" title="Menos zoom"'+(mtZoom<=1?' disabled':'')+'><span style="font-size:13px;font-weight:700">-</span></button>';
 h+='<button class="mt-pb-btn" onclick="mtZoomReset()" title="Ver tudo" style="font-size:9px;font-weight:700">1:1</button>';
 h+='<button class="mt-pb-btn" onclick="mtZoomIn()" title="Mais zoom"'+(mtZoom>=16?' disabled':'')+'><span style="font-size:13px;font-weight:700">+</span></button>';
@@ -4797,6 +4914,79 @@ h+='</div>';
 bar.innerHTML=h;
 setTimeout(mtDrawWaveform,30);
 }
+
+// ===== MULTITRACK CLICK TRACK (sync metronome) =====
+var mtBPMs={}; // {songId:{bpm,offset,beats}}
+var MT_BPMS_KEY='church-mt-bpms-v1';
+var mtClickEnabled=false;
+var mtClickInterval=null;
+var mtClickNextTime=0;
+var mtClickBeat=0;
+function mtLoadBPMs(){try{var d=localStorage.getItem(MT_BPMS_KEY);if(d)mtBPMs=JSON.parse(d)||{};}catch(e){mtBPMs={};}}
+function mtSaveBPMs(){try{localStorage.setItem(MT_BPMS_KEY,JSON.stringify(mtBPMs));}catch(e){}}
+function mtGetBPM(){return(mtCurrentSongId&&mtBPMs[mtCurrentSongId])||null;}
+function mtSetBPMPrompt(){
+if(!mtCurrentSongId){alert('Carregue uma musica primeiro.');return;}
+var existing=mtGetBPM();
+var bpmStr=prompt('BPM da musica (30 a 300):',(existing&&existing.bpm)||'120');
+if(bpmStr===null)return;
+var bpm=parseInt(bpmStr,10);if(!bpm||bpm<30||bpm>300){alert('BPM invalido.');return;}
+mtBPMs[mtCurrentSongId]={bpm:bpm,offset:(existing&&existing.offset)||0,beats:(existing&&existing.beats)||4};
+mtSaveBPMs();
+renderPlayerBar();
+}
+function mtSetClickOffsetNow(){
+if(!mtCurrentSongId)return;
+var meta=mtGetBPM();if(!meta){mtSetBPMPrompt();return;}
+meta.offset=mtGetCurrentTime();
+mtBPMs[mtCurrentSongId]=meta;
+mtSaveBPMs();
+if(mtClickEnabled&&mtPlaying){mtClickPause();mtClickStart();}
+renderPlayerBar();
+}
+function mtClickStart(){
+var meta=mtGetBPM();if(!meta||!mtPlaying)return;
+var ctx=getCtx();
+var beatLen=60/meta.bpm;
+var beats=meta.beats||4;
+var songTime=mtGetCurrentTime();
+var rel=(songTime-meta.offset)/beatLen;
+var nextIdx=Math.max(0,Math.ceil(rel-0.0001));
+var nextSongTime=meta.offset+nextIdx*beatLen;
+mtClickNextTime=mtStartTime+(nextSongTime-mtStartOffset);
+if(mtClickNextTime<ctx.currentTime+0.02)mtClickNextTime=ctx.currentTime+0.02;
+mtClickBeat=((nextIdx%beats)+beats)%beats;
+if(mtClickInterval)clearTimeout(mtClickInterval);
+mtClickRun();
+}
+function mtClickRun(){
+if(!mtClickEnabled||!mtPlaying){mtClickInterval=null;return;}
+var meta=mtGetBPM();if(!meta){mtClickInterval=null;return;}
+var ctx=getCtx();
+var horizon=ctx.currentTime+0.1;
+var beatLen=60/meta.bpm;
+var beats=meta.beats||4;
+while(mtClickNextTime<horizon){
+var songTimeOfBeat=mtClickNextTime-mtStartTime+mtStartOffset;
+if(songTimeOfBeat>mtDuration)break;
+playClick(mtClickBeat===0,mtClickNextTime);
+mtClickBeat=(mtClickBeat+1)%beats;
+mtClickNextTime+=beatLen;
+}
+mtClickInterval=setTimeout(mtClickRun,25);
+}
+function mtClickPause(){
+if(mtClickInterval){clearTimeout(mtClickInterval);mtClickInterval=null;}
+}
+function mtToggleClick(){
+if(!mtCurrentSongId){alert('Carregue uma musica primeiro.');return;}
+if(!mtGetBPM()){mtSetBPMPrompt();if(!mtGetBPM())return;mtClickEnabled=true;}
+else mtClickEnabled=!mtClickEnabled;
+if(mtClickEnabled&&mtPlaying)mtClickStart();
+else if(!mtClickEnabled)mtClickPause();
+renderPlayerBar();
+}
+mtLoadBPMs();
 // ===== END MULTITRACK =====
 
 loadMetroSettings();
