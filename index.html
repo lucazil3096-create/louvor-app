@@ -6057,15 +6057,35 @@ var ENS_DEL_KEY='church-ensaio-deleted-v1';
 function getEnsaioDeletedIds(){try{return JSON.parse(localStorage.getItem(ENS_DEL_KEY)||'[]');}catch(e){return[];}}
 function markEnsaioDeleted(id){var a=getEnsaioDeletedIds();if(a.indexOf(id)<0){a.push(id);try{localStorage.setItem(ENS_DEL_KEY,JSON.stringify(a.slice(-200)));}catch(e){}}}
 function mergeEnsaioLists(localList,remoteList){
-// Merge by id, newer updatedAt wins. NO tombstones (caused infinite ping-pong).
-// Trade-off: a deletion may come back if another device still has the item.
-// User can re-delete; that's acceptable vs. data loss bug.
+// Tombstone-aware merge: a soft-delete (item.deleted=true) sticks once made
+// and only an EXPLICIT undelete (item.deleted=false written explicitly, with
+// updatedAt > delete time) can revive it. This prevents a concurrent edit on
+// device B (which doesn't touch the `deleted` field) from overriding device A's
+// deletion via a newer updatedAt.
+//
+// Rules:
+// - both deleted (true)        -> newer updatedAt wins (tracks GC timing)
+// - both non-deleted           -> newer updatedAt wins
+// - one deleted, one not:
+//     non-deleted side has `deleted===false` (explicit) AND newer updatedAt
+//       -> non-deleted wins (legitimate undelete)
+//     otherwise
+//       -> deleted side wins (delete is sticky against stale edits)
+function pick(a,b){
+var aDel=a.deleted===true,bDel=b.deleted===true;
+var aExplicitLive=a.deleted===false; // explicit undelete marker
+var bExplicitLive=b.deleted===false;
+var aU=a.updatedAt||0,bU=b.updatedAt||0;
+if(aDel===bDel){return bU>aU?b:a;}
+if(aDel&&!bDel){return(bExplicitLive&&bU>aU)?b:a;}
+return(aExplicitLive&&aU>bU)?a:b;
+}
 var byId={};
 (localList||[]).forEach(function(s){if(s&&s.id)byId[s.id]=s;});
 (remoteList||[]).forEach(function(s){
 if(!s||!s.id)return;
-if(!byId[s.id]){byId[s.id]=s;}
-else{var lu=byId[s.id].updatedAt||0,ru=s.updatedAt||0;if(ru>lu)byId[s.id]=s;}
+if(!byId[s.id]){byId[s.id]=s;return;}
+byId[s.id]=pick(byId[s.id],s);
 });
 return Object.keys(byId).map(function(k){return byId[k];});
 }
