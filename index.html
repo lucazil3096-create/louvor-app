@@ -1689,7 +1689,14 @@ songCount:songCount,
 timestamp:firebase.firestore.FieldValue.serverTimestamp(),
 date:new Date().toISOString()
 };
-try{var ed=localStorage.getItem('church-ensaio-v2');if(ed)backupData.ensaioData=ed;}catch(e){}
+// Ensaio is Firebase-only now (no localStorage). Pull from current in-memory state.
+try{
+if(typeof ensaioData==='object'&&ensaioData){
+backupData.ensaioData=JSON.stringify(ensaioData);
+}else{
+var ed=localStorage.getItem('church-ensaio-v2');if(ed)backupData.ensaioData=ed;
+}
+}catch(e){}
 db.collection('app').doc('data').collection('backups').add(backupData).then(function(){
 console.log('Backup created ('+songCount+' songs)');
 // Clean old backups - keep only last MAX_BACKUPS
