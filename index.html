@@ -6094,6 +6094,15 @@ forEachGroupKey(function(k){(ensaioData[k]||[]).forEach(function(item){
 if(!item.list)item.list='now';
 if(!item.updatedAt)item.updatedAt=item.date||1;
 });});
+// GC: remove tombstones older than 7 days — by then all devices have synced
+// the deletion and we can free the storage. Live items are untouched.
+var gcCutoff=Date.now()-7*24*60*60*1000;
+forEachGroupKey(function(k){
+if(!Array.isArray(ensaioData[k]))return;
+ensaioData[k]=ensaioData[k].filter(function(item){
+return !(item&&item.deleted&&(item.updatedAt||0)<gcCutoff);
+});
+});
 }
 
 // Transactional save — reads current Firebase state, merges with local, writes
@@ -6179,8 +6188,8 @@ renderEnsaioList();
 
 function updateEnsaioCounts(){
 var links=getActiveLinks();
-var nowCount=links.filter(function(l){return l.list==='now';}).length;
-var nextCount=links.filter(function(l){return l.list==='next';}).length;
+var nowCount=links.filter(function(l){return !l.deleted&&l.list==='now';}).length;
+var nextCount=links.filter(function(l){return !l.deleted&&l.list==='next';}).length;
 var cn=document.getElementById('ensaio-count-now');
 var cx=document.getElementById('ensaio-count-next');
 if(cn)cn.textContent=nowCount;
@@ -6246,10 +6255,25 @@ if(!url){return;}
 var id=extractYoutubeId(url);
 if(!id){alert('Link inválido. Cole um link do YouTube.');return;}
 var links=getActiveLinks();
-for(var i=0;i<links.length;i++){if(links[i].id===id)return;}
 var tom=tomSelect?tomSelect.value:'';
 var comment=commentInput?commentInput.value.trim():'';
 var _now=Date.now();
+// If an item with same id exists, undelete + refresh it (handles re-adding a tombstoned item)
+var existing=links.find(function(l){return l.id===id;});
+if(existing){
+if(!existing.deleted)return; // already there, do nothing
+existing.deleted=false;
+existing.list=ensaioTab;
+if(tom)existing.tom=tom;
+if(comment)existing.comment=comment;
+existing.updatedAt=_now;
+saveEnsaioData();
+input.value='';
+if(tomSelect)tomSelect.value='';
+if(commentInput)commentInput.value='';
+renderEnsaioList();
+return;
+}
 var newItem={id:id,name:'Carregando...',tom:tom,comment:comment,date:_now,list:ensaioTab,updatedAt:_now};
 links.push(newItem);
 setActiveLinks(links);
@@ -6287,12 +6311,11 @@ renderEnsaioList();
 function removeEnsaioLink(idx){
 if(!confirm('Remover este link?'))return;
 var links=getActiveLinks();
-var filtered=links.filter(function(l){return l.list===ensaioTab;});
+var filtered=links.filter(function(l){return !l.deleted&&l.list===ensaioTab;});
 var item=filtered[idx];
 if(!item)return;
-var realIdx=links.indexOf(item);
-if(realIdx>=0)links.splice(realIdx,1);
-setActiveLinks(links);
+item.deleted=true;
+item.updatedAt=Date.now();
 saveEnsaioData();
 renderEnsaioList();
 }
@@ -6424,8 +6447,8 @@ updateEnsaioCounts();
 var canEdit=authCanEdit();
 var btnNow=document.getElementById('btn-add-now');if(btnNow)btnNow.style.display=canEdit?'flex':'none';
 var btnNext=document.getElementById('btn-add-next');if(btnNext)btnNext.style.display=canEdit?'flex':'none';
-var nowItems=links.filter(function(l){return l.list==='now';});
-var nextItems=links.filter(function(l){return l.list==='next';});
+var nowItems=links.filter(function(l){return !l.deleted&&l.list==='now';});
+var nextItems=links.filter(function(l){return !l.deleted&&l.list==='next';});
 // Render both lists
 renderEnsaioBlock('now',nowItems);
 renderEnsaioBlock('next',nextItems);
@@ -6510,10 +6533,26 @@ var id=extractYoutubeId(url);
 if(!id){alert('Link inválido. Cole um link do YouTube.');return;}
 ensaioTab=tab;
 var links=getActiveLinks();
-for(var i=0;i<links.length;i++){if(links[i].id===id){alert('Esta musica ja esta na lista.');return;}}
+var existing=links.find(function(l){return l.id===id;});
+if(existing&&!existing.deleted){alert('Esta musica ja esta na lista.');return;}
 var tom=ensaioAddTomSelected[tab]||'';
 var comment=commentInput?commentInput.value.trim():'';
 var now=Date.now();
+if(existing&&existing.deleted){
+// Undelete + refresh
+existing.deleted=false;
+existing.list=tab;
+if(tom)existing.tom=tom;
+if(comment)existing.comment=comment;
+existing.updatedAt=now;
+saveEnsaioData();
+urlInput.value='';
+if(commentInput)commentInput.value='';
+ensaioAddTomSelected[tab]='';
+hideEnsaioAdd(tab);
+renderEnsaioList();
+return;
+}
 var newItem={id:id,name:'Carregando...',tom:tom,comment:comment,date:now,list:tab,updatedAt:now};
 links.push(newItem);
 setActiveLinks(links);
@@ -6587,9 +6626,14 @@ function deleteEnsaioItem(videoId){
 if(!authCanEdit()){alert('Apenas líderes e administradores podem remover músicas.');return;}
 if(!confirm('Remover esta música?'))return;
 var links=getActiveLinks();
-var idx=links.findIndex(function(l){return l.id===videoId;});
-if(idx<0)return;
-links.splice(idx,1);
+var item=links.find(function(l){return l.id===videoId;});
+if(!item)return;
+// Soft delete: mark as deleted with a fresh updatedAt so the merge logic
+// propagates the deletion across devices (whoever has older state will see
+// the newer "deleted=true" win in mergeEnsaioLists). Items get garbage-collected
+// from the data after 7 days in loadEnsaioData.
+item.deleted=true;
+item.updatedAt=Date.now();
 saveEnsaioData();renderEnsaioList();
 }
 // Event delegation for ensaio list
