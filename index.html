@@ -5474,14 +5474,18 @@ if(typeof fbDoc!=='undefined'&&fbDoc){
 fbDoc.get().then(function(doc){
 if(!doc.exists)return;
 var d=doc.data();
-// Pull ensaio
+// Pull ensaio — MERGE (not overwrite) so any unsaved local items aren't lost
 if(d.ensaioData){
 try{
 var remoteEns=ensaioFromRaw(JSON.parse(d.ensaioData));
-if(JSON.stringify(remoteEns)!==JSON.stringify(ensaioData)){
-ensaioData=remoteEns;
+var mergedEns=mergeEnsaioAllData(ensaioData,remoteEns);
+if(JSON.stringify(mergedEns)!==JSON.stringify(ensaioData)){
+ensaioData=mergedEns;
 loadEnsaioData();
 try{renderEnsaioList();}catch(e){}
+}
+if(JSON.stringify(mergedEns)!==JSON.stringify(remoteEns)){
+try{saveEnsaioData();}catch(e){}
 }
 }catch(e){}
 }
@@ -6098,6 +6102,14 @@ return;
 if(ensaioSaveTimer)clearTimeout(ensaioSaveTimer);
 ensaioSaveTimer=setTimeout(_saveEnsaioDataNow,80);
 }
+// Flush pending ensaio save when the page goes background or unloads, so a rapid
+// edit-then-leave (within the 80ms debounce window) doesn't silently get dropped.
+function _flushEnsaioSave(){if(ensaioSaveTimer){clearTimeout(ensaioSaveTimer);ensaioSaveTimer=null;try{_saveEnsaioDataNow();}catch(e){}}}
+try{
+window.addEventListener('beforeunload',_flushEnsaioSave);
+window.addEventListener('pagehide',_flushEnsaioSave);
+document.addEventListener('visibilitychange',function(){if(document.visibilityState==='hidden')_flushEnsaioSave();});
+}catch(e){}
 function _saveEnsaioDataNow(){
 ensaioSaveTimer=null;
 if(typeof db==='undefined'||!db||typeof fbDoc==='undefined'||!fbDoc)return;
@@ -6118,8 +6130,18 @@ try{if(typeof grupoUpdateBellUI==='function')grupoUpdateBellUI();}catch(e){}
 try{if(typeof updateLvGruposUI==='function')updateLvGruposUI();}catch(e){}
 }).catch(function(e){
 console.error('Save ensaio transaction error:',e);
-// Fallback: plain set with merge so user changes aren't silently lost
-fbDoc.set({ensaioData:JSON.stringify(ensaioData)},{merge:true}).catch(function(e2){
+// Fallback: non-atomic read-merge-write so we still preserve remote items
+// when the transaction fails (network blip, contention exceeded).
+fbDoc.get().then(function(doc){
+var remoteEns=(doc.exists&&doc.data().ensaioData)
+?ensaioFromRaw(JSON.parse(doc.data().ensaioData))
+:emptyGroupData();
+var merged=mergeEnsaioAllData(ensaioData,remoteEns);
+ensaioData=merged;
+return fbDoc.set({ensaioData:JSON.stringify(merged)},{merge:true});
+}).then(function(){
+try{loadEnsaioData();renderEnsaioList();}catch(e){}
+}).catch(function(e2){
 console.error('Save ensaio fallback error:',e2);
 alert('Erro ao salvar no servidor. Tente novamente.');
 });
