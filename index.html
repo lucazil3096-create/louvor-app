@@ -1766,7 +1766,7 @@ saveData.escalaData=JSON.stringify(escalasAllData);
 var chatTotal=sumGroupCounts(chatAllData);
 if(chatTotal)saveData.chatData=JSON.stringify(chatAllData);
 ignoreSnapshot=true;
-fbDoc.set(saveData).then(function(){
+fbDoc.set(saveData,{merge:true}).then(function(){
 console.log('Saved OK ('+saveData.songCount+' songs)');
 }).catch(function(e){console.log('Save error:',e);ignoreSnapshot=false;});
 }).catch(function(e){
@@ -1785,7 +1785,7 @@ saveData.escalaData=JSON.stringify(escalasAllData);
 var chatTotal2=sumGroupCounts(chatAllData);
 if(chatTotal2)saveData.chatData=JSON.stringify(chatAllData);
 ignoreSnapshot=true;
-fbDoc.set(saveData).then(function(){
+fbDoc.set(saveData,{merge:true}).then(function(){
 console.log('Saved OK ('+saveData.songCount+' songs)');
 }).catch(function(e2){console.log('Save error:',e2);ignoreSnapshot=false;});
 });
