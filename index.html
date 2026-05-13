@@ -5519,7 +5519,9 @@ syncLyricsToAllData();
 syncEscalasToAllData();
 syncChatToAllData();
 syncTodayToData();
-activeViewGrupo=activeViewGrupo===0?1:0;
+// Cycle through all groups (not just 0 ↔ 1) so N-group setups work correctly
+var n=getNumGroups();
+activeViewGrupo=(activeViewGrupo+1)%n;
 profileData.active=activeViewGrupo;
 saveProfiles();
 grupoPersistChoice();
@@ -5902,13 +5904,34 @@ shiftDataBucket(todayAllData);
 shiftDataBucket(ensaioData);
 // Remove from names
 profileData.names.splice(idx,1);
+// If the active view group was removed or shifted, fix it now
+if(typeof activeViewGrupo==='number'){
+if(activeViewGrupo===idx)activeViewGrupo=0;
+else if(activeViewGrupo>idx)activeViewGrupo=activeViewGrupo-1;
+profileData.active=activeViewGrupo;
+}
+// Reload all per-group globals so they point to the NEW bucket of the active
+// group, not stale references from the pre-shift layout.
+reloadAllGroupVariables();
 saveProfiles();
 authSaveUsers();
 fbSave();
 saveEnsaioData(); // separate channel
 renderAdminPanel();
 if(typeof updateLvGruposUI==='function')updateLvGruposUI();
+try{renderList();renderEnsaioList();renderChat();}catch(e){}
 alert('Grupo "'+nm+'" apagado.');
+}
+
+// Defensive helper: re-binds all per-group globals (lyrics/escalas/chatMessages/
+// todayList) to the current activeViewGrupo's bucket. Call after any operation
+// that changes group structure or shifts buckets, to avoid stale-reference bugs.
+function reloadAllGroupVariables(){
+try{loadLyricsForGroup();}catch(e){}
+try{loadEscalasForGroup();}catch(e){}
+try{loadChatForGroup();}catch(e){}
+try{loadTodayForGroup();}catch(e){}
+try{if(typeof loadEnsaioData==='function')loadEnsaioData();}catch(e){}
 }
 
 function adminRenameGroup(idx){
