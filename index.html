@@ -5152,85 +5152,53 @@ function saveHandle2(id,h){return openDB2().then(function(db){return new Promise
 function getHandle2(id){return openDB2().then(function(db){return new Promise(function(res){var tx=db.transaction(DB_STORE,'readonly');var r=tx.objectStore(DB_STORE).get(id);r.onsuccess=function(){res(r.result||null);};r.onerror=function(){res(null);};});}).catch(function(){return null;});}
 function deleteHandle2(id){return openDB2().then(function(db){return new Promise(function(res){var tx=db.transaction(DB_STORE,'readwrite');tx.objectStore(DB_STORE).delete(id);tx.oncomplete=function(){res();};tx.onerror=function(){res();};});}).catch(function(){});}
 
-// --- SoundTouchJS lazy loader (real pitch shift without tempo change) ---
-function loadSoundTouch(cb){
-if(soundTouchReady){cb();return;}
-soundTouchWaiters.push(cb);
-if(soundTouchLoading)return;
-soundTouchLoading=true;
-var s=document.createElement('script');
-s.src='https://cdn.jsdelivr.net/npm/soundtouchjs@0.2.1/dist/soundtouch.js';
-s.onload=function(){
-soundTouchReady=true;
-soundTouchWaiters.forEach(function(w){try{w();}catch(e){}});
-soundTouchWaiters=[];
-};
-s.onerror=function(){
-soundTouchLoading=false;
-soundTouchWaiters.forEach(function(w){try{w();}catch(e){}});
-soundTouchWaiters=[];
-};
-document.head.appendChild(s);
-}
-
-// Offline pitch shift a single AudioBuffer. Returns a Promise<AudioBuffer>.
-// Uses SoundTouchJS in main thread; for typical 5min track this runs in 1-2s.
+// --- Inline pitch shift via overlap-add granular synthesis (no CDN dependency) ---
+// Time-domain pitch shift that preserves duration. Quality is decent for sustained
+// instruments and vocals; transients (drums) may have slight smearing.
+// Processes in chunks via setTimeout so the UI stays responsive while rendering.
 function pitchShiftBuffer(buffer,semis){
-if(semis===0)return Promise.resolve(buffer);
-return new Promise(function(resolve,reject){
-loadSoundTouch(function(){
-if(!soundTouchReady||typeof soundtouch==='undefined'){reject(new Error('SoundTouch lib not loaded'));return;}
-try{
+if(Math.abs(semis)<0.01)return Promise.resolve(buffer);
+return new Promise(function(resolve){
 var ctx=getCtx();
+var rate=Math.pow(2,semis/12);
 var nCh=buffer.numberOfChannels;
-var sr=buffer.sampleRate;
 var len=buffer.length;
-var st=new soundtouch.SoundTouch(sr);
-st.pitchSemitones=semis;
-st.tempo=1.0;
-st.rate=1.0;
-// Interleaved stereo input
-var inp=new Float32Array(len*2);
-var L=buffer.getChannelData(0);
-var R=nCh>1?buffer.getChannelData(1):L;
-for(var i=0;i<len;i++){inp[i*2]=L[i];inp[i*2+1]=R[i];}
-var src={position:0,extract:function(target,numFrames){
-var available=Math.max(0,Math.min(numFrames,len-src.position));
-for(var k=0;k<available;k++){
-target[k*2]=inp[(src.position+k)*2];
-target[k*2+1]=inp[(src.position+k)*2+1];
+var sr=buffer.sampleRate;
+var grainSize=Math.floor(0.04*sr); // 40ms grain
+var hop=Math.floor(grainSize/4);    // 75% overlap
+if(grainSize<64||hop<16){resolve(buffer);return;}
+var newBuf;
+try{newBuf=ctx.createBuffer(nCh,len,sr);}catch(e){console.error('createBuffer failed',e);resolve(buffer);return;}
+// Hann window
+var win=new Float32Array(grainSize);
+for(var i=0;i<grainSize;i++){win[i]=0.5*(1-Math.cos(2*Math.PI*i/(grainSize-1)));}
+var inps=[],outs=[];
+for(var ch=0;ch<nCh;ch++){inps.push(buffer.getChannelData(ch));outs.push(newBuf.getChannelData(ch));}
+var curCh=0,pos=0;
+var GRAINS_PER_CHUNK=400;
+function step(){
+var done=0;
+while(curCh<nCh&&done<GRAINS_PER_CHUNK){
+if(pos+grainSize>=len){curCh++;pos=0;continue;}
+var inp=inps[curCh],out=outs[curCh];
+for(var i=0;i<grainSize;i++){
+var srcIdx=pos+i*rate;
+if(srcIdx>=len-1)break;
+var sF=srcIdx|0;
+var frac=srcIdx-sF;
+out[pos+i]+=win[i]*((1-frac)*inp[sF]+frac*inp[sF+1]);
 }
-src.position+=available;
-return available;
-}};
-var filter=new soundtouch.SimpleFilter(src,st);
-var BUF=8192;
-var chunk=new Float32Array(BUF*2);
-var outChunks=[];
-var totalFrames=0;
-while(true){
-var got=filter.extract(chunk,BUF);
-if(!got)break;
-var c=new Float32Array(got*2);
-for(var k=0;k<got*2;k++)c[k]=chunk[k];
-outChunks.push({data:c,frames:got});
-totalFrames+=got;
-if(totalFrames>len*4)break; // safety
+pos+=hop;
+done++;
 }
-var newBuf=ctx.createBuffer(2,totalFrames,sr);
-var nL=newBuf.getChannelData(0);
-var nR=newBuf.getChannelData(1);
-var pos=0;
-outChunks.forEach(function(c){
-for(var i=0;i<c.frames;i++){
-nL[pos+i]=c.data[i*2];
-nR[pos+i]=c.data[i*2+1];
-}
-pos+=c.frames;
-});
+if(curCh<nCh){setTimeout(step,0);}
+else{
+// Normalize (Hann at 75% overlap → sum ≈ 1.5)
+for(var c=0;c<nCh;c++){var o=outs[c];for(var i=0;i<len;i++)o[i]/=1.5;}
 resolve(newBuf);
-}catch(e){reject(e);}
-});
+}
+}
+step();
 });
 }
 
