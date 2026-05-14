@@ -5635,13 +5635,8 @@ setMaster:setMaster,
 waveClick:waveClick
 };
 
-// Override old entry points so the existing nav/subtab routing calls the new renderer.
-libLoad();cfgLoad();
-window.renderMultitrack=render;
-window.mtTryAutoLoad=function(){render();return Promise.resolve();};
-
-// Initial render
-try{render();}catch(e){}
+// V2 DISABLED — reverted to V1 (each file in the library folder = one song).
+// V2 code is kept defined for potential future use but not wired to the UI.
 })();
 
 // ===== END MULTITRACK =====
