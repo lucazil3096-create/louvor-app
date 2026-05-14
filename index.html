@@ -520,6 +520,24 @@ body.mt-fullscreen #screen-multitrack{max-width:none!important}
 .mt-add-song-btn:active{transform:scale(.96)}
 .mt-mixer-toggle{width:100%;margin-top:10px;padding:8px 14px;background:transparent;border:1px dashed var(--card-border);border-radius:8px;color:var(--text-dim);font-family:var(--fb);font-size:12px;font-weight:700;cursor:pointer;letter-spacing:.5px;transition:all .15s}
 .mt-mixer-toggle:hover{background:var(--card-bg);color:var(--text);border-color:var(--accent)}
+/* Markers strip */
+.mtv2-markers{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px;padding:8px;background:var(--card-bg);border:1px solid var(--card-border);border-radius:8px}
+.mtv2-marker-add{flex:0 0 auto;padding:5px 12px;background:rgba(78,201,144,.15);border:1px solid rgba(78,201,144,.3);color:var(--green);border-radius:7px;font-family:var(--fb);font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap}
+.mtv2-marker-add:hover{background:rgba(78,201,144,.25)}
+.mtv2-marker{display:inline-flex;align-items:center;gap:4px;padding:3px 6px;border-radius:7px;border:1px solid var(--card-border);background:var(--surface)}
+.mtv2-marker-dot{width:14px;height:14px;border-radius:50%;border:none;cursor:pointer;padding:0;flex:0 0 auto}
+.mtv2-marker-key{display:inline-block;min-width:16px;text-align:center;padding:1px 5px;border-radius:4px;font-size:10px;font-weight:700;font-family:var(--fb)}
+.mtv2-marker-label{font-size:12px;font-weight:700;color:var(--text);cursor:pointer;padding:2px 4px;font-family:var(--fb);white-space:nowrap}
+.mtv2-marker-label:hover{text-decoration:underline}
+.mtv2-marker-btn{width:22px;height:22px;border-radius:5px;border:1px solid var(--card-border);background:transparent;color:var(--text-dim);font-size:11px;cursor:pointer;padding:0;display:flex;align-items:center;justify-content:center}
+.mtv2-marker-btn:hover{background:var(--card-bg);color:var(--text)}
+.mtv2-marker-btn.del:hover{background:rgba(217,59,59,.15);color:#e35454;border-color:rgba(217,59,59,.3)}
+@media(min-width:768px){
+.mtv2-markers{padding:10px 12px;gap:8px}
+.mtv2-marker-add{padding:7px 14px;font-size:12px}
+.mtv2-marker-label{font-size:13px}
+.mtv2-marker-btn{width:26px;height:26px}
+}
 .mt-pads-strip{flex-shrink:0;display:flex;align-items:center;gap:4px;padding:6px 10px;background:var(--surface);border-bottom:1px solid var(--card-border);overflow-x:auto;-webkit-overflow-scrolling:touch}
 .mt-pads-strip::-webkit-scrollbar{height:4px}
 .mt-pads-strip::-webkit-scrollbar-thumb{background:rgba(255,255,255,.1);border-radius:2px}
@@ -5476,6 +5494,21 @@ var c=canvas.getContext('2d');c.scale(dpr,dpr);
 c.clearRect(0,0,w,h);
 var n=peaks.length,bw=w/n;
 for(var i=0;i<n;i++){var ph=peaks[i]*h*0.85;c.fillStyle='#888';c.fillRect(i*bw,(h-ph)/2,Math.max(1,bw*0.7),ph);}
+// Marker lines (vertical) — colored, with small label flag at top
+if(duration>0&&current){
+var markers=getMarkers();
+markers.forEach(function(m){
+var px=(m.time/duration)*w;
+c.fillStyle=(m.color||'#c9a96e')+'cc';
+c.fillRect(px,0,2,h);
+// flag at top with label
+c.font='10px sans-serif';
+c.fillStyle=m.color||'#c9a96e';
+var lbl=m.label.length>10?m.label.slice(0,10)+'…':m.label;
+c.fillText(lbl,px+3,11);
+});
+}
+// Playhead
 var t=getCurTime();
 if(duration>0){var px=(t/duration)*w;c.fillStyle='#c9a96e';c.fillRect(px-1,0,2,h);}
 }
@@ -5529,6 +5562,21 @@ if(semitones!==0)h+='<button class="mt-pb-btn" onclick="window.mtV2.setSemis(0)"
 h+='</div>';
 h+='<div class="mt-pb-spacer"></div>';
 h+='<div class="mt-pb-master"><label>Master</label><input type="range" min="0" max="100" value="'+masterVol+'" oninput="window.mtV2.setMaster(this.value)"><span id="mtv2-master-val">'+masterVol+'</span>%</div>';
+h+='</div>';
+// Markers strip — click to jump, pencil to edit, X to remove, color dot to change color
+var markers=getMarkers();
+h+='<div class="mtv2-markers">';
+h+='<button class="mtv2-marker-add" onclick="window.mtV2.addMarker()" title="Adicionar marcador na posição atual">&#10133; Marcador</button>';
+markers.forEach(function(m,idx){
+var col=m.color||'#c9a96e';
+h+='<div class="mtv2-marker" style="border-color:'+col+'40;background:'+col+'18">';
+h+='<button class="mtv2-marker-dot" onclick="window.mtV2.pickColor('+idx+')" style="background:'+col+'" title="Trocar cor"></button>';
+if(m.key)h+='<span class="mtv2-marker-key" style="background:'+col+';color:#1a1a1a">'+esc2(m.key.toUpperCase())+'</span>';
+h+='<span class="mtv2-marker-label" onclick="window.mtV2.jumpMarker('+idx+')" title="'+fmt(m.time)+' — clique para pular">'+esc2(m.label)+'</span>';
+h+='<button class="mtv2-marker-btn" onclick="window.mtV2.editMarker('+idx+')" title="Editar">&#9998;</button>';
+h+='<button class="mtv2-marker-btn del" onclick="window.mtV2.removeMarker('+idx+')" title="Remover">&#10005;</button>';
+h+='</div>';
+});
 h+='</div>';
 // Collapsible mixer — hidden by default for the clean master view
 var nTracks=current.tracks.length;
@@ -5591,6 +5639,59 @@ for(var i=0;i<markers.length;i++){if(markers[i].key&&markers[i].key===pressed){e
 
 function toggleMixer(){mixerOpen=!mixerOpen;try{localStorage.setItem('church-mt-mixer-open',mixerOpen?'1':'0');}catch(e){}renderPlayer();}
 
+// --- Markers (reuse storage from V1: mtMarkersAll, MT_MARKERS_KEY, MT_MARKER_COLORS) ---
+function getMarkers(){return(current&&mtMarkersAll[current.id])||[];}
+function saveMarkers(){try{localStorage.setItem(MT_MARKERS_KEY,JSON.stringify(mtMarkersAll));}catch(e){}}
+function addMarker(){
+if(!current){alert('Abra uma música primeiro.');return;}
+var time=getCurTime();
+var markers=mtMarkersAll[current.id]||[];
+var label=prompt('Nome do marcador (ex: Intro, Refrão, Solo):','Marcador '+(markers.length+1));
+if(!label||!label.trim())return;
+label=label.trim();
+var key=prompt('Atalho de teclado (1 tecla — ex: 1, 2, r, s — vazio pra nenhum):','');
+key=(key||'').trim().slice(0,1).toLowerCase();
+var color=MT_MARKER_COLORS[markers.length%MT_MARKER_COLORS.length];
+markers.push({label:label,time:time,key:key,color:color});
+markers.sort(function(a,b){return a.time-b.time;});
+mtMarkersAll[current.id]=markers;
+saveMarkers();
+renderPlayer();
+}
+function removeMarker(idx){
+if(!current)return;
+var markers=mtMarkersAll[current.id];if(!markers||!markers[idx])return;
+if(!confirm('Remover marcador "'+markers[idx].label+'"?'))return;
+markers.splice(idx,1);
+if(!markers.length)delete mtMarkersAll[current.id];
+saveMarkers();renderPlayer();
+}
+function editMarker(idx){
+if(!current)return;
+var markers=mtMarkersAll[current.id];if(!markers||!markers[idx])return;
+var m=markers[idx];
+var newLabel=prompt('Nome:',m.label);
+if(newLabel===null)return;
+newLabel=newLabel.trim();if(!newLabel)return;
+var newKey=prompt('Atalho (1 tecla — vazio pra tirar):',m.key||'');
+if(newKey===null)return;
+m.label=newLabel;
+m.key=(newKey||'').trim().slice(0,1).toLowerCase();
+saveMarkers();renderPlayer();
+}
+function pickMarkerColor(idx){
+var markers=getMarkers();if(!markers[idx])return;
+var input=document.createElement('input');
+input.type='color';input.value=markers[idx].color||'#c9a96e';
+input.style.position='fixed';input.style.left='-9999px';
+document.body.appendChild(input);
+input.addEventListener('input',function(){markers[idx].color=input.value;saveMarkers();renderPlayer();});
+input.addEventListener('change',function(){setTimeout(function(){if(input.parentNode)input.parentNode.removeChild(input);},100);});
+input.click();
+setTimeout(function(){if(input.parentNode)input.parentNode.removeChild(input);},30000);
+}
+function jumpToMarker(idx){var markers=getMarkers();if(!markers[idx])return;seek(markers[idx].time);}
+
 // --- Public API ---
 window.mtV2={
 add:addSongPrompt,
@@ -5605,6 +5706,11 @@ stop:stop,
 setVol:setTrackVol,
 setPan:setTrackPan,
 toggleMixer:toggleMixer,
+addMarker:addMarker,
+removeMarker:removeMarker,
+editMarker:editMarker,
+jumpMarker:jumpToMarker,
+pickColor:pickMarkerColor,
 mute:toggleMute,
 solo:toggleSolo,
 setSemis:setSemitones,
