@@ -1551,7 +1551,7 @@ star:'<svg class="ico ico-sm" viewBox="0 0 24 24"><path d="M12 2L15.09 8.26 22 9
 // Polyfill for older Safari
 if(!Element.prototype.closest){Element.prototype.closest=function(s){var el=this;do{if(el.matches(s))return el;el=el.parentElement||el.parentNode;}while(el!==null&&el.nodeType===1);return null;};}
 // Firebase config
-var db=null,fbDoc=null,saveTimer=null,fbReady=false,fbSynced=false,ignoreSnapshot=false;
+var db=null,fbDoc=null,ensaioRef=null,saveTimer=null,fbReady=false,fbSynced=false,ignoreSnapshot=false;
 var MAX_BACKUPS=20; // Keep last 20 versions
 
 function connectFirebase(){
@@ -1568,8 +1568,13 @@ appId:"1:599364196472:web:3fecfe67cfa7f38c81758d"
 });
 db=firebase.firestore();
 fbDoc=db.collection('app').doc('data');
+// ensaio storage moved to a subcollection doc — survives any destructive set()
+// on the parent app/data doc (Firestore subcollections are independent of parent fields)
+ensaioRef=fbDoc.collection('ensaio').doc('_main');
 console.log('Firebase connected!');
 startFirebaseListener();
+startEnsaioListener();
+migrateEnsaioIfNeeded();
 }catch(e){console.log('Firebase error:',e);fbSynced=true;}
 }
 
@@ -1579,6 +1584,47 @@ function _fbOnReady(){connectFirebase();
 if(currentUser)authVerifySession(function(){applyPermissions();});
 }
 if(typeof _fbReady!=='undefined'&&_fbReady){_fbOnReady();}
+
+// Listen to ensaio subdoc separately. Subcollections survive parent-doc overwrites,
+// so even if some old/buggy client wipes app/data fields, ensaio stays safe.
+function startEnsaioListener(){
+if(!ensaioRef)return;
+ensaioRef.onSnapshot(function(doc){
+if(!doc.exists)return;
+var data=doc.data();
+if(!data||!data.json)return;
+try{
+var remoteEnsAll=ensaioFromRaw(JSON.parse(data.json));
+var mergedEnsAll=mergeEnsaioAllData(ensaioData,remoteEnsAll);
+if(JSON.stringify(mergedEnsAll)!==JSON.stringify(ensaioData)){
+ensaioData=mergedEnsAll;
+loadEnsaioData();
+try{renderEnsaioList();}catch(e){}
+try{if(typeof grupoUpdateBellUI==='function')grupoUpdateBellUI();}catch(e){}
+try{if(typeof updateLvGruposUI==='function')updateLvGruposUI();}catch(e){}
+}
+// If local has items remote doesn't, push back
+if(JSON.stringify(mergedEnsAll)!==JSON.stringify(remoteEnsAll)){
+try{saveEnsaioData();}catch(e){}
+}
+}catch(e){console.log('Ensaio sync error',e);}
+});
+}
+// One-time migration: if subdoc is empty AND the old app/data.ensaioData has content, copy it over.
+function migrateEnsaioIfNeeded(){
+if(!ensaioRef||!fbDoc)return;
+ensaioRef.get().then(function(newDoc){
+if(newDoc.exists&&newDoc.data()&&newDoc.data().json)return; // already migrated
+fbDoc.get().then(function(oldDoc){
+if(!oldDoc.exists)return;
+var oldData=oldDoc.data().ensaioData;
+var initial=oldData?oldData:JSON.stringify(emptyGroupData());
+ensaioRef.set({json:initial,updatedAt:firebase.firestore.FieldValue.serverTimestamp()},{merge:true}).then(function(){
+console.log('Migrated ensaioData to subcollection (or initialized empty)');
+}).catch(function(e){console.log('Ensaio migration error:',e);});
+}).catch(function(e){console.log('Migration check error:',e);});
+}).catch(function(e){console.log('Subdoc check error:',e);});
+}
 
 function startFirebaseListener(){
 if(!fbDoc)return;
@@ -1603,27 +1649,8 @@ var _gkC=(typeof getMyGrupoKey==='function')?getMyGrupoKey():'g1';
 if(typeof notifCheckChat==='function')notifCheckChat(snapChatAll[_gkC]||[]);
 }catch(e){}
 }
-// ENSAIO: always merge — runs even on our own echo snapshots so we never miss
-// remote items (race condition where two devices write within the same window
-// would otherwise cause one device to skip the other's update via ignoreSnapshot).
-// The merge is idempotent: identical local+remote = no-op, no extra renders.
-if(data.ensaioData){
-try{
-var remoteEnsAll=ensaioFromRaw(JSON.parse(data.ensaioData));
-var mergedEnsAll=mergeEnsaioAllData(ensaioData,remoteEnsAll);
-if(JSON.stringify(mergedEnsAll)!==JSON.stringify(ensaioData)){
-ensaioData=mergedEnsAll;
-loadEnsaioData();
-try{renderEnsaioList();}catch(e){}
-try{if(typeof grupoUpdateBellUI==='function')grupoUpdateBellUI();}catch(e){}
-try{if(typeof updateLvGruposUI==='function')updateLvGruposUI();}catch(e){}
-}
-// If our local has items remote doesn't, push back via transactional save
-if(JSON.stringify(mergedEnsAll)!==JSON.stringify(remoteEnsAll)){
-try{saveEnsaioData();}catch(e){}
-}
-}catch(e){console.log('Ensaio sync error',e);}
-}
+// ENSAIO sync moved to its own listener on app/data/ensaio/_main (see startEnsaioListener).
+// This isolates ensaio storage from any destructive writes on the parent app/data doc.
 // Skip OTHER data sync if this is our own save echo (lyrics/today/etc still use ignoreSnapshot)
 if(ignoreSnapshot){ignoreSnapshot=false;fbSynced=true;return;}
 if(data.lyrics){
@@ -6080,10 +6107,13 @@ if(typeof fbDoc!=='undefined'&&fbDoc){
 fbDoc.get().then(function(doc){
 if(!doc.exists)return;
 var d=doc.data();
-// Pull ensaio — MERGE (not overwrite) so any unsaved local items aren't lost
-if(d.ensaioData){
+// Pull ensaio from its own subdoc — MERGE (not overwrite) so any unsaved local items aren't lost
+if(ensaioRef){
+ensaioRef.get().then(function(eDoc){
+if(!eDoc.exists)return;
+var eData=eDoc.data();if(!eData||!eData.json)return;
 try{
-var remoteEns=ensaioFromRaw(JSON.parse(d.ensaioData));
+var remoteEns=ensaioFromRaw(JSON.parse(eData.json));
 var mergedEns=mergeEnsaioAllData(ensaioData,remoteEns);
 if(JSON.stringify(mergedEns)!==JSON.stringify(ensaioData)){
 ensaioData=mergedEns;
@@ -6094,6 +6124,7 @@ if(JSON.stringify(mergedEns)!==JSON.stringify(remoteEns)){
 try{saveEnsaioData();}catch(e){}
 }
 }catch(e){}
+}).catch(function(){});
 }
 // Pull lyrics
 if(d.lyrics){
@@ -6770,33 +6801,32 @@ document.addEventListener('visibilitychange',function(){if(document.visibilitySt
 }catch(e){}
 function _saveEnsaioDataNow(){
 ensaioSaveTimer=null;
-if(typeof db==='undefined'||!db||typeof fbDoc==='undefined'||!fbDoc)return;
+if(typeof db==='undefined'||!db||!ensaioRef)return;
 db.runTransaction(function(t){
-return t.get(fbDoc).then(function(doc){
-var remoteEns=(doc.exists&&doc.data().ensaioData)
-?ensaioFromRaw(JSON.parse(doc.data().ensaioData))
+return t.get(ensaioRef).then(function(doc){
+var remoteEns=(doc.exists&&doc.data()&&doc.data().json)
+?ensaioFromRaw(JSON.parse(doc.data().json))
 :emptyGroupData();
 var merged=mergeEnsaioAllData(ensaioData,remoteEns);
 ensaioData=merged; // local now matches what we will write
-if(doc.exists){t.update(fbDoc,{ensaioData:JSON.stringify(merged)});}
-else{t.set(fbDoc,{ensaioData:JSON.stringify(merged)},{merge:true});}
+var payload={json:JSON.stringify(merged),updatedAt:firebase.firestore.FieldValue.serverTimestamp()};
+if(doc.exists){t.update(ensaioRef,payload);}
+else{t.set(ensaioRef,payload);}
 });
 }).then(function(){
-// Re-render in case merge brought in items from other devices
 try{loadEnsaioData();renderEnsaioList();}catch(e){}
 try{if(typeof grupoUpdateBellUI==='function')grupoUpdateBellUI();}catch(e){}
 try{if(typeof updateLvGruposUI==='function')updateLvGruposUI();}catch(e){}
 }).catch(function(e){
 console.error('Save ensaio transaction error:',e);
-// Fallback: non-atomic read-merge-write so we still preserve remote items
-// when the transaction fails (network blip, contention exceeded).
-fbDoc.get().then(function(doc){
-var remoteEns=(doc.exists&&doc.data().ensaioData)
-?ensaioFromRaw(JSON.parse(doc.data().ensaioData))
+// Fallback: non-atomic read-merge-write
+ensaioRef.get().then(function(doc){
+var remoteEns=(doc.exists&&doc.data()&&doc.data().json)
+?ensaioFromRaw(JSON.parse(doc.data().json))
 :emptyGroupData();
 var merged=mergeEnsaioAllData(ensaioData,remoteEns);
 ensaioData=merged;
-return fbDoc.set({ensaioData:JSON.stringify(merged)},{merge:true});
+return ensaioRef.set({json:JSON.stringify(merged)},{merge:true});
 }).then(function(){
 try{loadEnsaioData();renderEnsaioList();}catch(e){}
 }).catch(function(e2){
