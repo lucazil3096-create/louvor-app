@@ -5153,55 +5153,27 @@ function saveHandle2(id,h){return openDB2().then(function(db){return new Promise
 function getHandle2(id){return openDB2().then(function(db){return new Promise(function(res){var tx=db.transaction(DB_STORE,'readonly');var r=tx.objectStore(DB_STORE).get(id);r.onsuccess=function(){res(r.result||null);};r.onerror=function(){res(null);};});}).catch(function(){return null;});}
 function deleteHandle2(id){return openDB2().then(function(db){return new Promise(function(res){var tx=db.transaction(DB_STORE,'readwrite');tx.objectStore(DB_STORE).delete(id);tx.oncomplete=function(){res();};tx.onerror=function(){res();};});}).catch(function(){});}
 
-// --- Inline pitch shift: resample then OLA time-stretch (preserves duration) ---
-// 1) Resample input by `rate` → shorter buffer with higher pitch
-// 2) Stretch back to original length via Overlap-Add (preserves pitch from step 1)
-// Net: pitch shifted by `rate`, duration unchanged.
-function pitchShiftBuffer(buffer,semis){
-if(Math.abs(semis)<0.01)return Promise.resolve(buffer);
-return new Promise(function(resolve){
-var ctx=getCtx();
-var rate=Math.pow(2,semis/12);
-var nCh=buffer.numberOfChannels;
-var origLen=buffer.length;
-var sr=buffer.sampleRate;
-var grainSize=Math.floor(0.04*sr); // 40ms
-var hopOut=Math.floor(grainSize/4); // fixed 4x output overlap → Hann sum ≈ 1.5
-var hopIn=Math.max(1,Math.floor(hopOut/rate));
-if(grainSize<128){resolve(buffer);return;}
-var newBuf;
-try{newBuf=ctx.createBuffer(nCh,origLen,sr);}catch(e){console.error('createBuffer failed',e);resolve(buffer);return;}
-var win=new Float32Array(grainSize);
-for(var i=0;i<grainSize;i++){win[i]=0.5*(1-Math.cos(2*Math.PI*i/(grainSize-1)));}
-function processChannel(ch,cb){
-var inp=buffer.getChannelData(ch);
-var out=newBuf.getChannelData(ch);
-// Step 1: resample input by `rate` (linear interpolation)
-var tempLen=Math.floor(origLen/rate);
-var temp=new Float32Array(tempLen);
-for(var i=0;i<tempLen;i++){
-var s=i*rate,sF=s|0,frac=s-sF;
-if(sF+1<origLen)temp[i]=(1-frac)*inp[sF]+frac*inp[sF+1];
-else if(sF<origLen)temp[i]=inp[sF];
-}
-// Step 2: OLA stretch temp back to origLen via Hann window
-var posIn=0,posOut=0;
-while(posOut+grainSize<origLen&&posIn+grainSize<tempLen){
-for(var i=0;i<grainSize;i++){out[posOut+i]+=win[i]*temp[posIn+i];}
-posIn+=hopIn;
-posOut+=hopOut;
-}
-// Normalize: 4x overlap Hann → sum ≈ 1.5
-for(var i=0;i<origLen;i++)out[i]/=1.5;
-cb();
-}
-var ch=0;
-function next(){
-if(ch>=nCh){resolve(newBuf);return;}
-processChannel(ch,function(){ch++;setTimeout(next,0);});
-}
-next();
-});
+// --- Tone.js loader for real-time pitch shift (replaces broken inline algorithm) ---
+var toneReady=false,toneLoading=false,toneWaiters=[];
+function loadTone(cb){
+if(toneReady){if(cb)cb();return;}
+if(cb)toneWaiters.push(cb);
+if(toneLoading)return;
+toneLoading=true;
+var s=document.createElement('script');
+s.src='https://cdn.jsdelivr.net/npm/tone@14.7.77/build/Tone.min.js';
+s.onload=function(){
+toneReady=true;toneLoading=false;
+toneWaiters.forEach(function(w){try{w();}catch(e){}});
+toneWaiters=[];
+};
+s.onerror=function(){
+console.error('Tone.js failed to load');
+toneLoading=false;
+toneWaiters.forEach(function(w){try{w();}catch(e){}});
+toneWaiters=[];
+};
+document.head.appendChild(s);
 }
 
 // --- Library ops ---
@@ -5292,7 +5264,7 @@ return file.arrayBuffer();
 return new Promise(function(res,rej){ctx.decodeAudioData(ab,res,rej);});
 }).then(function(buf){
 var tcfg=getTrackCfg(s.id,fileInfo.name);
-return {file:fileInfo.name,name:fileInfo.name.replace(/\.[^.]+$/,''),buffer:buf,vol:tcfg.vol,pan:tcfg.pan,muted:tcfg.muted,source:null,panNode:null,gainNode:null,shifter:null,shiftedBuffer:null};
+return {file:fileInfo.name,name:fileInfo.name.replace(/\.[^.]+$/,''),buffer:buf,vol:tcfg.vol,pan:tcfg.pan,muted:tcfg.muted,source:null,panNode:null,gainNode:null,shifter:null};
 }).catch(function(e){console.log('Skip file '+fileInfo.name,e);return null;});
 };
 var chain=Promise.resolve();
@@ -5310,8 +5282,8 @@ startOffset=0;
 peaks=genPeaks(tracks[0].buffer);
 showStatus('');
 render();
-// If semitones != 0, pre-render shifted buffers
-if(semitones!==0)applyPitchShift();
+// Pre-load Tone.js so pitch shift is ready when user changes semitones
+loadTone();
 }).catch(function(e){console.log('Load song error',e);showStatus('Erro ao carregar.');});
 }
 function closeSong(){
@@ -5326,20 +5298,32 @@ function effectiveVol(t){var muted=t.muted||(soloFile!==null&&t.file!==soloFile)
 function buildTrackNodes(t){
 var ctx=getCtx();
 var src=ctx.createBufferSource();
-// Use shifted buffer if available (matches current semitones)
-src.buffer=(semitones!==0&&t.shiftedBuffer)?t.shiftedBuffer:t.buffer;
+src.buffer=t.buffer;
 src.playbackRate.value=speed;
 t.source=src;
 var pan=ctx.createStereoPanner();pan.pan.value=t.pan/100;t.panNode=pan;
 var gain=ctx.createGain();gain.gain.value=effectiveVol(t);t.gainNode=gain;
-src.connect(pan);pan.connect(gain);gain.connect(master);
+// Insert Tone.PitchShift if loaded and shift is non-zero — real-time pitch shift
+if(toneReady&&typeof Tone!=='undefined'&&Tone.PitchShift&&semitones!==0){
+try{
+if(Tone.context&&Tone.context.rawContext!==ctx)Tone.setContext(ctx);
+var shifter=new Tone.PitchShift({pitch:semitones,windowSize:0.1,delayTime:0,feedback:0});
+src.connect(shifter.input);
+shifter.connect(pan);
+t.shifter=shifter;
+}catch(e){console.log('PitchShift creation failed',e);src.connect(pan);}
+}else{
+src.connect(pan);
+}
+pan.connect(gain);gain.connect(master);
 }
 function disposeTrack(t){
 try{if(t.source)t.source.stop();}catch(e){}
 try{if(t.source)t.source.disconnect();}catch(e){}
+try{if(t.shifter)t.shifter.dispose();}catch(e){}
 try{if(t.panNode)t.panNode.disconnect();}catch(e){}
 try{if(t.gainNode)t.gainNode.disconnect();}catch(e){}
-t.source=null;t.panNode=null;t.gainNode=null;
+t.source=null;t.panNode=null;t.gainNode=null;t.shifter=null;
 }
 function play(){
 if(!current||playing)return;
@@ -5407,29 +5391,27 @@ if(s===semitones)return;
 semitones=s;
 if(current)getCfg(current.id).semis=s;
 cfgSave();
-applyPitchShift();
+// Make sure Tone.js is loaded so the rebuilt graph can use PitchShift
+if(s!==0&&!toneReady){
+showStatus('Carregando engine de pitch...');
+loadTone(function(){showStatus('');rebuildAudioGraph();});
+}else{
+rebuildAudioGraph();
+}
 renderPlayer();
 }
-function applyPitchShift(){
+function rebuildAudioGraph(){
 if(!current)return;
-var savedPos=getCurTime();
-var wasPlaying=playing;
-if(playing){current.tracks.forEach(disposeTrack);playing=false;stopUiLoop();updatePlayBtn();}
-showStatus(semitones!==0?'Aplicando pitch '+(semitones>0?'+':'')+semitones+'st...':'');
-if(semitones===0){
-current.tracks.forEach(function(t){t.shiftedBuffer=null;});
-startOffset=savedPos;
-showStatus('');
-if(wasPlaying)play();
-return;
+if(!playing)return;
+var pos=getCurTime();
+current.tracks.forEach(disposeTrack);
+playing=false;
+stopUiLoop();
+startOffset=pos;
+play();
 }
-var jobs=current.tracks.map(function(t){return pitchShiftBuffer(t.buffer,semitones).then(function(buf){t.shiftedBuffer=buf;}).catch(function(e){console.log('pitch err',e);t.shiftedBuffer=null;});});
-Promise.all(jobs).then(function(){
-showStatus('');
-startOffset=savedPos;
-if(wasPlaying)play();
-});
-}
+// Kept as no-op for backwards compatibility — real-time pitch shift via Tone.js now
+function applyPitchShift(){}
 function setMaster(v){
 masterVol=+v;
 if(current)getCfg(current.id).masterVol=+v;
@@ -5721,6 +5703,9 @@ waveClick:waveClick
 libLoad();cfgLoad();
 window.renderMultitrack=render;
 window.mtTryAutoLoad=function(){render();return Promise.resolve();};
+
+// Pre-load Tone.js in the background so pitch shift is ready when user opens a song
+loadTone();
 
 // Initial render
 try{render();}catch(e){}
