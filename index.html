@@ -479,6 +479,21 @@ body.light .aovivo-sub.active{background:rgba(178,34,34,.1);border-color:var(--a
 .mt-track{display:flex;align-items:center;gap:6px;padding:4px 6px;background:var(--card-bg);border:1px solid var(--card-border);border-radius:8px;transition:all .15s}
 .mt-track.muted{opacity:.45}
 .mt-track-name{flex:0 0 auto;min-width:80px;max-width:120px;font-size:11px;font-weight:700;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+/* PC layout: use horizontal space — mixer in 2-3 columns + bigger player bar */
+@media (min-width:768px){
+.mt-player-bar{max-height:70vh;padding:14px 18px 18px}
+.mt-mixer{display:grid;grid-template-columns:repeat(auto-fit,minmax(380px,1fr));gap:6px}
+.mt-track{padding:6px 10px;gap:8px}
+.mt-track-name{min-width:110px;max-width:180px;font-size:12px}
+.mt-track-mute,.mt-track-solo{width:30px;height:30px;font-size:11px}
+.mt-track-vol{height:28px}
+.mt-pan-btn{width:26px;height:26px;font-size:11px}
+.mt-pb-name{font-size:15px}
+.mt-pb-wave-wrap{height:80px!important}
+}
+@media (min-width:1100px){
+.mt-mixer{grid-template-columns:repeat(auto-fit,minmax(320px,1fr))}
+}
 .mt-track-ctrl{flex:1;display:flex;align-items:center;gap:4px}
 .mt-track-mute,.mt-track-solo{flex:0 0 auto;width:26px;height:26px;border-radius:6px;border:1px solid var(--card-border);background:var(--surface);color:var(--text-dim);font-size:10px;font-weight:700;cursor:pointer;font-family:var(--fb);padding:0}
 .mt-track-mute.on{background:var(--accent);border-color:var(--accent);color:#fff}
@@ -5193,7 +5208,14 @@ name=name.trim();
 if(!('showDirectoryPicker' in window)){alert('Seu navegador não suporta acesso a pastas. Use Chrome ou Edge no PC.');return;}
 window.showDirectoryPicker({id:'louvor-mt-song',mode:'read'}).then(function(dirHandle){
 return scanDir(dirHandle).then(function(files){
-if(!files.length){alert('Nenhum arquivo de áudio (.wav/.mp3) encontrado nessa pasta.');return;}
+if(!files.length){alert('Nenhum arquivo de áudio (.wav/.mp3/.flac/.ogg/.m4a/.aac) encontrado nessa pasta.\n\nPasta: '+(dirHandle.name||'(sem nome)'));return;}
+// Show preview of files found and confirm
+var fileList=files.map(function(f,i){return '  '+(i+1)+'. '+f.name;}).join('\n');
+var msg='Pasta: '+(dirHandle.name||'(sem nome)')+'\n\n';
+msg+='Encontrei '+files.length+' faixa'+(files.length!==1?'s':'')+':\n\n';
+msg+=fileList;
+msg+='\n\nAdicionar como "'+name+'"?';
+if(!confirm(msg))return;
 var id=uuid();
 lib.push({id:id,name:name,files:files});
 libSave();
