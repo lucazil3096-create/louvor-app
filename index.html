@@ -470,7 +470,12 @@ body.light .aovivo-sub.active{background:rgba(178,34,34,.1);border-color:var(--a
 .escala-stat:hover{border-color:rgba(178,34,34,.25);transform:translateY(-1px)}
 .escala-stat-name{font-size:9.5px;color:var(--text-dim);font-weight:700;text-transform:uppercase;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;letter-spacing:.3px;margin-top:2px}
 .escala-stat-count{font-family:var(--fd);font-size:22px;color:var(--accent2);letter-spacing:.5px;line-height:1;font-weight:400}
-.multitrack-screen{display:none;flex-direction:column;height:100%}
+.multitrack-screen{display:none;flex-direction:column;height:100%;width:100%}
+/* Fullscreen mode when on multitrack: hide bottom nav so it doesn't cover tracks */
+body.mt-fullscreen .bottom-nav{display:none!important}
+body.mt-fullscreen .multitrack-screen{height:100vh;height:100dvh}
+body.mt-fullscreen .mt-player-bar{padding-bottom:18px!important}
+body.mt-fullscreen #screen-multitrack{max-width:none!important}
 #multitrack-area{flex:1;overflow-y:auto;padding:14px}
 .mt-player-bar{flex-shrink:0;background:var(--surface);border-top:1px solid var(--card-border);padding:10px 12px calc(68px + env(safe-area-inset-bottom,0));backdrop-filter:blur(20px);max-height:60vh;overflow-y:auto}
 .mt-player-bar:empty{display:none}
@@ -2786,6 +2791,8 @@ var aoC=document.getElementById('screen-aovivo-cifras');if(aoC)aoC.style.display
 var scMt=document.getElementById('screen-multitrack');if(scMt)scMt.style.display='none';
 var adminScreen=document.getElementById('screen-admin');
 if(adminScreen)adminScreen.style.display='none';
+// Drop fullscreen mode whenever leaving Ao Vivo (multitrack lives there)
+if(nav!=='aovivo')document.body.classList.remove('mt-fullscreen');
 if(nav==='louvor'){switchLouvorSub(currentLouvorSub);}
 else if(nav==='aovivo'){switchAoVivoSub(currentAoVivoSub);}
 else if(nav==='admin'){if(adminScreen)adminScreen.style.display='flex';renderAdminPanel();}
@@ -2830,6 +2837,8 @@ document.getElementById('screen-pads').style.display=sub==='pads'?'flex':'none';
 var scC=document.getElementById('screen-cifras');if(scC)scC.style.display=sub==='cifras'?'flex':'none';
 var scM=document.getElementById('screen-multitrack');if(scM)scM.style.display=sub==='multitrack'?'flex':'none';
 document.querySelectorAll('[data-aovivo-sub]').forEach(function(btn){btn.classList.toggle('active',btn.getAttribute('data-aovivo-sub')===sub);});
+// Toggle fullscreen-style layout when entering multitrack (hide bottom nav, full width)
+document.body.classList.toggle('mt-fullscreen',sub==='multitrack');
 if(sub==='musicas')renderList();
 if(sub==='pads'){renderPads();renderMetro();}
 if(sub==='cifras')renderCifras();
