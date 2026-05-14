@@ -5295,6 +5295,11 @@ render();
 // --- Audio graph ---
 function ensureMaster(){var ctx=getCtx();if(!master){master=ctx.createGain();master.gain.value=masterVol/100;master.connect(ctx.destination);}else{master.gain.value=masterVol/100;}}
 function effectiveVol(t){var muted=t.muted||(soloFile!==null&&t.file!==soloFile);return muted?0:(t.vol/100);}
+function effectivePitch(){
+// Speed (playbackRate) changes both pitch and tempo by the same factor.
+// To make Speed change ONLY tempo, compensate the pitch shift by -log2(speed)*12 semitones.
+return semitones-12*Math.log2(speed||1);
+}
 function buildTrackNodes(t){
 var ctx=getCtx();
 var src=ctx.createBufferSource();
@@ -5303,15 +5308,25 @@ src.playbackRate.value=speed;
 t.source=src;
 var pan=ctx.createStereoPanner();pan.pan.value=t.pan/100;t.panNode=pan;
 var gain=ctx.createGain();gain.gain.value=effectiveVol(t);t.gainNode=gain;
-// Insert Tone.PitchShift if loaded and shift is non-zero — real-time pitch shift
-if(toneReady&&typeof Tone!=='undefined'&&Tone.PitchShift&&semitones!==0){
+var effPitch=effectivePitch();
+var useShifter=toneReady&&typeof Tone!=='undefined'&&Tone.PitchShift&&Math.abs(effPitch)>0.01;
+if(useShifter){
 try{
-if(Tone.context&&Tone.context.rawContext!==ctx)Tone.setContext(ctx);
-var shifter=new Tone.PitchShift({pitch:semitones,windowSize:0.1,delayTime:0,feedback:0});
-src.connect(shifter.input);
+if(Tone.context&&Tone.context.rawContext&&Tone.context.rawContext!==ctx){Tone.setContext(ctx);}
+else if(Tone.setContext&&Tone.getContext&&Tone.getContext().rawContext!==ctx){Tone.setContext(ctx);}
+var shifter=new Tone.PitchShift({pitch:effPitch,windowSize:0.1,delayTime:0,feedback:0});
+// Try multiple paths to find the underlying native AudioNode for input
+var toneIn=shifter.input;
+var inputNode=null;
+if(toneIn instanceof AudioNode){inputNode=toneIn;}
+else if(toneIn&&toneIn.input instanceof AudioNode){inputNode=toneIn.input;}
+else if(toneIn&&toneIn._gainNode instanceof AudioNode){inputNode=toneIn._gainNode;}
+if(!inputNode)throw new Error('Could not resolve Tone.PitchShift input node');
+src.connect(inputNode);
+// Tone's .connect() accepts native AudioNode destinations
 shifter.connect(pan);
 t.shifter=shifter;
-}catch(e){console.log('PitchShift creation failed',e);src.connect(pan);}
+}catch(e){console.log('PitchShift setup failed, falling back to direct connection:',e);try{src.disconnect();}catch(_){}src.connect(pan);}
 }else{
 src.connect(pan);
 }
@@ -5391,10 +5406,10 @@ if(s===semitones)return;
 semitones=s;
 if(current)getCfg(current.id).semis=s;
 cfgSave();
-// Make sure Tone.js is loaded so the rebuilt graph can use PitchShift
-if(s!==0&&!toneReady){
+var eff=effectivePitch();
+if(Math.abs(eff)>0.01&&!toneReady){
 showStatus('Carregando engine de pitch...');
-loadTone(function(){showStatus('');rebuildAudioGraph();});
+loadTone(function(){showStatus(toneReady?'':'Tone.js não carregou — pitch shift indisponível');rebuildAudioGraph();});
 }else{
 rebuildAudioGraph();
 }
@@ -5422,19 +5437,24 @@ var lbl=document.getElementById('mtv2-master-val');if(lbl)lbl.textContent=v;
 function setSpeed(s){
 s=Math.max(0.5,Math.min(1.5,Math.round(s*100)/100));
 if(Math.abs(s-speed)<0.001)return;
-// Capture current song time BEFORE changing speed (speed affects getCurTime calculation)
-var songNow=getCurTime();
+// Capture song position with the OLD speed before we change it
+var posNow=getCurTime();
 speed=s;
 if(current)getCfg(current.id).speed=s;
 cfgSave();
-// If playing, apply to live sources AND reset our time reference so song time stays continuous
-if(playing){
-var ctx=getCtx();
-startOffset=songNow;
-startCtxTime=ctx.currentTime;
-if(current)current.tracks.forEach(function(t){
-if(t.source){try{t.source.playbackRate.setTargetAtTime(speed,ctx.currentTime,0.02);}catch(e){}}
-});
+// Need to rebuild graph so the pitch shifter compensates for the new speed
+// (otherwise playbackRate alone would shift pitch as a side effect)
+if(playing&&current){
+current.tracks.forEach(disposeTrack);
+playing=false;
+stopUiLoop();
+startOffset=posNow;
+// If we need Tone.js but it isn't loaded yet, load then play
+var eff=effectivePitch();
+if(Math.abs(eff)>0.01&&!toneReady){
+showStatus('Carregando engine de pitch...');
+loadTone(function(){showStatus('');play();});
+}else{play();}
 }
 renderPlayer();
 }
