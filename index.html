@@ -5112,8 +5112,9 @@ mtLoadBPMs();
 // ===== V2 MULTITRACK: folder-per-song + per-track mixer + real pitch shift =====
 // Replaces the old single-file library with a folder-per-song model.
 // Each song is a folder; each audio file inside the folder is a track.
-// Per-track: volume, pan (L/C/R), mute, solo. Master: vol, semitones (pitch shift
-// via SoundTouchJS audio worklet — no speed change). Markers preserved.
+// Per-track: volume, pan (L/C/R), mute, solo. Master: vol, speed (playbackRate
+// — changes tempo + pitch together). Markers preserved. Real pitch shift was
+// removed: every browser-side approach produced robotic artifacts and stutter.
 (function(){
 var LIB_KEY='church-mt-library-v2';
 var CFG_KEY='church-mt-config-v2';
@@ -5153,28 +5154,9 @@ function saveHandle2(id,h){return openDB2().then(function(db){return new Promise
 function getHandle2(id){return openDB2().then(function(db){return new Promise(function(res){var tx=db.transaction(DB_STORE,'readonly');var r=tx.objectStore(DB_STORE).get(id);r.onsuccess=function(){res(r.result||null);};r.onerror=function(){res(null);};});}).catch(function(){return null;});}
 function deleteHandle2(id){return openDB2().then(function(db){return new Promise(function(res){var tx=db.transaction(DB_STORE,'readwrite');tx.objectStore(DB_STORE).delete(id);tx.oncomplete=function(){res();};tx.onerror=function(){res();};});}).catch(function(){});}
 
-// --- Tone.js loader for real-time pitch shift (replaces broken inline algorithm) ---
-var toneReady=false,toneLoading=false,toneWaiters=[];
-function loadTone(cb){
-if(toneReady){if(cb)cb();return;}
-if(cb)toneWaiters.push(cb);
-if(toneLoading)return;
-toneLoading=true;
-var s=document.createElement('script');
-s.src='https://cdn.jsdelivr.net/npm/tone@14.7.77/build/Tone.min.js';
-s.onload=function(){
-toneReady=true;toneLoading=false;
-toneWaiters.forEach(function(w){try{w();}catch(e){}});
-toneWaiters=[];
-};
-s.onerror=function(){
-console.error('Tone.js failed to load');
-toneLoading=false;
-toneWaiters.forEach(function(w){try{w();}catch(e){}});
-toneWaiters=[];
-};
-document.head.appendChild(s);
-}
+// Pitch shift removed — browser-based real-time pitch shift has fundamental quality
+// (granular artifacts) and performance (ScriptProcessor on main thread) limits.
+// Speed control via playbackRate stays — note it changes pitch as a side effect.
 
 // --- Library ops ---
 function uuid(){return 's-'+Date.now()+'-'+Math.random().toString(36).slice(2,8);}
@@ -5282,8 +5264,6 @@ startOffset=0;
 peaks=genPeaks(tracks[0].buffer);
 showStatus('');
 render();
-// Pre-load Tone.js so pitch shift is ready when user changes semitones
-loadTone();
 }).catch(function(e){console.log('Load song error',e);showStatus('Erro ao carregar.');});
 }
 function closeSong(){
@@ -5295,11 +5275,6 @@ render();
 // --- Audio graph ---
 function ensureMaster(){var ctx=getCtx();if(!master){master=ctx.createGain();master.gain.value=masterVol/100;master.connect(ctx.destination);}else{master.gain.value=masterVol/100;}}
 function effectiveVol(t){var muted=t.muted||(soloFile!==null&&t.file!==soloFile);return muted?0:(t.vol/100);}
-function effectivePitch(){
-// Speed (playbackRate) changes both pitch and tempo by the same factor.
-// To make Speed change ONLY tempo, compensate the pitch shift by -log2(speed)*12 semitones.
-return semitones-12*Math.log2(speed||1);
-}
 function buildTrackNodes(t){
 var ctx=getCtx();
 var src=ctx.createBufferSource();
@@ -5308,37 +5283,14 @@ src.playbackRate.value=speed;
 t.source=src;
 var pan=ctx.createStereoPanner();pan.pan.value=t.pan/100;t.panNode=pan;
 var gain=ctx.createGain();gain.gain.value=effectiveVol(t);t.gainNode=gain;
-var effPitch=effectivePitch();
-var useShifter=toneReady&&typeof Tone!=='undefined'&&Tone.PitchShift&&Math.abs(effPitch)>0.01;
-if(useShifter){
-try{
-if(Tone.context&&Tone.context.rawContext&&Tone.context.rawContext!==ctx){Tone.setContext(ctx);}
-else if(Tone.setContext&&Tone.getContext&&Tone.getContext().rawContext!==ctx){Tone.setContext(ctx);}
-var shifter=new Tone.PitchShift({pitch:effPitch,windowSize:0.1,delayTime:0,feedback:0});
-// Try multiple paths to find the underlying native AudioNode for input
-var toneIn=shifter.input;
-var inputNode=null;
-if(toneIn instanceof AudioNode){inputNode=toneIn;}
-else if(toneIn&&toneIn.input instanceof AudioNode){inputNode=toneIn.input;}
-else if(toneIn&&toneIn._gainNode instanceof AudioNode){inputNode=toneIn._gainNode;}
-if(!inputNode)throw new Error('Could not resolve Tone.PitchShift input node');
-src.connect(inputNode);
-// Tone's .connect() accepts native AudioNode destinations
-shifter.connect(pan);
-t.shifter=shifter;
-}catch(e){console.log('PitchShift setup failed, falling back to direct connection:',e);try{src.disconnect();}catch(_){}src.connect(pan);}
-}else{
-src.connect(pan);
-}
-pan.connect(gain);gain.connect(master);
+src.connect(pan);pan.connect(gain);gain.connect(master);
 }
 function disposeTrack(t){
 try{if(t.source)t.source.stop();}catch(e){}
 try{if(t.source)t.source.disconnect();}catch(e){}
-try{if(t.shifter)t.shifter.dispose();}catch(e){}
 try{if(t.panNode)t.panNode.disconnect();}catch(e){}
 try{if(t.gainNode)t.gainNode.disconnect();}catch(e){}
-t.source=null;t.panNode=null;t.gainNode=null;t.shifter=null;
+t.source=null;t.panNode=null;t.gainNode=null;
 }
 function play(){
 if(!current||playing)return;
@@ -5400,33 +5352,9 @@ if(current)current.tracks.forEach(updateTrackGain);
 renderMixer();
 }
 function updateTrackGain(t){if(t.gainNode){var ctx=getCtx();t.gainNode.gain.setTargetAtTime(effectiveVol(t),ctx.currentTime,0.04);}}
-function setSemitones(s){
-s=Math.max(-12,Math.min(12,parseInt(s,10)||0));
-if(s===semitones)return;
-semitones=s;
-if(current)getCfg(current.id).semis=s;
-cfgSave();
-var eff=effectivePitch();
-if(Math.abs(eff)>0.01&&!toneReady){
-showStatus('Carregando engine de pitch...');
-loadTone(function(){showStatus(toneReady?'':'Tone.js não carregou — pitch shift indisponível');rebuildAudioGraph();});
-}else{
-rebuildAudioGraph();
-}
-renderPlayer();
-}
-function rebuildAudioGraph(){
-if(!current)return;
-if(!playing)return;
-var pos=getCurTime();
-current.tracks.forEach(disposeTrack);
-playing=false;
-stopUiLoop();
-startOffset=pos;
-play();
-}
-// Kept as no-op for backwards compatibility — real-time pitch shift via Tone.js now
-function applyPitchShift(){}
+// Semitone control removed — pitch shift in browser was producing robotic artifacts
+// and main-thread audio stutter. Use the Speed control instead (changes pitch + tempo
+// together via playbackRate — the standard "play slower/faster" effect).
 function setMaster(v){
 masterVol=+v;
 if(current)getCfg(current.id).masterVol=+v;
@@ -5442,19 +5370,14 @@ var posNow=getCurTime();
 speed=s;
 if(current)getCfg(current.id).speed=s;
 cfgSave();
-// Need to rebuild graph so the pitch shifter compensates for the new speed
-// (otherwise playbackRate alone would shift pitch as a side effect)
+// Update playbackRate live on currently-playing tracks (no rebuild needed)
 if(playing&&current){
-current.tracks.forEach(disposeTrack);
-playing=false;
-stopUiLoop();
+var ctx=getCtx();
 startOffset=posNow;
-// If we need Tone.js but it isn't loaded yet, load then play
-var eff=effectivePitch();
-if(Math.abs(eff)>0.01&&!toneReady){
-showStatus('Carregando engine de pitch...');
-loadTone(function(){showStatus('');play();});
-}else{play();}
+startCtxTime=ctx.currentTime;
+current.tracks.forEach(function(t){
+if(t.source){try{t.source.playbackRate.setTargetAtTime(speed,ctx.currentTime,0.02);}catch(e){}}
+});
 }
 renderPlayer();
 }
@@ -5547,14 +5470,8 @@ h+='<div class="mt-pb-wave-wrap" onclick="window.mtV2.waveClick(event)"><canvas 
 h+='<div class="mt-pb-controls">';
 h+='<button class="mt-pb-btn play" id="mtv2-play" onclick="window.mtV2.togglePlay()">'+(playing?'&#9208;':'&#9654;')+'</button>';
 h+='<button class="mt-pb-btn" onclick="window.mtV2.stop()" title="Parar">&#9632;</button>';
-h+='<div class="mt-pb-semis">';
-h+='<button class="mt-pb-btn" onclick="window.mtV2.setSemis('+(semitones-1)+')" title="-1 semitom">&#9660;</button>';
-h+='<span class="mt-pb-semi-val">'+(semitones>0?'+':'')+semitones+' st</span>';
-h+='<button class="mt-pb-btn" onclick="window.mtV2.setSemis('+(semitones+1)+')" title="+1 semitom">&#9650;</button>';
-if(semitones!==0)h+='<button class="mt-pb-btn" onclick="window.mtV2.setSemis(0)" title="Reset" style="font-size:10px">0</button>';
-h+='</div>';
-// Speed (playbackRate) — separate from semitones
-h+='<div class="mt-pb-semis">';
+// Speed control (playbackRate) — changes both tempo and pitch, "play slower/faster" effect
+h+='<div class="mt-pb-semis" title="Velocidade (muda o tom junto, como tocar mais devagar/rápido)">';
 h+='<button class="mt-pb-btn" onclick="window.mtV2.setSpeed('+(speed-0.05).toFixed(2)+')" title="Mais devagar (-5%)">&#9660;</button>';
 h+='<span class="mt-pb-semi-val">'+Math.round(speed*100)+'%</span>';
 h+='<button class="mt-pb-btn" onclick="window.mtV2.setSpeed('+(speed+0.05).toFixed(2)+')" title="Mais rápido (+5%)">&#9650;</button>';
@@ -5713,7 +5630,6 @@ jumpMarker:jumpToMarker,
 pickColor:pickMarkerColor,
 mute:toggleMute,
 solo:toggleSolo,
-setSemis:setSemitones,
 setSpeed:setSpeed,
 setMaster:setMaster,
 waveClick:waveClick
@@ -5723,9 +5639,6 @@ waveClick:waveClick
 libLoad();cfgLoad();
 window.renderMultitrack=render;
 window.mtTryAutoLoad=function(){render();return Promise.resolve();};
-
-// Pre-load Tone.js in the background so pitch shift is ready when user opens a song
-loadTone();
 
 // Initial render
 try{render();}catch(e){}
