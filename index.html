@@ -1319,7 +1319,7 @@ if(typeof _fbOnReady==='function')_fbOnReady();
 </div>
 <div class="pads-header">
 <div class="subtab-bar"><button class="subtab" data-aovivo-sub="musicas" onclick="switchAoVivoSub('musicas')">Músicas</button><button class="subtab active" data-aovivo-sub="pads" onclick="switchAoVivoSub('pads')">Pad e Metrônomo</button><button class="subtab" data-aovivo-sub="cifras" onclick="switchAoVivoSub('cifras')">Cifras</button><button class="subtab" data-aovivo-sub="multitrack" onclick="switchAoVivoSub('multitrack')">Multitrack</button></div>
-<button class="pad-stop-all" onclick="stopAllPads()">⏹ Parar Todos</button>
+<div style="display:flex;gap:6px"><button class="pad-stop-all" onclick="openPadConfig()" style="background:rgba(201,169,110,.08);border:1px solid rgba(201,169,110,.2);color:var(--gold)">⚙ Meus Pads</button><button class="pad-stop-all" onclick="stopAllPads()">⏹ Parar Todos</button></div>
 </div>
 <div class="pads-body" id="pads-mode-pads">
 <div class="pads-col pads-col-left" id="pads-grid-area"></div>
@@ -3744,12 +3744,97 @@ dst[endIdx]=startVal*b+endVal*a;
 return trimmed;
 }
 
+// ===== CUSTOM PADS (user uploads, stored in IndexedDB) =====
+var customPads={};        // {note:{name,mime,blob}} loaded from IndexedDB
+var customPadBuffers={};  // {note:AudioBuffer} decoded cache
+var padPref={};           // {note:'custom'|'default'}
+var PAD_PREF_KEY='church-pad-pref-v1';
+var CP_DB='church-custom-pads';
+var CP_STORE='pads';
+function cpOpenDB(){return new Promise(function(resolve,reject){try{var req=indexedDB.open(CP_DB,1);req.onupgradeneeded=function(){req.result.createObjectStore(CP_STORE);};req.onsuccess=function(){resolve(req.result);};req.onerror=function(){reject(req.error);};}catch(e){reject(e);}});}
+function cpSave(note,file){return cpOpenDB().then(function(db){return new Promise(function(resolve,reject){var tx=db.transaction(CP_STORE,'readwrite');tx.objectStore(CP_STORE).put({name:file.name,mime:file.type,blob:file},note);tx.oncomplete=function(){resolve();};tx.onerror=function(){reject(tx.error);};});});}
+function cpLoadAll(){return cpOpenDB().then(function(db){return new Promise(function(resolve){var tx=db.transaction(CP_STORE,'readonly');var req=tx.objectStore(CP_STORE).openCursor();var out={};req.onsuccess=function(e){var c=e.target.result;if(c){out[c.key]=c.value;c.continue();}else resolve(out);};req.onerror=function(){resolve({});};});}).catch(function(){return{};});}
+function cpDelete(note){return cpOpenDB().then(function(db){return new Promise(function(resolve){var tx=db.transaction(CP_STORE,'readwrite');tx.objectStore(CP_STORE).delete(note);tx.oncomplete=function(){resolve();};tx.onerror=function(){resolve();};});}).catch(function(){});}
+function loadPadPref(){try{var d=localStorage.getItem(PAD_PREF_KEY);if(d)padPref=JSON.parse(d)||{};}catch(e){padPref={};}}
+function savePadPref(){try{localStorage.setItem(PAD_PREF_KEY,JSON.stringify(padPref));}catch(e){}}
+function uploadCustomPad(note){
+var input=document.createElement('input');
+input.type='file';input.accept='audio/*';
+input.onchange=function(){
+var file=input.files[0];if(!file)return;
+cpSave(note,file).then(function(){
+customPads[note]={name:file.name,mime:file.type,blob:file};
+delete customPadBuffers[note]; // force re-decode
+padPref[note]='custom';
+savePadPref();
+// If pad is playing, stop so next play uses new source
+if(PAD_MAP[note])PAD_MAP[note].forEach(function(s){if(padPlaying[pid(note,s)])stopPad(note,s);});
+renderPadConfig();renderPads();
+}).catch(function(e){alert('Erro ao salvar pad: '+(e.message||e));});
+};
+input.click();
+}
+function togglePadPref(note){
+padPref[note]=padPref[note]==='custom'?'default':'custom';
+savePadPref();
+if(PAD_MAP[note])PAD_MAP[note].forEach(function(s){if(padPlaying[pid(note,s)])stopPad(note,s);});
+renderPadConfig();renderPads();
+}
+function removeCustomPad(note){
+if(!customPads[note])return;
+if(!confirm('Remover pad personalizado de '+note+'?'))return;
+cpDelete(note).then(function(){
+delete customPads[note];
+delete customPadBuffers[note];
+padPref[note]='default';
+savePadPref();
+if(PAD_MAP[note])PAD_MAP[note].forEach(function(s){if(padPlaying[pid(note,s)])stopPad(note,s);});
+renderPadConfig();renderPads();
+});
+}
+function openPadConfig(){
+var existing=document.getElementById('pad-config-overlay');if(existing)existing.remove();
+var overlay=document.createElement('div');
+overlay.id='pad-config-overlay';
+overlay.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:1000;display:flex;align-items:center;justify-content:center;padding:20px';
+overlay.onclick=function(e){if(e.target===overlay)closePadConfig();};
+var inner=document.createElement('div');
+inner.id='pad-config-inner';
+inner.style.cssText='background:var(--surface);border:1px solid var(--card-border);border-radius:14px;padding:16px;width:100%;max-width:480px;max-height:85vh;overflow-y:auto';
+overlay.appendChild(inner);
+document.body.appendChild(overlay);
+renderPadConfig();
+}
+function closePadConfig(){var o=document.getElementById('pad-config-overlay');if(o)o.remove();}
+function renderPadConfig(){
+var inner=document.getElementById('pad-config-inner');if(!inner)return;
+var h='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px"><div style="font-family:var(--fd);font-size:16px;letter-spacing:1px">MEUS PADS</div><button onclick="closePadConfig()" style="background:none;border:none;color:var(--text-dim);font-size:22px;cursor:pointer;line-height:1">&#10005;</button></div>';
+h+='<div style="font-size:11px;color:var(--text-dim);margin-bottom:14px;line-height:1.5">Suba seus arquivos (.wav, .mp3, etc) e troque o pad padrão de cada nota pelo seu. Os arquivos ficam salvos só no seu navegador.</div>';
+TOMS.forEach(function(t){
+var hasCustom=!!customPads[t];
+var isCustom=hasCustom&&padPref[t]==='custom';
+var name=isCustom?customPads[t].name:'padrão';
+h+='<div style="display:flex;align-items:center;gap:8px;padding:8px 10px;background:var(--card-bg);border:1px solid '+(isCustom?'rgba(201,169,110,.3)':'var(--card-border)')+';border-radius:8px;margin-bottom:5px">';
+h+='<div style="flex:0 0 38px;font-family:var(--fd);font-size:15px;color:'+(isCustom?'var(--gold)':'var(--text-dim)')+';font-weight:700;text-align:center">'+t+'</div>';
+h+='<div style="flex:1;font-size:12px;color:'+(isCustom?'var(--text)':'var(--text-dim)')+';white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="'+esc(name)+'">'+esc(name)+'</div>';
+h+='<button onclick="uploadCustomPad(\''+t+'\')" style="font-size:11px;padding:6px 10px;background:var(--accent);color:#fff;border:none;border-radius:6px;cursor:pointer;font-family:var(--fb);font-weight:700;white-space:nowrap">'+(hasCustom?'Trocar':'Subir')+'</button>';
+if(hasCustom){
+h+='<button onclick="togglePadPref(\''+t+'\')" title="'+(isCustom?'Usar pad padrão':'Usar pad personalizado')+'" style="font-size:11px;padding:6px 9px;background:transparent;color:var(--text);border:1px solid var(--card-border);border-radius:6px;cursor:pointer;font-family:var(--fb);white-space:nowrap">'+(isCustom?'⏯ Padrão':'⏯ Custom')+'</button>';
+h+='<button onclick="removeCustomPad(\''+t+'\')" title="Apagar" style="background:none;border:none;color:#e35454;cursor:pointer;padding:4px;font-size:14px">&#10005;</button>';
+}
+h+='</div>';
+});
+inner.innerHTML=h;
+}
+// Load custom pads at boot
+loadPadPref();
+cpLoadAll().then(function(pads){customPads=pads;try{renderPads();}catch(e){}});
+
 function playPad(t,s){
 var id=pid(t,s);if(padPlaying[id])return;
 padPlaying[id]={loading:true,fading:false};renderPads();
 var ctx=getCtx();
 var tv=padVol/100;
-var url=padUrl(t,s);
 function startBuffer(buf){
 var src=ctx.createBufferSource();
 src.buffer=buf;
@@ -3765,6 +3850,19 @@ src.start(0);
 gain.gain.setTargetAtTime(tv,ctx.currentTime,FADE_TIME/3);
 padPlaying[id]={bufSrc:src,gain:gain,pan:pan,fading:false,loading:false,tv:tv};renderPads();
 }
+// If user has a custom pad and prefers it, use that
+if(padPref[t]==='custom'&&customPads[t]){
+if(customPadBuffers[t]){startBuffer(customPadBuffers[t]);return;}
+customPads[t].blob.arrayBuffer().then(function(ab){return ctx.decodeAudioData(ab);}).then(function(buf){
+var trimmed=trimBuffer(ctx,buf);
+customPadBuffers[t]=trimmed;
+if(!padPlaying[id]||!padPlaying[id].loading)return;
+startBuffer(trimmed);
+}).catch(function(e){console.log('Custom pad decode error',e);delete padPlaying[id];renderPads();});
+return;
+}
+// Default: server URL
+var url=padUrl(t,s);
 if(padBufferCache[url]){startBuffer(padBufferCache[url]);return;}
 fetch(url).then(function(r){return r.arrayBuffer();}).then(function(ab){
 return ctx.decodeAudioData(ab);
@@ -3841,8 +3939,10 @@ var ds=[];
 var slots=PAD_MAP[t]||[];
 for(var s=1;s<=4;s++){var inMap=slots.indexOf(s)!==-1;var pp=padPlaying[pid(t,s)];ds.push({f:inMap,p:!!pp&&!pp.loading&&!pp.fading});}
 var c='tom-sq';if(pl&&!fd)c+=' playing';if(fd)c+=' fading';if(ha&&!pl&&!ld)c+=' has-audio';
-h+='<div class="'+c+'" onclick="tapTom(\''+t+'\')">';
+var isCustomActive=padPref[t]==='custom'&&customPads[t];
+h+='<div class="'+c+'" onclick="tapTom(\''+t+'\')" style="'+(isCustomActive?'box-shadow:inset 0 0 0 2px var(--gold)':'')+'">';
 h+='<span class="tq-note">'+t+'</span><span class="tq-name">'+TOM_NAMES[t]+'</span>';
+if(isCustomActive)h+='<span style="position:absolute;top:3px;right:5px;font-size:9px;color:var(--gold);opacity:.7" title="Pad personalizado">★</span>';
 if(ha){h+='<div class="tq-dots">';ds.forEach(function(d){h+='<span class="tq-dot'+(d.p?' playing':d.f?' filled':'')+'"></span>';});h+='</div>';}
 h+='<span class="tq-status">'+(ld?'carregando...':(fd?'saindo...':(pl?'∞ loop':(ha?'pronto':''))))+'</span></div>';
 });
