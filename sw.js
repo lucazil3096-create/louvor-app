@@ -66,7 +66,7 @@ self.addEventListener('notificationclick', function(event) {
   );
 });
 
-var CACHE_NAME = 'aospesdacruz-v5';
+var CACHE_NAME = 'aospesdacruz-v6';
 var urlsToCache = [
   './',
   './index.html',
