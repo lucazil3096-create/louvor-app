@@ -3891,8 +3891,7 @@ h+='</div>';
 h+='<div class="metro-controls">';
 h+='<button class="metro-play'+(metroRunning?' playing':'')+'" id="metro-play-btn" onclick="toggleMetro()">'+(metroRunning?'⏹ Parar':'▶ Iniciar')+'</button>';
 h+='<button class="metro-tap" onclick="tapTempo()">🫳 Tap</button>';
-var todayHasBpm=todayList.some(function(id){var l=lyrics.find(function(x){return x.id===id;});return l&&l.bpm>0;});
-if(todayHasBpm){h+='<button class="metro-tap" onclick="nextPreset()">⏭ Próxima</button>';}
+if(clickToday.length>1){h+='<button class="metro-tap" onclick="nextPreset()">⏭ Próxima</button>';}
 h+='</div>';
 
 h+='<div class="pad-ctrl-compact">';
@@ -3903,28 +3902,54 @@ h+='</div>';
 
 b.innerHTML=h;
 
-// Render today list in right column
+// Render click library in right column
 var r=document.getElementById('today-area');
 if(!r)return;
 var t='<div class="metro-setlist">';
-t+='<div class="metro-setlist-title"><span>'+ICO.clip+' Músicas de Hoje</span></div>';
-var todaySongs=todayList.map(function(id){return lyrics.find(function(x){return x.id===id;});}).filter(Boolean);
-if(!todaySongs.length){
-t+='<div style="text-align:center;padding:12px;opacity:.3;font-size:11px">Adicione músicas na aba <b>Hoje</b><br>e elas aparecem aqui com o BPM</div>';
+t+='<div class="metro-setlist-title"><span>&#127906; Biblioteca de Clicks</span></div>';
+t+='<div style="padding:6px 8px 0"><button class="metro-tap" onclick="addClick()" style="width:100%">+ Novo Click</button></div>';
+t+='<div style="padding:6px 8px"><input id="click-search" type="text" placeholder="🔍 Buscar..." value="'+esc(clickSearch||'')+'" oninput="setClickSearch(this.value)" style="width:100%;background:var(--card-bg);border:1px solid var(--card-border);border-radius:8px;padding:6px 10px;color:var(--text);font-family:var(--fb);font-size:12px;box-sizing:border-box"></div>';
+// Hoje section
+var todayClicks=clickToday.map(function(id){return clickLib.find(function(c){return c.id===id;});}).filter(Boolean);
+if(todayClicks.length){
+t+='<div style="font-size:10px;color:var(--text-dim);text-transform:uppercase;letter-spacing:1px;font-weight:700;padding:8px 12px 4px">&#9733; Hoje ('+todayClicks.length+')</div>';
+todayClicks.forEach(function(c){
+var isActive=activeClickId===c.id;
+t+='<div class="metro-preset'+(isActive?' active-preset':'')+'" onclick="loadClickBpm(\''+esc(c.id)+'\')">';
+t+='<div class="metro-preset-num">&#9733;</div>';
+t+='<div class="metro-preset-info"><div class="metro-preset-name">'+esc(c.name)+'</div>';
+t+='<div class="metro-preset-meta">'+c.bpm+' BPM</div></div>';
+t+='<button onclick="event.stopPropagation();toggleClickToday(\''+esc(c.id)+'\')" title="Tirar de hoje" style="background:none;border:none;color:var(--text-dim);cursor:pointer;padding:4px;font-size:14px">&#10005;</button>';
+t+='</div>';
+});
+}
+// Library section (filtered by search)
+t+='<div style="font-size:10px;color:var(--text-dim);text-transform:uppercase;letter-spacing:1px;font-weight:700;padding:10px 12px 4px">Todos os Clicks</div>';
+var term=(clickSearch||'').toLowerCase().trim();
+var filtered=term?clickLib.filter(function(c){return c.name.toLowerCase().indexOf(term)>=0;}):clickLib;
+if(!filtered.length){
+t+='<div style="text-align:center;padding:12px;opacity:.5;font-size:11px">'+(term?'Nada encontrado':'Nenhum click salvo.<br>Toque em <b>+ Novo Click</b>')+'</div>';
 }else{
-todaySongs.forEach(function(l,idx){
-var isActive=activePresetIdx===idx;
-var hasBpm=l.bpm&&l.bpm>0;
-t+='<div class="metro-preset'+(isActive?' active-preset':'')+'" onclick="loadTodayBpm('+idx+')">';
-t+='<div class="metro-preset-num">'+(idx+1)+'</div>';
-t+='<div class="metro-preset-info"><div class="metro-preset-name">'+esc(l.title)+'</div>';
-t+='<div class="metro-preset-meta">'+(hasBpm?l.bpm+' BPM':'Sem BPM')+(l.tom?' · '+l.tom:'')+'</div></div>';
-if(hasBpm){t+='<div style="color:var(--green);font-size:14px;padding:0 4px">▶</div>';}
+filtered.forEach(function(c){
+var inToday=clickToday.indexOf(c.id)>=0;
+var isActive=activeClickId===c.id;
+t+='<div class="metro-preset'+(isActive?' active-preset':'')+'" onclick="loadClickBpm(\''+esc(c.id)+'\')">';
+t+='<button onclick="event.stopPropagation();toggleClickToday(\''+esc(c.id)+'\')" class="metro-preset-num" style="background:'+(inToday?'var(--accent)':'transparent')+';border:1px solid var(--accent);cursor:pointer" title="'+(inToday?'Remover de hoje':'Adicionar a hoje')+'">'+(inToday?'&#9733;':'&#9734;')+'</button>';
+t+='<div class="metro-preset-info"><div class="metro-preset-name">'+esc(c.name)+'</div>';
+t+='<div class="metro-preset-meta">'+c.bpm+' BPM</div></div>';
+t+='<button onclick="event.stopPropagation();editClick(\''+esc(c.id)+'\')" title="Editar" style="background:none;border:none;color:var(--text-dim);cursor:pointer;padding:4px;font-size:12px">&#9998;</button>';
+t+='<button onclick="event.stopPropagation();removeClick(\''+esc(c.id)+'\')" title="Remover" style="background:none;border:none;color:#e35454;cursor:pointer;padding:4px;font-size:13px">&#10005;</button>';
 t+='</div>';
 });
 }
 t+='</div>';
 r.innerHTML=t;
+// Restore focus to search input if it was focused (avoid losing typing position)
+if(clickSearchFocused){
+var inp=document.getElementById('click-search');
+if(inp){inp.focus();try{inp.setSelectionRange(clickSearch.length,clickSearch.length);}catch(e){}}
+clickSearchFocused=false;
+}
 }
 
 // ===== METRONOME =====
@@ -4191,25 +4216,87 @@ renderMetro();
 }
 }
 
-// === TODAY BPM INTEGRATION ===
-function loadTodayBpm(idx){
-var todaySongs=todayList.map(function(id){return lyrics.find(function(x){return x.id===id;});}).filter(Boolean);
-var l=todaySongs[idx];if(!l||!l.bpm)return;
-metroBPM=l.bpm;
-activePresetIdx=idx;
+// === CLICK LIBRARY (per-device) — name + BPM, plus a "Hoje" selection ===
+var clickLib=[];
+var clickToday=[];
+var activeClickId=null;
+var clickSearch='';
+var clickSearchFocused=false;
+var CLICK_LIB_KEY='church-clicks-v1';
+var CLICK_TODAY_KEY='church-clicks-today-v1';
+function loadClicks(){
+try{var d=localStorage.getItem(CLICK_LIB_KEY);if(d)clickLib=JSON.parse(d)||[];}catch(e){clickLib=[];}
+try{var d=localStorage.getItem(CLICK_TODAY_KEY);if(d)clickToday=JSON.parse(d)||[];}catch(e){clickToday=[];}
+// Defensive: drop today IDs that no longer exist in the library
+clickToday=clickToday.filter(function(id){return clickLib.some(function(c){return c.id===id;});});
+}
+function saveClicks(){
+try{localStorage.setItem(CLICK_LIB_KEY,JSON.stringify(clickLib));}catch(e){}
+try{localStorage.setItem(CLICK_TODAY_KEY,JSON.stringify(clickToday));}catch(e){}
+}
+function addClick(){
+var name=prompt('Nome da música:');
+if(!name||!name.trim())return;
+name=name.trim();
+var bpmStr=prompt('BPM (30 a 300):','120');
+if(bpmStr===null)return;
+var bpm=parseInt(bpmStr,10);
+if(!bpm||bpm<30||bpm>300){alert('BPM inválido.');return;}
+clickLib.push({id:String(Date.now())+'-'+Math.random().toString(36).slice(2,7),name:name,bpm:bpm,createdAt:Date.now()});
+clickLib.sort(function(a,b){return a.name.localeCompare(b.name,'pt-BR');});
+saveClicks();
+renderMetro();
+}
+function editClick(id){
+var c=clickLib.find(function(x){return x.id===id;});if(!c)return;
+var name=prompt('Nome:',c.name);
+if(name===null)return;
+name=name.trim();if(!name)return;
+var bpmStr=prompt('BPM:',c.bpm);
+if(bpmStr===null)return;
+var bpm=parseInt(bpmStr,10);
+if(!bpm||bpm<30||bpm>300){alert('BPM inválido.');return;}
+c.name=name;c.bpm=bpm;
+clickLib.sort(function(a,b){return a.name.localeCompare(b.name,'pt-BR');});
+saveClicks();
+if(activeClickId===id){metroBPM=bpm;saveMetroSettings();if(metroRunning){stopMetro();startMetro();}}
+renderMetro();
+}
+function removeClick(id){
+var c=clickLib.find(function(x){return x.id===id;});if(!c)return;
+if(!confirm('Remover "'+c.name+'"?'))return;
+clickLib=clickLib.filter(function(x){return x.id!==id;});
+clickToday=clickToday.filter(function(x){return x!==id;});
+if(activeClickId===id)activeClickId=null;
+saveClicks();
+renderMetro();
+}
+function toggleClickToday(id){
+var i=clickToday.indexOf(id);
+if(i>=0)clickToday.splice(i,1);
+else clickToday.push(id);
+saveClicks();
+renderMetro();
+}
+function loadClickBpm(id){
+var c=clickLib.find(function(x){return x.id===id;});if(!c)return;
+metroBPM=c.bpm;
+activeClickId=id;
 saveMetroSettings();
 if(metroRunning){stopMetro();startMetro();}
 renderMetro();
 }
-
+function setClickSearch(v){
+clickSearch=v||'';
+clickSearchFocused=true;
+renderMetro();
+}
 function nextPreset(){
-var todaySongs=todayList.map(function(id){return lyrics.find(function(x){return x.id===id;});}).filter(Boolean);
-var withBpm=[];
-todaySongs.forEach(function(l,i){if(l.bpm&&l.bpm>0)withBpm.push(i);});
-if(!withBpm.length)return;
-var curPos=withBpm.indexOf(activePresetIdx);
-var nextPos=(curPos+1)%withBpm.length;
-loadTodayBpm(withBpm[nextPos]);
+// Cycle through "Hoje" clicks
+if(!clickToday.length)return;
+var curPos=clickToday.indexOf(activeClickId);
+var nextPos=(curPos+1)%clickToday.length;
+loadClickBpm(clickToday[nextPos]);
 }
 
 // ===== MULTITRACK PLAYER (LIBRARY + SETLIST) =====
@@ -5668,7 +5755,7 @@ waveClick:waveClick
 
 // ===== END MULTITRACK =====
 
-loadMetroSettings();
+loadMetroSettings();loadClicks();
 if(metroSound==='woodreal')try{loadWoodSamples();}catch(e){}
 
 load();loadPV();renderList();initSwipe();loadTheme();renderPads();renderMetro();
