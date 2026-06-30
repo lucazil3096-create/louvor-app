@@ -3792,6 +3792,42 @@ if(PAD_MAP[note])PAD_MAP[note].forEach(function(s){if(padPlaying[pid(note,s)])st
 renderPadConfig();renderPads();
 });
 }
+function openPadNoteMenu(note,anchor){
+// Close any existing menu
+var existing=document.getElementById('pad-note-menu');if(existing)existing.remove();
+var hasCustom=!!customPads[note];
+var isCustom=hasCustom&&padPref[note]==='custom';
+var menu=document.createElement('div');
+menu.id='pad-note-menu';
+menu.style.cssText='position:fixed;background:var(--surface);border:1px solid var(--card-border);border-radius:10px;padding:6px;z-index:1000;box-shadow:0 8px 24px rgba(0,0,0,.5);min-width:170px';
+var h='<div style="padding:6px 10px;font-family:var(--fd);font-size:13px;color:'+(isCustom?'var(--gold)':'var(--accent2)')+';letter-spacing:1px;border-bottom:1px solid var(--card-border);margin-bottom:4px">'+note+' — '+TOM_NAMES[note]+'</div>';
+h+='<button onclick="uploadCustomPad(\''+note+'\');closePadNoteMenu()" style="display:block;width:100%;text-align:left;padding:8px 10px;background:none;border:none;color:var(--text);font-family:var(--fb);font-size:12px;cursor:pointer;border-radius:6px">📁 '+(hasCustom?'Trocar áudio':'Subir áudio')+'</button>';
+if(hasCustom){
+h+='<div style="padding:4px 10px;font-size:10px;color:var(--text-dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:220px" title="'+esc(customPads[note].name)+'">📄 '+esc(customPads[note].name)+'</div>';
+h+='<button onclick="togglePadPref(\''+note+'\');closePadNoteMenu()" style="display:block;width:100%;text-align:left;padding:8px 10px;background:none;border:none;color:var(--text);font-family:var(--fb);font-size:12px;cursor:pointer;border-radius:6px">'+(isCustom?'🔄 Usar padrão':'🔄 Usar custom')+'</button>';
+h+='<button onclick="removeCustomPad(\''+note+'\');closePadNoteMenu()" style="display:block;width:100%;text-align:left;padding:8px 10px;background:none;border:none;color:#e35454;font-family:var(--fb);font-size:12px;cursor:pointer;border-radius:6px">✕ Apagar custom</button>';
+}
+menu.innerHTML=h;
+document.body.appendChild(menu);
+// Position near anchor (gear icon)
+var r=anchor.getBoundingClientRect();
+var mr=menu.getBoundingClientRect();
+var left=Math.min(r.left,window.innerWidth-mr.width-10);
+var top=r.bottom+4;
+if(top+mr.height>window.innerHeight)top=r.top-mr.height-4;
+menu.style.left=Math.max(8,left)+'px';
+menu.style.top=Math.max(8,top)+'px';
+// Click outside closes
+setTimeout(function(){
+document.addEventListener('click',_padMenuOutside,{once:true});
+},0);
+}
+function _padMenuOutside(e){
+var m=document.getElementById('pad-note-menu');
+if(m&&!m.contains(e.target))closePadNoteMenu();
+}
+function closePadNoteMenu(){var m=document.getElementById('pad-note-menu');if(m)m.remove();}
+
 function openPadConfig(){
 var existing=document.getElementById('pad-config-overlay');if(existing)existing.remove();
 var overlay=document.createElement('div');
@@ -3940,9 +3976,9 @@ var slots=PAD_MAP[t]||[];
 for(var s=1;s<=4;s++){var inMap=slots.indexOf(s)!==-1;var pp=padPlaying[pid(t,s)];ds.push({f:inMap,p:!!pp&&!pp.loading&&!pp.fading});}
 var c='tom-sq';if(pl&&!fd)c+=' playing';if(fd)c+=' fading';if(ha&&!pl&&!ld)c+=' has-audio';
 var isCustomActive=padPref[t]==='custom'&&customPads[t];
-h+='<div class="'+c+'" onclick="tapTom(\''+t+'\')" style="'+(isCustomActive?'box-shadow:inset 0 0 0 2px var(--gold)':'')+'">';
+h+='<div class="'+c+'" onclick="tapTom(\''+t+'\')" style="position:relative;'+(isCustomActive?'box-shadow:inset 0 0 0 2px var(--gold)':'')+'">';
+h+='<button onclick="event.stopPropagation();openPadNoteMenu(\''+t+'\',this)" title="Trocar pad" style="position:absolute;top:3px;right:3px;width:22px;height:22px;border-radius:5px;background:rgba(0,0,0,.4);border:1px solid rgba(255,255,255,.15);color:'+(isCustomActive?'var(--gold)':'var(--text-dim)')+';font-size:12px;cursor:pointer;padding:0;line-height:1;z-index:2;display:flex;align-items:center;justify-content:center">'+(isCustomActive?'★':'⚙')+'</button>';
 h+='<span class="tq-note">'+t+'</span><span class="tq-name">'+TOM_NAMES[t]+'</span>';
-if(isCustomActive)h+='<span style="position:absolute;top:3px;right:5px;font-size:9px;color:var(--gold);opacity:.7" title="Pad personalizado">★</span>';
 if(ha){h+='<div class="tq-dots">';ds.forEach(function(d){h+='<span class="tq-dot'+(d.p?' playing':d.f?' filled':'')+'"></span>';});h+='</div>';}
 h+='<span class="tq-status">'+(ld?'carregando...':(fd?'saindo...':(pl?'∞ loop':(ha?'pronto':''))))+'</span></div>';
 });
